@@ -11,12 +11,12 @@ import {
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/utils/tokenUtils';
 
 export const signup = async (req: Request, res: Response): Promise<void> => {
-  const { name, email, phoneNumber, password, role } = req.body;
+  const { name, email, phone, password, role } = req.body;
 
   try {
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { phoneNumber }],
+        OR: [{ email }, { phone }],
       },
     });
 
@@ -33,13 +33,13 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       data: {
         name,
         email,
-        phoneNumber,
+        phone,
         password: hashedPassword,
         otp: hashedOtp,
         otpExpiresAt,
         otpVerified: false,
         isActive: false,
-        role: role || 'EMPLOYEE',
+        role: role || 'customer',
       },
     });
 
@@ -107,7 +107,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findFirst({
       where: {
-        OR: [{ email: identifier }, { phoneNumber: identifier }],
+        OR: [{ email: identifier }, { phone: identifier }],
       },
     });
 
@@ -147,7 +147,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
-        phoneNumber: user.phoneNumber,
+        phone: user.phone,
         role: user.role,
       },
     });

@@ -3,9 +3,9 @@ import { z, type AnyZodObject } from 'zod';
 export const signupSchema: AnyZodObject = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  phoneNumber: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number'),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid phone number').optional(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['ADMIN', 'EMPLOYEE']).default('EMPLOYEE'),
+  role: z.string().default('customer'),
 });
 
 export const confirmRegistrationSchema: AnyZodObject = z.object({

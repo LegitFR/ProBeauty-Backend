@@ -4,14 +4,14 @@ import { envConfig } from '@/configs/env';
 
 const { ACCESS_SECRET_KEY, REFRESH_SECRET_KEY } = envConfig;
 export interface AccessTokenPayload {
-  userId: number;
+  userId: string;
   role: string;
   iat?: number;
   exp?: number;
 }
 
 export interface RefreshTokenPayload {
-  userId: number;
+  userId: string;
   iat?: number;
   exp?: number;
 }

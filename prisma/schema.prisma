@@ -1,3 +1,6 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,38 +10,266 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
-enum Role {
-  ADMIN
-  EMPLOYEE
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  phone        String?
+  role         String
+  password     String?
+  otp          String?
+  otpExpiresAt DateTime? @map("otp_expires_at")
+  otpVerified  Boolean   @default(false) @map("otp_verified")
+  isActive     Boolean   @default(false) @map("is_active")
+  refreshToken String?   @map("refresh_token")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  ownedSalons   Salon[]
+  staffProfiles Staff[]
+  bookings      Booking[]
+  orders        Order[]
+  reviews       Review[]
+  cart          Cart?
+  notifications Notification[]
+
+  @@map("users")
 }
 
-// User model for admin and employee users
-model User {
-  id                          Int       @id @default(autoincrement())
-  name                        String
-  email                       String    @unique 
-  phoneNumber                 String    @unique
-  password                    String
-  otp                         String?
-  otpExpiresAt                DateTime?
-  otpVerified                 Boolean   @default(false)
-  isActive                    Boolean   @default(true)
-  refreshToken                String?
-  refreshTokenExpiresAt       DateTime?
-  lastLogin                   DateTime?
+model Salon {
+  id        String   @id @default(cuid())
+  ownerId   String   @map("owner_id")
+  name      String
+  address   String
+  geo       Json?
+  hours     Json?
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  profilePicture              String?
-  address                     String?
-  city                        String?
-  pinCode                     String?
-  state                       String?
-  role                        Role      @default(EMPLOYEE)  
+  // Relations
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  staff      Staff[]
+  services   Service[]
+  products   Product[]
+  bookings   Booking[]
+  orders     Order[]
+  reviews    Review[]
+  promotions Promotion[]
 
-  employees                   User[]    @relation("AdminEmployees") 
-  admin                       User?     @relation("AdminEmployees", fields: [adminId], references: [id])
-  adminId                     Int?      
+  @@index([ownerId])
+  @@map("salons")
+}
 
-  createdAt                   DateTime  @default(now())
-  updatedAt                   DateTime  @updatedAt
+model Staff {
+  id           String @id @default(cuid())
+  salonId      String @map("salon_id")
+  userId       String @map("user_id")
+  role         String
+  availability Json?
+
+  // Relations
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([salonId])
+  @@index([userId])
+  @@map("staff")
+}
+
+model Service {
+  id              String  @id @default(cuid())
+  salonId         String  @map("salon_id")
+  title           String
+  durationMinutes Int     @map("duration_minutes")
+  price           Decimal @db.Decimal(10, 2)
+
+  // Relations
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  reviews  Review[]
+
+  @@index([salonId])
+  @@map("services")
+}
+
+model Product {
+  id       String  @id @default(cuid())
+  salonId  String  @map("salon_id")
+  title    String
+  sku      String  @unique
+  price    Decimal @db.Decimal(10, 2)
+  quantity Int
+  images   Json?
+
+  // Relations
+  salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  reviews    Review[]
+  cartItems  CartItem[]
+
+  @@index([salonId])
+  @@map("products")
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  salonId   String   @map("salon_id")
+  serviceId String   @map("service_id")
+  staffId   String   @map("staff_id")
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+  status    String
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon   Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([salonId])
+  @@index([serviceId])
+  @@index([staffId])
+  @@index([startTime])
+  @@map("bookings")
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  salonId   String   @map("salon_id")
+  total     Decimal  @db.Decimal(10, 2)
+  status    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  payments   Payment[]
+
+  @@index([userId])
+  @@index([salonId])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String  @map("order_id")
+  productId String  @map("product_id")
+  quantity  Int
+  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id")
+  provider  String
+  amount    Decimal  @db.Decimal(10, 2)
+  status    String
+  txnId     String   @map("txn_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([txnId])
+  @@map("payments")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  salonId   String   @map("salon_id")
+  serviceId String?  @map("service_id")
+  productId String?  @map("product_id")
+  rating    Int
+  comment   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon   Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([salonId])
+  @@index([serviceId])
+  @@index([productId])
+  @@map("reviews")
+}
+
+model Promotion {
+  id              String   @id @default(cuid())
+  salonId         String   @map("salon_id")
+  title           String
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  validFrom       DateTime @map("valid_from")
+  validUntil      DateTime @map("valid_until")
+  isActive        Boolean  @default(true) @map("is_active")
+
+  // Relations
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId])
+  @@index([validFrom, validUntil])
+  @@map("promotions")
+}
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cartItems CartItem[]
+
+  @@map("cart")
+}
+
+model CartItem {
+  id        String @id @default(cuid())
+  cartId    String @map("cart_id")
+  productId String @map("product_id")
+  quantity  Int
+
+  // Relations
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cartId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  title     String
+  message   String   @db.Text
+  type      String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
 }

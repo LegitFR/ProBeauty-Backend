@@ -7,7 +7,7 @@ import { envConfig } from '@/configs/env';
 declare module 'express' {
   interface Request {
     user?: {
-      id: number;
+      id: string;
       role: string;
     };
   }
@@ -29,7 +29,7 @@ export const authenticate = async (
   }
 
   try {
-    const decoded = jwt.verify(token, ACCESS_SECRET_KEY) as { userId: number; role: string };
+    const decoded = jwt.verify(token, ACCESS_SECRET_KEY) as { userId: string; role: string };
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId, isActive: true },
       select: { id: true, role: true },
