@@ -48,14 +48,13 @@ model Salon {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  staff      Staff[]
-  services   Service[]
-  products   Product[]
-  bookings   Booking[]
-  orders     Order[]
-  reviews    Review[]
-  promotions Promotion[]
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  staff    Staff[]
+  services Service[]
+  products Product[]
+  bookings Booking[]
+  orders   Order[]
+  reviews  Review[]
 
   @@index([ownerId])
   @@map("salons")
@@ -64,17 +63,16 @@ model Salon {
 model Staff {
   id           String @id @default(cuid())
   salonId      String @map("salon_id")
-  userId       String @map("user_id")
   role         String
   availability Json?
 
   // Relations
   salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   bookings Booking[]
+  user     User?     @relation(fields: [userId], references: [id])
+  userId   String?   @map("user_id")
 
   @@index([salonId])
-  @@index([userId])
   @@map("staff")
 }
 
@@ -211,23 +209,6 @@ model Review {
   @@index([serviceId])
   @@index([productId])
   @@map("reviews")
-}
-
-model Promotion {
-  id              String   @id @default(cuid())
-  salonId         String   @map("salon_id")
-  title           String
-  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
-  validFrom       DateTime @map("valid_from")
-  validUntil      DateTime @map("valid_until")
-  isActive        Boolean  @default(true) @map("is_active")
-
-  // Relations
-  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
-
-  @@index([salonId])
-  @@index([validFrom, validUntil])
-  @@map("promotions")
 }
 
 model Cart {
