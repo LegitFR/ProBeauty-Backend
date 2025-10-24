@@ -22,6 +22,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 
     if (existingUser) {
       res.status(409).json({ message: 'User already exists with provided email or phone' });
+      return;
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -46,7 +47,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     await sendRegistrationOtpEmail(email, name, otp);
 
     res.status(201).json({
-      message: 'User registered. OTP sent to email.',
+      message: `User registered. OTP sent to email. ${otp}`,
       userId: user.id,
     });
     return;

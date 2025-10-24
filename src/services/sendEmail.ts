@@ -3,27 +3,25 @@ import nodemailer from 'nodemailer';
 import { envConfig } from '@/configs/env';
 
 const sendEmail = async (email: string, subject: string, htmlContent: string): Promise<void> => {
-  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USERNAME, EMAIL_PASSWORD } = envConfig;
+  const { EMAIL_USERNAME, EMAIL_PASSWORD } = envConfig;
 
   try {
     const transporter = nodemailer.createTransport({
-      host: EMAIL_HOST,
-      port: EMAIL_PORT,
-      secure: true,
+      service: 'gmail',
       auth: {
         user: EMAIL_USERNAME,
         pass: EMAIL_PASSWORD,
       },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      debug: true,
-      connectionTimeout: 30000,
-      socketTimeout: 30000,
+      // tls: {
+      //   rejectUnauthorized: false,
+      // },
+      // debug: true,
+      // connectionTimeout: 30000,
+      // socketTimeout: 30000,
     });
 
     const mailOptions = {
-      from: `"Rahil Vahora" <rahilisvahora@gmail.com>`,
+      from: `"ProBeauty" <${email}>`,
       to: email,
       subject: subject,
       html: htmlContent,
