@@ -37,9 +37,16 @@ export const applyMiddleware = (app: Express): void => {
 
   app.use(rateLimiter);
 
-  app.use(
-    morgan('combined', {
-      skip: (req, res) => res.statusCode < 400 && process.env.NODE_ENV === 'production',
-    })
-  );
+  // Custom Morgan format: METHOD /path STATUS STATUS_TEXT - RESPONSE_TIME ms
+  morgan.token('status-text', (_req, res) => {
+    const status = res.statusCode;
+    if (status >= 200 && status < 300) return 'OK';
+    if (status >= 300 && status < 400) return 'REDIRECT';
+    if (status >= 400 && status < 500) return 'CLIENT_ERROR';
+    if (status >= 500) return 'SERVER_ERROR';
+    return 'UNKNOWN';
+  });
+
+  // Morgan logger - logs all requests
+  app.use(morgan(':method :url :status :status-text - :response-time ms'));
 };

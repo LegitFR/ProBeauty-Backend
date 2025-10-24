@@ -15,7 +15,27 @@ const initializeApp = async () => {
   try {
     await connectToDatabase();
 
+    // Apply all middleware first (including morgan logger)
     applyMiddleware(app);
+
+    // Define routes AFTER middleware
+    app.get('/', (_req: Request, res: Response) => {
+      res.send('Phew-Phew,  API is running! 🚀');
+    });
+
+    app.get('/api/v1/health', (_req: Request, res: Response) => {
+      res.status(200).json({
+        success: true,
+        message: 'API is healthy! 🏥',
+        uptime: process.uptime(),
+      });
+    });
+
+    app.use('/api/v1/auth', auth);
+
+    // Error handlers must be last
+    app.use(notFound);
+    app.use(errorHandler);
 
     const PORT = envConfig.PORT || 5000;
     app.listen(PORT, () => {
@@ -29,22 +49,5 @@ const initializeApp = async () => {
 };
 
 initializeApp();
-
-app.get('/', (_req: Request, res: Response) => {
-  res.send('Phew-Phew,  API is running! 🚀');
-});
-
-app.get('/api/v1/health', (_req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: 'API is healthy! 🏥',
-    uptime: process.uptime(),
-  });
-});
-
-app.use('/api/v1/auth', auth);
-
-app.use(notFound);
-app.use(errorHandler);
 
 export default app;
