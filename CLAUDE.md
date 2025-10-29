@@ -172,3 +172,4 @@ These contain:
 > Claude must assume the backend server is available and running — do not create code that starts new servers.
 
 ---
+- never use 'any' type for type declarations. create type interfaces.

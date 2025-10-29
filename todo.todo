@@ -1,0 +1,138 @@
+## 🧴 ProBeauty Backend Development Todo
+
+### Phase 1: Core Authentication & Infrastructure [PRIORITY: HIGH]
+- [x] Setup User authentication API (login/signup with OTP)
+- [x] Implement JWT token generation (Access + Refresh tokens)
+- [ ] Add social login integration (Google/Apple OAuth)
+- [x] Create role-based access control (Customer, Staff, Owner, SuperAdmin)
+- [x] Setup email OTP verification service
+- [x] Add password reset flow with OTP validation
+
+### Phase 2: Salon Management [PRIORITY: HIGH]
+- [x] Create Salon Profile API (CRUD operations)
+- [x] Implement salon details management (name, location, images, hours)
+- [ ] Add service catalog management API
+- [ ] Create service categories (haircut, manicure, facial, etc.)
+- [ ] Add pricing and duration setup for services
+- [ ] Implement salon search and filtering API
+
+### Phase 3: Stylist & Staff Management [PRIORITY: HIGH]
+- [ ] Create stylist/staff management API
+- [ ] Implement working hours and availability setup
+- [ ] Add stylist assignment to services
+- [ ] Create stylist performance tracking schema
+- [ ] Implement staff dashboard API
+
+### Phase 4: Booking & Appointment System [PRIORITY: CRITICAL]
+- [ ] Create booking engine with real-time slot availability
+- [ ] Implement appointment confirmation API
+- [ ] Add time slot generation logic (considering stylist availability)
+- [ ] Create appointment rescheduling API
+- [ ] Implement appointment cancellation API
+- [ ] Add appointment history API for customers
+- [ ] Create conflict detection for double bookings
+
+### Phase 5: Customer Features [PRIORITY: HIGH]
+- [ ] Build customer dashboard API
+- [ ] Implement upcoming appointments view
+- [ ] Add appointment history with details
+- [ ] Create service recommendation API
+- [ ] Implement customer profile management
+
+### Phase 6: Salon Owner Dashboard [PRIORITY: HIGH]
+- [ ] Create salon dashboard API
+- [ ] Implement real-time booking overview
+- [ ] Add revenue tracking API
+- [ ] Create appointment management API (view, modify, cancel)
+- [ ] Implement customer management API
+- [ ] Add performance analytics API
+
+### Phase 7: Promotions & Loyalty [PRIORITY: MEDIUM]
+- [ ] Create discount coupon system API
+- [ ] Implement promotional offer management
+- [ ] Add loyalty points system schema and API
+- [ ] Create membership/package-based program API
+- [ ] Implement coupon validation and application logic
+
+### Phase 8: Payments & Billing [PRIORITY: HIGH]
+- [ ] Integrate Stripe payment gateway
+- [ ] Add Razorpay as backup payment gateway
+- [ ] Implement payment processing API
+- [ ] Create invoice generation service
+- [ ] Add payment history tracking
+- [ ] Implement refund handling logic
+- [ ] Support multiple payment methods (card, wallet, UPI)
+
+### Phase 9: Notifications [PRIORITY: MEDIUM]
+- [ ] Setup email notification service
+- [ ] Implement SMS notifications (Twilio integration)
+- [ ] Add in-app notification system
+- [ ] Create appointment reminder scheduler
+- [ ] Implement promotional offer notifications
+- [ ] Add cancellation and rescheduling alerts
+
+### Phase 10: Reviews & Ratings [PRIORITY: MEDIUM]
+- [ ] Create review submission API
+- [ ] Implement rating system for services and stylists
+- [ ] Add review moderation schema
+- [ ] Create review listing API with filtering
+- [ ] Implement average rating calculation
+
+### Phase 11: Admin Panel (Super Admin) [PRIORITY: HIGH]
+- [ ] Create super admin authentication
+- [ ] Build salon verification and approval API
+- [ ] Implement dispute resolution system
+- [ ] Add platform-wide analytics API
+- [ ] Create user and salon management APIs
+- [ ] Implement audit logging for admin actions
+
+### Phase 12: Reports & Analytics [PRIORITY: MEDIUM]
+- [ ] Create revenue reports API
+- [ ] Implement service usage analytics
+- [ ] Add customer behavior insights API
+- [ ] Create performance reports by stylist
+- [ ] Implement date-range filtering for reports
+- [ ] Add export functionality (PDF/CSV)
+
+### Phase 13: Inventory Management [PRIORITY: LOW]
+- [ ] Create inventory tracking schema
+- [ ] Implement stock level management API
+- [ ] Add purchase order system
+- [ ] Implement supplier management
+- [ ] Create stock alert notifications
+
+### Phase 14: Localization [PRIORITY: MEDIUM]
+- [ ] Setup multi-language support infrastructure
+- [ ] Implement currency conversion (EUR as base)
+- [ ] Add region-based service variations
+- [ ] Create localization middleware
+
+### Phase 15: Testing & Quality Assurance [PRIORITY: MEDIUM]
+- [ ] Write unit tests for core services
+- [ ] Create integration tests for APIs
+- [ ] Test authentication flows end-to-end
+- [ ] Perform load testing on booking system
+- [ ] Security audit and penetration testing
+- [ ] Database performance optimization
+
+### Phase 16: Deployment & Documentation [PRIORITY: HIGH]
+- [ ] Setup CI/CD pipeline (GitHub Actions)
+- [ ] Configure AWS/cloud deployment
+- [ ] Create API documentation (Swagger/OpenAPI)
+- [ ] Write deployment guide
+- [ ] Setup monitoring and error tracking (Sentry)
+- [ ] Create database backup strategy
+
+### Future Enhancements [PRIORITY: LOW]
+- [ ] AI Haircut Filter feature (virtual try-on)
+- [ ] AI Chat Assistant for booking
+- [ ] Automated Invoice & Tax Module
+- [ ] Mobile App (iOS & Android)
+- [ ] Salon Academy module for staff training
+
+### Known Dependencies
+- PostgreSQL database ready
+- Prisma ORM configured
+- Express/Node.js environment setup
+- JWT authentication middleware in place
+- Email service (NodeMailer) configured
