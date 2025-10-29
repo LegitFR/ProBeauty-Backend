@@ -13,6 +13,9 @@ const envSchema = z.object({
   EMAIL_PASSWORD: z.string().min(6, 'EMAIL_PASSWORD must be at least 6 characters long'),
   EMAIL_HOST: z.string().min(4, 'EMAIL_HOST must be at least 4 characters long'),
   EMAIL_PORT: z.coerce.number(),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME is required'),
+  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY is required'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -6,6 +6,7 @@ import { errorHandler } from '@/middlewares/errorHandler';
 import { applyMiddleware } from '@/middlewares/index';
 import { notFound } from '@/middlewares/notFound';
 import auth from '@/routes/authRoute';
+import product from '@/routes/productRoute';
 import salon from '@/routes/salonRoute';
 
 const app: Express = express();
@@ -34,6 +35,7 @@ const initializeApp = async () => {
 
     app.use('/api/v1/auth', auth);
     app.use('/api/v1/salons', salon);
+    app.use('/api/v1/products', product);
 
     // Error handlers must be last
     app.use(notFound);
