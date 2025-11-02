@@ -11,13 +11,13 @@
 ### Phase 2: Salon Management [PRIORITY: HIGH]
 - [x] Create Salon Profile API (CRUD operations)
 - [x] Implement salon details management (name, location, images, hours)
-- [ ] Add service catalog management API
-- [ ] Create service categories (haircut, manicure, facial, etc.)
-- [ ] Add pricing and duration setup for services
+- [x] Add service catalog management API
+- [x] Create service categories (haircut, manicure, facial, etc.)
+- [x] Add pricing and duration setup for services
 - [ ] Implement salon search and filtering API
 
 ### Phase 3: Stylist & Staff Management [PRIORITY: HIGH]
-- [ ] Create stylist/staff management API
+- [x] Create stylist/staff management API
 - [ ] Implement working hours and availability setup
 - [ ] Add stylist assignment to services
 - [ ] Create stylist performance tracking schema

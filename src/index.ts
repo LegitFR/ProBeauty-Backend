@@ -9,6 +9,7 @@ import auth from '@/routes/authRoute';
 import product from '@/routes/productRoute';
 import salon from '@/routes/salonRoute';
 import service from '@/routes/serviceRoute';
+import staff from '@/routes/staffRoute';
 
 const app: Express = express();
 
@@ -38,6 +39,7 @@ const initializeApp = async () => {
     app.use('/api/v1/salons', salon);
     app.use('/api/v1/products', product);
     app.use('/api/v1/services', service);
+    app.use('/api/v1/staff', staff);
 
     // Error handlers must be last
     app.use(notFound);
