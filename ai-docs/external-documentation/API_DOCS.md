@@ -190,6 +190,118 @@ app.use('/api/v1/products', productRoute);
 - [ ] Security/auth/rate limiting considered and applied as needed
 - [ ] Responses consistent and status codes correct
 - [ ] Linting passes
+- [ ] API documentation created in `ai-docs/internal-documentation/<feature>/` with route descriptions, example requests, responses, and cURL samples
+
+---
+
+## API Documentation Standard
+
+After implementing endpoints, create comprehensive documentation in `ai-docs/internal-documentation/<feature>/` to help teammates and future developers understand and use the API.
+
+### Documentation Structure
+
+Create a markdown file for each feature with the following format:
+
+```
+ai-docs/internal-documentation/<feature>/
+└── API.md
+```
+
+### Documentation Content Format
+
+For each endpoint, include:
+
+1. **Route Overview** — brief description of what the endpoint does
+2. **Endpoint Details**
+   - HTTP method and path
+   - Authentication requirements
+   - Request parameters (body, query, params)
+3. **Example Request** — JSON request body with realistic data
+4. **Example Response** — complete JSON response (success case)
+5. **cURL Command** — ready-to-use cURL command for testing
+
+### Example Documentation Template
+
+```markdown
+# <Feature> API
+
+## Create <Resource>
+
+**Description:** Brief explanation of what this endpoint does.
+
+**Endpoint:** `POST /api/v1/<features>`
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
+\`\`\`json
+{
+  "field1": "value",
+  "field2": 123
+}
+\`\`\`
+
+**Success Response (201 Created):**
+\`\`\`json
+{
+  "message": "Resource created successfully",
+  "data": {
+    "id": "abc123",
+    "field1": "value",
+    "field2": 123
+  }
+}
+\`\`\`
+
+**cURL Command:**
+\`\`\`bash
+curl -X POST http://localhost:5000/api/v1/<features> \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "field1": "value",
+    "field2": 123
+  }'
+\`\`\`
+
+---
+
+## Get <Resource>
+
+**Description:** Brief explanation.
+
+**Endpoint:** `GET /api/v1/<features>/:id`
+
+**Authentication:** Optional
+
+**URL Parameters:**
+- `id` (string, required) — Resource ID
+
+**Success Response (200 OK):**
+\`\`\`json
+{
+  "message": "Resource retrieved successfully",
+  "data": {
+    "id": "abc123",
+    "field1": "value"
+  }
+}
+\`\`\`
+
+**cURL Command:**
+\`\`\`bash
+curl -X GET http://localhost:5000/api/v1/<features>/abc123 \
+  -H "Content-Type: application/json"
+\`\`\`
+```
+
+### Key Points
+
+- Include success and error response examples when different status codes are possible (e.g., 400, 401, 403, 404)
+- Always show the cURL command with proper headers and formatting
+- Use realistic, meaningful example data
+- Document validation requirements and constraints
+- Keep descriptions concise and focused
 
 ---
 
