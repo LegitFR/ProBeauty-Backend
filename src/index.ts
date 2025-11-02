@@ -5,7 +5,10 @@ import { envConfig } from '@/configs/env';
 import { errorHandler } from '@/middlewares/errorHandler';
 import { applyMiddleware } from '@/middlewares/index';
 import { notFound } from '@/middlewares/notFound';
+import address from '@/routes/addressRoute';
 import auth from '@/routes/authRoute';
+import cart from '@/routes/cartRoute';
+import order from '@/routes/orderRoute';
 import product from '@/routes/productRoute';
 import salon from '@/routes/salonRoute';
 import service from '@/routes/serviceRoute';
@@ -40,6 +43,9 @@ const initializeApp = async () => {
     app.use('/api/v1/products', product);
     app.use('/api/v1/services', service);
     app.use('/api/v1/staff', staff);
+    app.use('/api/v1/addresses', address);
+    app.use('/api/v1/cart', cart);
+    app.use('/api/v1/orders', order);
 
     // Error handlers must be last
     app.use(notFound);
