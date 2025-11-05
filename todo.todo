@@ -24,9 +24,9 @@
 - [ ] Implement staff dashboard API
 
 ### Phase 4: Booking & Appointment System [PRIORITY: CRITICAL]
-- [ ] Create booking engine with real-time slot availability
-- [ ] Implement appointment confirmation API
-- [ ] Add time slot generation logic (considering stylist availability)
+- [x] Create booking engine with real-time slot availability
+- [x] Implement appointment confirmation API
+- [x] Add time slot generation logic (considering stylist availability)
 - [ ] Create appointment rescheduling API
 - [ ] Implement appointment cancellation API
 - [ ] Add appointment history API for customers

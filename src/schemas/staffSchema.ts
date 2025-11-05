@@ -1,15 +1,42 @@
 import { z, type AnyZodObject } from 'zod';
 
+// Time slot schema for staff availability
+const timeSlotSchema = z.object({
+  start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:mm format'),
+  end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Time must be in HH:mm format'),
+});
+
+// Day availability schema
+const dayAvailabilitySchema = z.object({
+  isAvailable: z.boolean(),
+  slots: z.array(timeSlotSchema).optional(),
+});
+
+// Complete availability schema for a week
+export const staffAvailabilitySchema = z.object({
+  monday: dayAvailabilitySchema,
+  tuesday: dayAvailabilitySchema,
+  wednesday: dayAvailabilitySchema,
+  thursday: dayAvailabilitySchema,
+  friday: dayAvailabilitySchema,
+  saturday: dayAvailabilitySchema,
+  sunday: dayAvailabilitySchema,
+});
+
+export type StaffAvailability = z.infer<typeof staffAvailabilitySchema>;
+export type TimeSlot = z.infer<typeof timeSlotSchema>;
+export type DayAvailability = z.infer<typeof dayAvailabilitySchema>;
+
 export const createStaffSchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID format'),
   role: z.string().min(2, 'Staff role must be at least 2 characters'),
-  availability: z.record(z.any()).optional(),
+  availability: staffAvailabilitySchema.optional(),
   userId: z.string().cuid('Invalid user ID format').optional(),
 });
 
 export const updateStaffSchema: AnyZodObject = z.object({
   role: z.string().min(2, 'Staff role must be at least 2 characters').optional(),
-  availability: z.record(z.any()).optional(),
+  availability: staffAvailabilitySchema.optional(),
   userId: z.string().cuid('Invalid user ID format').optional(),
 });
 

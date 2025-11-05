@@ -7,6 +7,7 @@ import { applyMiddleware } from '@/middlewares/index';
 import { notFound } from '@/middlewares/notFound';
 import address from '@/routes/addressRoute';
 import auth from '@/routes/authRoute';
+import booking from '@/routes/bookingRoute';
 import cart from '@/routes/cartRoute';
 import order from '@/routes/orderRoute';
 import product from '@/routes/productRoute';
@@ -46,6 +47,7 @@ const initializeApp = async () => {
     app.use('/api/v1/addresses', address);
     app.use('/api/v1/cart', cart);
     app.use('/api/v1/orders', order);
+    app.use('/api/v1/bookings', booking);
 
     // Error handlers must be last
     app.use(notFound);
