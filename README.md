@@ -73,7 +73,16 @@ npm run dev:tsx  # Fast dev mode using TSX
 ├── 📁 prisma            # Prisma schema & seed file
 │   ├── schema.prisma
 │   └── seed.ts
+
+📁 ai-docs/internal-documentation
+├── 📄 {route}/API.md    # API documentation for each route
+├── 📄 salon/SALON_API.md
+├── 📄 user/USER_API.md
+├── 📄 booking/BOOKING_API.md
+└── ... (other route documentation)
 ```
+
+> 📚 **API Documentation:** Each route has detailed API documentation in `/ai-docs/internal-documentation/{route}/` folder. For example, salon routes documentation is maintained in `/ai-docs/internal-documentation/salon/SALON_API.md`. Refer to these files for endpoint details, request/response schemas, and integration patterns.
 
 ---
 
