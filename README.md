@@ -27,10 +27,10 @@ A **production-ready** and **developer-friendly** startup template for building 
 
 ```bash
 # 1️⃣ Clone the repository
-git clone https://github.com/rahil1202/backend-express-prisma-typescript-template.git
+git clone https://github.com/LegitFR/ProBeauty-Backend.git
 
 # 2️⃣ Install dependencies
-cd backend-express-prisma-typescript-template
+cd ProBeauty-Backend
 npm install
 
 # 3️⃣ Setup environment variables
