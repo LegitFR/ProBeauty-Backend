@@ -24,6 +24,8 @@ export const createSalonSchema: AnyZodObject = z.object({
       sunday: z.object({ open: z.string(), close: z.string() }).optional(),
     })
     .optional(),
+  thumbnail: z.string().url('Thumbnail must be a valid URL').optional(),
+  images: z.array(z.string().url('Each image must be a valid URL')).optional(),
 });
 
 export const updateSalonSchema: AnyZodObject = z.object({
@@ -50,6 +52,8 @@ export const updateSalonSchema: AnyZodObject = z.object({
       sunday: z.object({ open: z.string(), close: z.string() }).optional(),
     })
     .optional(),
+  thumbnail: z.string().url('Thumbnail must be a valid URL').optional(),
+  images: z.array(z.string().url('Each image must be a valid URL')).optional(),
 });
 
 export const getSalonParamsSchema: AnyZodObject = z.object({

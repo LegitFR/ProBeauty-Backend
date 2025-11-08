@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import * as salonService from '@/services/salonService';
 
 export async function createSalon(req: Request, res: Response): Promise<void> {
-  const { name, address, phone, geo, hours } = req.body;
+  const { name, address, phone, geo, hours, thumbnail, images } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -18,6 +18,8 @@ export async function createSalon(req: Request, res: Response): Promise<void> {
       phone,
       geo,
       hours,
+      thumbnail,
+      images,
     });
 
     res.status(201).json({
@@ -48,6 +50,7 @@ export async function getSalon(req: Request, res: Response): Promise<void> {
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
     };
 
     res.status(200).json({
@@ -85,6 +88,7 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
     }));
 
     res.status(200).json({
@@ -102,7 +106,7 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
 
 export async function updateSalon(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, phone, geo, hours } = req.body;
+  const { name, address, phone, geo, hours, thumbnail, images } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -117,6 +121,8 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
       phone,
       geo,
       hours,
+      thumbnail,
+      images,
     });
 
     if (!salon) {
@@ -129,6 +135,7 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
     };
 
     res.status(200).json({
@@ -188,6 +195,7 @@ export async function getAllSalons(req: Request, res: Response): Promise<void> {
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
     }));
 
     res.status(200).json({
