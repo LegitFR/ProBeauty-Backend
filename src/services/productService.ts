@@ -8,7 +8,7 @@ interface CreateProductData {
   sku: string;
   price: number;
   quantity: number;
-  images?: string[] | null;
+  images?: string[];
 }
 
 interface UpdateProductData {
@@ -16,7 +16,7 @@ interface UpdateProductData {
   sku?: string;
   price?: number;
   quantity?: number;
-  images?: string[] | null;
+  images?: string[];
 }
 
 interface GetProductsFilters {
@@ -52,7 +52,7 @@ export async function createProduct(ownerId: string, data: CreateProductData) {
       sku: data.sku,
       price: new Prisma.Decimal(data.price),
       quantity: data.quantity,
-      images: data.images ? (JSON.stringify(data.images) as Prisma.InputJsonValue) : undefined,
+      images: data.images || [],
     },
     include: {
       salon: {
@@ -222,10 +222,7 @@ export async function updateProduct(id: string, ownerId: string, data: UpdatePro
       sku: data.sku,
       price: data.price !== undefined ? new Prisma.Decimal(data.price) : undefined,
       quantity: data.quantity,
-      images:
-        data.images !== undefined
-          ? (JSON.stringify(data.images) as Prisma.InputJsonValue)
-          : undefined,
+      images: data.images !== undefined ? data.images : undefined,
     },
     include: {
       salon: {

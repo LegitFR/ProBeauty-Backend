@@ -43,7 +43,7 @@ export async function createSalon(ownerId: string, data: CreateSalonData) {
       geo: data.geo ? (JSON.stringify(data.geo) as Prisma.InputJsonValue) : undefined,
       hours: data.hours ? (JSON.stringify(data.hours) as Prisma.InputJsonValue) : undefined,
       thumbnail: data.thumbnail,
-      images: data.images ? (JSON.stringify(data.images) as Prisma.InputJsonValue) : undefined,
+      images: data.images,
       verified: false,
     },
   });
@@ -119,7 +119,7 @@ export async function updateSalon(id: string, ownerId: string, data: UpdateSalon
       geo: data.geo ? (JSON.stringify(data.geo) as Prisma.InputJsonValue) : undefined,
       hours: data.hours ? (JSON.stringify(data.hours) as Prisma.InputJsonValue) : undefined,
       thumbnail: data.thumbnail,
-      images: data.images ? (JSON.stringify(data.images) as Prisma.InputJsonValue) : undefined,
+      images: data.images,
     },
     include: {
       staff: true,
