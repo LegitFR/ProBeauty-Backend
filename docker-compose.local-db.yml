@@ -1,0 +1,89 @@
+version: '3.8'
+
+# This compose file is for running with a LOCAL PostgreSQL database in Docker
+# Use this if you DON'T have an external database
+# Usage: docker-compose -f docker-compose.local-db.yml up -d
+
+services:
+  # PostgreSQL Database (Local)
+  postgres:
+    image: postgres:16-alpine
+    container_name: probeauty-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-probeauty}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-probeauty_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-probeauty_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - probeauty-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-probeauty}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ProBeauty Backend Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: probeauty-backend-local
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-5000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-probeauty}:${POSTGRES_PASSWORD:-probeauty_dev_password}@postgres:5432/${POSTGRES_DB:-probeauty_db}?schema=public
+      ACCESS_SECRET_KEY: ${ACCESS_SECRET_KEY}
+      REFRESH_SECRET_KEY: ${REFRESH_SECRET_KEY}
+      EMAIL_USERNAME: ${EMAIL_USERNAME}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - probeauty-network
+    volumes:
+      # Mount source code for hot reload in development
+      - ./src:/app/src:ro
+      - ./prisma:/app/prisma:ro
+    command: sh -c "bunx prisma migrate deploy && bun run start"
+
+  # pgAdmin (Optional - for database management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: probeauty-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@probeauty.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - postgres
+    networks:
+      - probeauty-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+networks:
+  probeauty-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local

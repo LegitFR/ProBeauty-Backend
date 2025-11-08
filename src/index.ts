@@ -21,6 +21,8 @@ app.use(express.json({ limit: '1mb' }));
 
 const initializeApp = async () => {
   try {
+    console.log('🔄 Starting ProBeauty Backend...');
+    console.log('📍 Working Directory:', process.cwd());
     await connectToDatabase();
 
     // Apply all middleware first (including morgan logger)
@@ -54,9 +56,10 @@ const initializeApp = async () => {
     app.use(errorHandler);
 
     const PORT = envConfig.PORT || 5000;
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       // eslint-disable-next-line no-console
-      console.log(`🚀 Server is running on port ${PORT}`);
+      console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
     console.error('❌ Error initializing app:', error);
