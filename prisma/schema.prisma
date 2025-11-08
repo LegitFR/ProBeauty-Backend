@@ -45,6 +45,8 @@ model Salon {
   address   String
   geo       Json?
   hours     Json?
+  thumbnail String?
+  images    String[]
   verified  Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -94,13 +96,13 @@ model Service {
 }
 
 model Product {
-  id       String  @id @default(cuid())
-  salonId  String  @map("salon_id")
+  id       String   @id @default(cuid())
+  salonId  String   @map("salon_id")
   title    String
-  sku      String  @unique
-  price    Decimal @db.Decimal(10, 2)
+  sku      String   @unique
+  price    Decimal  @db.Decimal(10, 2)
   quantity Int
-  images   Json?
+  images   String[]
 
   // Relations
   salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)

@@ -27,12 +27,12 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       sku,
       price,
       quantity,
-      images: imageUrls.length > 0 ? imageUrls : null,
+      images: imageUrls.length > 0 ? imageUrls : [],
     });
 
     const productData = {
       ...product,
-      images: product.images ? JSON.parse(product.images as unknown as string) : null,
+      images: product.images || [],
     };
 
     res.status(201).json({
@@ -70,7 +70,7 @@ export async function getProduct(req: Request, res: Response): Promise<void> {
 
     const productData = {
       ...product,
-      images: product.images ? JSON.parse(product.images as unknown as string) : null,
+      images: product.images || [],
     };
 
     res.status(200).json({
@@ -102,7 +102,7 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
 
     const productsData = result.products.map((product) => ({
       ...product,
-      images: product.images ? JSON.parse(product.images as unknown as string) : null,
+      images: product.images || [],
     }));
 
     res.status(200).json({
@@ -135,7 +135,7 @@ export async function getProductsBySalon(req: Request, res: Response): Promise<v
 
     const productsData = result.products.map((product) => ({
       ...product,
-      images: product.images ? JSON.parse(product.images as unknown as string) : null,
+      images: product.images || [],
     }));
 
     res.status(200).json({
@@ -185,7 +185,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
 
     const productData = {
       ...product,
-      images: product.images ? JSON.parse(product.images as unknown as string) : null,
+      images: product.images || [],
     };
 
     res.status(200).json({

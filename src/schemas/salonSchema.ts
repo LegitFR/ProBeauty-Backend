@@ -24,6 +24,7 @@ export const createSalonSchema: AnyZodObject = z.object({
       sunday: z.object({ open: z.string(), close: z.string() }).optional(),
     })
     .optional(),
+  // Note: thumbnail and images are handled as file uploads via multer, not in body
 });
 
 export const updateSalonSchema: AnyZodObject = z.object({
@@ -50,6 +51,7 @@ export const updateSalonSchema: AnyZodObject = z.object({
       sunday: z.object({ open: z.string(), close: z.string() }).optional(),
     })
     .optional(),
+  // Note: thumbnail and images are handled as file uploads via multer, not in body
 });
 
 export const getSalonParamsSchema: AnyZodObject = z.object({

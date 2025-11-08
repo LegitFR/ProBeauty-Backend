@@ -11,6 +11,8 @@ interface CreateSalonData {
     longitude: number;
   };
   hours?: Record<string, { open: string; close: string }>;
+  thumbnail?: string;
+  images?: string[];
 }
 
 interface UpdateSalonData {
@@ -22,6 +24,8 @@ interface UpdateSalonData {
     longitude: number;
   };
   hours?: Record<string, { open: string; close: string }>;
+  thumbnail?: string;
+  images?: string[];
 }
 
 interface GetSalonsFilters {
@@ -38,6 +42,8 @@ export async function createSalon(ownerId: string, data: CreateSalonData) {
       address: data.address,
       geo: data.geo ? (JSON.stringify(data.geo) as Prisma.InputJsonValue) : undefined,
       hours: data.hours ? (JSON.stringify(data.hours) as Prisma.InputJsonValue) : undefined,
+      thumbnail: data.thumbnail,
+      images: data.images,
       verified: false,
     },
   });
@@ -112,6 +118,8 @@ export async function updateSalon(id: string, ownerId: string, data: UpdateSalon
       address: data.address,
       geo: data.geo ? (JSON.stringify(data.geo) as Prisma.InputJsonValue) : undefined,
       hours: data.hours ? (JSON.stringify(data.hours) as Prisma.InputJsonValue) : undefined,
+      thumbnail: data.thumbnail,
+      images: data.images,
     },
     include: {
       staff: true,
