@@ -9,6 +9,7 @@ import {
   getAllSalons,
 } from '@/controllers/salonController';
 import { authenticate } from '@/middlewares/auth/authenticate';
+import { uploadSalonImages, handleMulterError } from '@/middlewares/uploadMiddleware';
 import { validateRequest } from '@/middlewares/validateRequest';
 import {
   createSalonSchema,
@@ -23,7 +24,14 @@ const router = Router();
 router.get('/', validateRequest({ query: getSalonQuerySchema }), getAllSalons);
 
 // Protected route to register a new salon (requires authentication)
-router.post('/', authenticate, validateRequest({ body: createSalonSchema }), createSalon);
+router.post(
+  '/',
+  authenticate,
+  uploadSalonImages,
+  handleMulterError,
+  validateRequest({ body: createSalonSchema }),
+  createSalon
+);
 
 // Protected route to get all salons owned by the authenticated user
 router.get(
@@ -40,6 +48,8 @@ router.get('/:id', validateRequest({ params: getSalonParamsSchema }), getSalon);
 router.patch(
   '/:id',
   authenticate,
+  uploadSalonImages,
+  handleMulterError,
   validateRequest({ params: getSalonParamsSchema, body: updateSalonSchema }),
   updateSalon
 );

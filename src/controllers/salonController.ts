@@ -1,9 +1,14 @@
 import type { Request, Response } from 'express';
 
+import {
+  uploadToCloudinary,
+  uploadMultipleToCloudinary,
+} from '@/services/fileUploadService';
 import * as salonService from '@/services/salonService';
 
 export async function createSalon(req: Request, res: Response): Promise<void> {
-  const { name, address, phone, geo, hours, thumbnail, images } = req.body;
+  const { name, address, phone, geo, hours } = req.body;
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -12,19 +17,43 @@ export async function createSalon(req: Request, res: Response): Promise<void> {
   }
 
   try {
+    let thumbnailUrl: string | undefined;
+    let imageUrls: string[] = [];
+
+    // Handle thumbnail upload
+    if (files?.thumbnail && files.thumbnail.length > 0) {
+      const uploadResult = await uploadToCloudinary(files.thumbnail[0].buffer, 'probeauty/salons');
+      thumbnailUrl = uploadResult.url;
+    }
+
+    // Handle gallery images upload
+    if (files?.images && files.images.length > 0) {
+      const uploadResults = await uploadMultipleToCloudinary(files.images, 'probeauty/salons');
+      imageUrls = uploadResults.map((result) => result.url);
+    }
+
     const salon = await salonService.createSalon(ownerId, {
       name,
       address,
       phone,
       geo,
       hours,
-      thumbnail,
-      images,
+      thumbnail: thumbnailUrl,
+      images: imageUrls.length > 0 ? imageUrls : undefined,
     });
+
+    const salonData = {
+      ...salon,
+      geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
+      hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      images: (salon as { images?: unknown }).images
+        ? JSON.parse((salon as { images: string }).images)
+        : null,
+    };
 
     res.status(201).json({
       message: 'Salon registered successfully',
-      data: salon,
+      data: salonData,
     });
   } catch (error) {
     res.status(500).json({
@@ -50,7 +79,9 @@ export async function getSalon(req: Request, res: Response): Promise<void> {
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
-      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
+      images: (salon as { images?: unknown }).images
+        ? JSON.parse((salon as { images: string }).images)
+        : null,
     };
 
     res.status(200).json({
@@ -88,7 +119,9 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
-      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
+      images: (salon as { images?: unknown }).images
+        ? JSON.parse((salon as { images: string }).images)
+        : null,
     }));
 
     res.status(200).json({
@@ -106,7 +139,8 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
 
 export async function updateSalon(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, phone, geo, hours, thumbnail, images } = req.body;
+  const { name, address, phone, geo, hours } = req.body;
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -115,14 +149,29 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
   }
 
   try {
+    let thumbnailUrl: string | undefined;
+    let imageUrls: string[] | undefined;
+
+    // Handle thumbnail upload
+    if (files?.thumbnail && files.thumbnail.length > 0) {
+      const uploadResult = await uploadToCloudinary(files.thumbnail[0].buffer, 'probeauty/salons');
+      thumbnailUrl = uploadResult.url;
+    }
+
+    // Handle gallery images upload
+    if (files?.images && files.images.length > 0) {
+      const uploadResults = await uploadMultipleToCloudinary(files.images, 'probeauty/salons');
+      imageUrls = uploadResults.map((result) => result.url);
+    }
+
     const salon = await salonService.updateSalon(id, ownerId, {
       name,
       address,
       phone,
       geo,
       hours,
-      thumbnail,
-      images,
+      thumbnail: thumbnailUrl,
+      images: imageUrls,
     });
 
     if (!salon) {
@@ -135,7 +184,9 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
-      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
+      images: (salon as { images?: unknown }).images
+        ? JSON.parse((salon as { images: string }).images)
+        : null,
     };
 
     res.status(200).json({
@@ -195,7 +246,9 @@ export async function getAllSalons(req: Request, res: Response): Promise<void> {
       ...salon,
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
-      images: salon.images ? JSON.parse(salon.images as unknown as string) : null,
+      images: (salon as { images?: unknown }).images
+        ? JSON.parse((salon as { images: string }).images)
+        : null,
     }));
 
     res.status(200).json({

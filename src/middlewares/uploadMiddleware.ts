@@ -32,6 +32,11 @@ const upload = multer({
 
 export const uploadProductImages = upload.array('images', 5);
 
+export const uploadSalonImages = upload.fields([
+  { name: 'thumbnail', maxCount: 1 },
+  { name: 'images', maxCount: 10 },
+]);
+
 export const handleMulterError = (err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
