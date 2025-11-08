@@ -1,14 +1,11 @@
 import type { Request, Response } from 'express';
 
-import {
-  uploadToCloudinary,
-  uploadMultipleToCloudinary,
-} from '@/services/fileUploadService';
+import { uploadToCloudinary, uploadMultipleToCloudinary } from '@/services/fileUploadService';
 import * as salonService from '@/services/salonService';
 
 export async function createSalon(req: Request, res: Response): Promise<void> {
   const { name, address, phone, geo, hours } = req.body;
-  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -47,7 +44,7 @@ export async function createSalon(req: Request, res: Response): Promise<void> {
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
       images: (salon as { images?: unknown }).images
-        ? JSON.parse((salon as { images: string }).images)
+        ? JSON.parse((salon as { images?: unknown }).images as string)
         : null,
     };
 
@@ -80,7 +77,7 @@ export async function getSalon(req: Request, res: Response): Promise<void> {
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
       images: (salon as { images?: unknown }).images
-        ? JSON.parse((salon as { images: string }).images)
+        ? JSON.parse((salon as { images?: unknown }).images as string)
         : null,
     };
 
@@ -120,7 +117,7 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
       images: (salon as { images?: unknown }).images
-        ? JSON.parse((salon as { images: string }).images)
+        ? JSON.parse((salon as { images?: unknown }).images as string)
         : null,
     }));
 
@@ -140,7 +137,7 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
 export async function updateSalon(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   const { name, address, phone, geo, hours } = req.body;
-  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -185,7 +182,7 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
       images: (salon as { images?: unknown }).images
-        ? JSON.parse((salon as { images: string }).images)
+        ? JSON.parse((salon as { images?: unknown }).images as string)
         : null,
     };
 
@@ -247,7 +244,7 @@ export async function getAllSalons(req: Request, res: Response): Promise<void> {
       geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
       hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
       images: (salon as { images?: unknown }).images
-        ? JSON.parse((salon as { images: string }).images)
+        ? JSON.parse((salon as { images?: unknown }).images as string)
         : null,
     }));
 
