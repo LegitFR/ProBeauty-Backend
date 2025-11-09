@@ -97,6 +97,9 @@ export const confirmRegistration = async (req: Request, res: Response): Promise<
         isActive: true,
       },
     });
+
+    res.status(200).json({ message: 'Account verified' });
+    return;
   } catch (error) {
     res.status(500).json({ message: 'Internal server error', error: (error as Error).message });
     return;
