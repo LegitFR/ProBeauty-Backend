@@ -80,34 +80,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Nginx Reverse Proxy (Optional - for SSL/TLS termination)
-  nginx:
-    image: nginx:alpine
-    container_name: probeauty-nginx
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - nginx_cache:/var/cache/nginx
-    depends_on:
-      - app
-    networks:
-      - probeauty-prod-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
 networks:
   probeauty-prod-network:
     driver: bridge
 
 volumes:
   postgres_prod_data:
-    driver: local
-  nginx_cache:
     driver: local
