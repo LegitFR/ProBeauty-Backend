@@ -17,6 +17,9 @@ import staff from '@/routes/staffRoute';
 
 const app: Express = express();
 
+// Enable trust proxy for accurate client IP detection behind proxies/load balancers
+app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '1mb' }));
 
 const initializeApp = async () => {

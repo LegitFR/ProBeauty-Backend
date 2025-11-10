@@ -10,8 +10,58 @@ General notes for the authentication system.
   - Refresh token: JWT, expires in 15 days
 - OTP validity: 10 minutes for registration and password reset flows
 - Content type: `application/json` for requests and responses
+- Trust proxy: Enabled (`trust proxy: 1`) for accurate client IP detection behind proxies/load balancers
 
 Tip: In examples below, replace `http://localhost:5000` with your server URL.
+
+---
+
+## Client-Side Usage Notes
+
+### For Direct API Calls (No Special Headers Required)
+
+When making requests from client applications (web, mobile, Postman, curl), **you do NOT need to manually set any proxy headers**. Simply make standard HTTP requests:
+
+```javascript
+// Example: Fetch API (Browser/Node.js)
+const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    identifier: 'jane@example.com',
+    password: 'P@ssw0rd!'
+  })
+});
+```
+
+```javascript
+// Example: Axios (Browser/Node.js)
+const response = await axios.post('http://localhost:5000/api/v1/auth/login', {
+  identifier: 'jane@example.com',
+  password: 'P@ssw0rd!'
+}, {
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+```
+
+### About X-Forwarded-For Header
+
+The `X-Forwarded-For` header is **automatically set by infrastructure** (proxies, load balancers, CDNs, Docker, Kubernetes) between the client and server. It tracks the original client IP address for accurate rate limiting.
+
+**You do NOT manually set this header** from client applications. The server's `trust proxy` setting (enabled in `src/index.ts`) handles this automatically.
+
+**Infrastructure that sets this header:**
+- Reverse proxies (nginx, Apache)
+- Load balancers (AWS ALB/ELB, Azure Load Balancer)
+- CDNs (Cloudflare, Fastly)
+- Container orchestration (Docker, Kubernetes ingress)
+- API gateways
+
+If you're running the server directly (not behind a proxy), the header won't be present and the server will use the direct connection IP.
 
 ---
 
