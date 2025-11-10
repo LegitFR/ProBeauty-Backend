@@ -154,48 +154,24 @@ docker-compose -f docker-compose.prod.yml --env-file .env.production up -d
 
 - **PostgreSQL** with resource limits and health checks
 - **ProBeauty Backend** with automatic restarts and logging
-- **Nginx** reverse proxy (optional) for SSL/TLS termination
 
-### 4. Configure Nginx (Optional)
+### 4. SSL/TLS and Reverse Proxy (Optional)
 
-If using the Nginx service, create the configuration:
+For production deployments, it's recommended to use a reverse proxy for SSL/TLS termination. You have several options:
 
-```bash
-mkdir -p nginx
-```
+**Option 1: External Reverse Proxy (Recommended)**
+- Use CloudFlare, AWS Application Load Balancer, Google Cloud Load Balancer, or similar
+- These services handle SSL/TLS, DDoS protection, and caching
+- Simply point them to your backend service port (5000)
 
-Create `nginx/nginx.conf`:
+**Option 2: Add Nginx to Docker Compose**
+- If you prefer to manage nginx yourself, you can add it to `docker-compose.prod.yml`
+- Create `nginx/nginx.conf` with proper proxy configuration
+- Important: If using nginx, you must enable `trust proxy` in Express (`app.set('trust proxy', 1)`)
 
-```nginx
-events {
-    worker_connections 1024;
-}
-
-http {
-    upstream backend {
-        server app:5000;
-    }
-
-    server {
-        listen 80;
-        server_name your-domain.com;
-
-        location / {
-            proxy_pass http://backend;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
-        location /health {
-            proxy_pass http://backend/health;
-        }
-    }
-}
-```
-
-For SSL/TLS, place certificates in `nginx/ssl/` and update the nginx config.
+**Option 3: Use Caddy or Traefik**
+- Modern alternatives with automatic HTTPS via Let's Encrypt
+- Easier configuration than nginx for basic use cases
 
 ---
 
@@ -371,13 +347,6 @@ docker-compose -f docker-compose.local-db.yml up -d
 
 ```
 ┌─────────────────────────────────────────┐
-│         Nginx (Optional)                │
-│     SSL/TLS Termination                 │
-│         Port 80/443                     │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
 │      ProBeauty Backend (Bun)            │
 │       Express + Prisma                  │
 │         Port 5000                       │
@@ -389,6 +358,8 @@ docker-compose -f docker-compose.local-db.yml up -d
 │         Port 5432                       │
 └─────────────────────────────────────────┘
 ```
+
+**Note:** For SSL/TLS in production, use an external reverse proxy (CloudFlare, AWS ALB, etc.) or add nginx/Caddy/Traefik to the stack.
 
 ---
 
