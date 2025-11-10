@@ -44,7 +44,12 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    await sendRegistrationOtpEmail(email, name, otp);
+    try {
+      await sendRegistrationOtpEmail(email, name, otp);
+    } catch (emailError) {
+      console.error('Failed to send registration OTP email:', emailError);
+      // Continue with registration even if email fails
+    }
 
     res.status(201).json({
       message: `User registered. OTP sent to email. ${otp}`,
@@ -86,8 +91,6 @@ export const confirmRegistration = async (req: Request, res: Response): Promise<
       return;
     }
 
-    await sendRegistrationSuccessEmail(user.email, user.name);
-
     await prisma.user.update({
       where: { email },
       data: {
@@ -97,6 +100,13 @@ export const confirmRegistration = async (req: Request, res: Response): Promise<
         isActive: true,
       },
     });
+
+    try {
+      await sendRegistrationSuccessEmail(user.email, user.name);
+    } catch (emailError) {
+      console.error('Failed to send registration success email:', emailError);
+      // Continue even if email fails - user is already verified
+    }
 
     res.status(200).json({ message: 'Account verified' });
     return;

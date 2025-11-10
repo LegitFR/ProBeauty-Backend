@@ -21,7 +21,7 @@ const sendEmail = async (email: string, subject: string, htmlContent: string): P
     });
 
     const mailOptions = {
-      from: `"ProBeauty" <${email}>`,
+      from: `"ProBeauty" <${EMAIL_USERNAME}>`,
       to: email,
       subject: subject,
       html: htmlContent,
