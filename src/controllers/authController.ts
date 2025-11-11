@@ -8,6 +8,7 @@ import {
   sendResetPasswordOtpEmail,
   sendResetPasswordSuccessEmail,
 } from '@/services/emailService';
+import { verifyGoogleToken, findOrCreateGoogleUser } from '@/services/googleOAuthService';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/utils/tokenUtils';
 
 export const signup = async (req: Request, res: Response): Promise<void> => {
@@ -351,4 +352,45 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
   });
   res.status(200).json({ message: 'Logged out successfully' });
   return;
+};
+
+export const googleAuth = async (req: Request, res: Response): Promise<void> => {
+  const { idToken } = req.body;
+
+  try {
+    // Verify Google ID token and extract user info
+    const googleProfile = await verifyGoogleToken(idToken);
+
+    // Find or create user based on Google profile
+    const user = await findOrCreateGoogleUser(googleProfile);
+
+    // Generate JWT tokens
+    const accessToken = generateAccessToken({ userId: user.id, role: user.role });
+    const refreshToken = generateRefreshToken({ userId: user.id });
+
+    // Store refresh token in database
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken },
+    });
+
+    // Return response matching login endpoint format
+    res.status(200).json({
+      message: 'Google authentication successful',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
+    return;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Google authentication failed';
+    res.status(401).json({ message: errorMessage });
+    return;
+  }
 };

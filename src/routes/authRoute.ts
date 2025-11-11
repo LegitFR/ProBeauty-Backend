@@ -10,6 +10,7 @@ import {
   resetPassword,
   refreshAccessToken,
   refreshToken,
+  googleAuth,
 } from '@/controllers/authController';
 import { authRateLimiter } from '@/middlewares/rateLimiter';
 import { validateRequest } from '@/middlewares/validateRequest';
@@ -22,6 +23,7 @@ import {
   resendForgotPasswordOtpSchema,
   resetPasswordSchema,
   refreshTokenSchema,
+  googleAuthSchema,
 } from '@/schemas/authSchema';
 
 const router = Router();
@@ -30,6 +32,7 @@ router.use(authRateLimiter);
 
 router.post('/signup', validateRequest({ body: signupSchema }), signup);
 router.post('/login', validateRequest({ body: loginSchema }), login);
+router.post('/google', validateRequest({ body: googleAuthSchema }), googleAuth);
 router.post(
   '/confirm-registration',
   validateRequest({ body: confirmRegistrationSchema }),

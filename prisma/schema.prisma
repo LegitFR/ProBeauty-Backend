@@ -17,6 +17,8 @@ model User {
   phone        String?
   role         String
   password     String?
+  googleId     String?   @unique @map("google_id")
+  authProvider String    @default("local") @map("auth_provider")
   otp          String?
   otpExpiresAt DateTime? @map("otp_expires_at")
   otpVerified  Boolean   @default(false) @map("otp_verified")

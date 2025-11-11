@@ -5,6 +5,10 @@ General notes for the authentication system.
 - Base path: `/api/v1/auth` (see `src/index.ts`)
 - Rate limiting: 50 requests / 15 minutes per IP for all auth routes (`authRateLimiter`)
 - Validation: All bodies validated with Zod (`src/schemas/authSchema.ts`) via `validateRequest`
+- Authentication methods:
+  - Email/phone + password (traditional)
+  - Google OAuth 2.0 (social login)
+  - Account linking supported (same email can use both methods)
 - Tokens:
   - Access token: JWT, expires in 3 hours
   - Refresh token: JWT, expires in 15 days
@@ -181,7 +185,83 @@ Errors: 401 (invalid credentials or inactive), 500 (server).
 
 ---
 
-### 4) Forgot password — POST `/api/v1/auth/forgot-password`
+### 4) Google OAuth Authentication — POST `/api/v1/auth/google`
+
+Authenticates a user using Google OAuth and returns tokens. This endpoint supports both new user registration and account linking for existing users.
+
+**Authentication Flow:**
+1. Frontend obtains Google ID token using Google OAuth SDK
+2. Frontend sends the ID token to this endpoint
+3. Backend verifies the token with Google
+4. If user exists by email, links Google account (`authProvider: "both"`)
+5. If new user, creates account with `role: "customer"`, `isActive: true`, `otpVerified: true`
+6. Returns JWT tokens (same format as login endpoint)
+
+Sample request body:
+
+```json
+{ "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjBhO..." }
+```
+
+Sample success response (200):
+
+```json
+{
+  "message": "Google authentication successful",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "usr_123",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "phone": null,
+    "role": "customer"
+  }
+}
+```
+
+curl:
+
+```bash
+curl -X POST "http://localhost:5000/api/v1/auth/google" \
+	-H "Content-Type: application/json" \
+	-d '{ "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjBhO..." }'
+```
+
+Errors: 401 (invalid token / verification failed / email not verified by Google), 500 (server).
+
+**Frontend Integration Example:**
+
+```javascript
+// 1. Get Google ID token using Google SDK
+const googleUser = await google.accounts.id.prompt();
+const idToken = googleUser.credential;
+
+// 2. Send to backend
+const response = await fetch('http://localhost:5000/api/v1/auth/google', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ idToken })
+});
+
+const data = await response.json();
+// 3. Store tokens
+localStorage.setItem('accessToken', data.accessToken);
+localStorage.setItem('refreshToken', data.refreshToken);
+```
+
+**Database Schema Notes:**
+- User model includes `googleId` (unique, nullable) for linking Google accounts
+- `authProvider` field tracks authentication method: `"local"`, `"google"`, or `"both"`
+- Google OAuth users have `password: null`, `isActive: true`, `otpVerified: true` by default
+
+**Required Environment Variables:**
+- `GOOGLE_CLIENT_ID`: Google OAuth 2.0 Client ID
+- `GOOGLE_CLIENT_SECRET`: Google OAuth 2.0 Client Secret
+
+---
+
+### 6) Forgot password — POST `/api/v1/auth/forgot-password`
 
 Sends a password reset OTP to the user’s email.
 
@@ -209,7 +289,7 @@ Errors: 404 (not found), 500 (server).
 
 ---
 
-### 5) Verify reset OTP — POST `/api/v1/auth/verify-forgot-password-otp`
+### 7) Verify reset OTP — POST `/api/v1/auth/verify-forgot-password-otp`
 
 Validates the password reset OTP.
 
@@ -237,7 +317,7 @@ Errors: 404 (not found), 400 (expired/invalid), 500 (server).
 
 ---
 
-### 6) Resend reset OTP — POST `/api/v1/auth/resend-forgot-password-otp`
+### 8) Resend reset OTP — POST `/api/v1/auth/resend-forgot-password-otp`
 
 Resends the password reset OTP.
 
@@ -265,7 +345,7 @@ Errors: 404 (not found), 500 (server).
 
 ---
 
-### 7) Reset password — POST `/api/v1/auth/reset-password`
+### 9) Reset password — POST `/api/v1/auth/reset-password`
 
 Resets password using email + OTP.
 
@@ -293,7 +373,7 @@ Errors: 404 (not found), 400 (expired/invalid), 500 (server).
 
 ---
 
-### 8) Refresh access token — POST `/api/v1/auth/refresh-token`
+### 10) Refresh access token — POST `/api/v1/auth/refresh-token`
 
 Returns a new access token using a valid refresh token. Alias: `/api/v1/auth/refresh-access-token`.
 
@@ -332,6 +412,9 @@ Errors: 401 (invalid refresh token / user mismatch), 500 (server).
 - `/confirm-registration` currently updates user data but may not send the sample 200 body; aligning controller responses is recommended.
 - `/signup` success message in dev may include the OTP; omit in production.
 - `/refresh-access-token` is a direct alias of `/refresh-token`; consider keeping one canonical route.
+- `/google` endpoint supports account linking: existing users with the same email will have their Google account linked automatically (authProvider becomes "both").
+- Google OAuth users bypass OTP verification and are immediately activated with `isActive: true` and `otpVerified: true`.
+- Users authenticated via Google have `password: null` and cannot use the regular `/login` endpoint unless they set a password through password reset flow.
 
 ## References
 
@@ -339,5 +422,6 @@ Errors: 401 (invalid refresh token / user mismatch), 500 (server).
 - Controllers: `src/controllers/authController.ts`
 - Schemas: `src/schemas/authSchema.ts`
 - Tokens: `src/utils/tokenUtils.ts`
+- Google OAuth Service: `src/services/googleOAuthService.ts`
 - Rate limiting: `src/middlewares/rateLimiter.ts`
 - Mount path: `src/index.ts`
