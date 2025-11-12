@@ -23,18 +23,14 @@ app.set('trust proxy', 1);
 
 // IMPORTANT: Webhook routes must be registered BEFORE express.json()
 // Stripe requires raw body for signature verification
-app.use(
-  '/api/v1/webhooks',
-  express.raw({ type: 'application/json' }),
-  webhook
-);
+app.use('/api/v1/webhooks', express.raw({ type: 'application/json' }), webhook);
 
 app.use(express.json({ limit: '1mb' }));
 
 const initializeApp = async () => {
   try {
-    console.log('🔄 Starting ProBeauty Backend...');
-    console.log('📍 Working Directory:', process.cwd());
+    console.info('🔄 Starting ProBeauty Backend...');
+    console.info('📍 Working Directory:', process.cwd());
     await connectToDatabase();
 
     // Apply all middleware first (including morgan logger)
@@ -69,9 +65,8 @@ const initializeApp = async () => {
 
     const PORT = envConfig.PORT || 5000;
     app.listen(PORT, '0.0.0.0', () => {
-      // eslint-disable-next-line no-console
-      console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.info(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+      console.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
     console.error('❌ Error initializing app:', error);

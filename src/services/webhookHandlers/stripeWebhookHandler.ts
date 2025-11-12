@@ -11,11 +11,11 @@ export async function handlePaymentIntentSucceeded(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.log(`Payment succeeded: ${paymentIntent.id}`);
+  console.info(`Payment succeeded: ${paymentIntent.id}`);
 
   try {
     await paymentService.markPaymentSucceeded(paymentIntent.id, event.id);
-    console.log(`Payment ${paymentIntent.id} marked as succeeded`);
+    console.info(`Payment ${paymentIntent.id} marked as succeeded`);
   } catch (error) {
     console.error(`Error handling payment_intent.succeeded for ${paymentIntent.id}:`, error);
     throw error;
@@ -31,14 +31,14 @@ export async function handlePaymentIntentFailed(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.log(`Payment failed: ${paymentIntent.id}`);
+  console.info(`Payment failed: ${paymentIntent.id}`);
 
   try {
     const failureReason =
       paymentIntent.last_payment_error?.message || 'Payment failed without specific reason';
 
     await paymentService.markPaymentFailed(paymentIntent.id, event.id, failureReason);
-    console.log(`Payment ${paymentIntent.id} marked as failed`);
+    console.info(`Payment ${paymentIntent.id} marked as failed`);
   } catch (error) {
     console.error(`Error handling payment_intent.payment_failed for ${paymentIntent.id}:`, error);
     throw error;
@@ -54,11 +54,11 @@ export async function handlePaymentIntentCanceled(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.log(`Payment canceled: ${paymentIntent.id}`);
+  console.info(`Payment canceled: ${paymentIntent.id}`);
 
   try {
     await paymentService.markPaymentCanceled(paymentIntent.id, event.id);
-    console.log(`Payment ${paymentIntent.id} marked as canceled`);
+    console.info(`Payment ${paymentIntent.id} marked as canceled`);
   } catch (error) {
     console.error(`Error handling payment_intent.canceled for ${paymentIntent.id}:`, error);
     throw error;
@@ -72,7 +72,7 @@ export async function handlePaymentIntentCanceled(
 export async function handleChargeRefunded(event: Stripe.ChargeRefundedEvent): Promise<void> {
   const charge = event.data.object;
 
-  console.log(`Charge refunded: ${charge.id}`);
+  console.info(`Charge refunded: ${charge.id}`);
 
   try {
     // Get the payment intent ID from the charge
@@ -85,7 +85,7 @@ export async function handleChargeRefunded(event: Stripe.ChargeRefundedEvent): P
     }
 
     await paymentService.markPaymentRefunded(paymentIntentId, event.id);
-    console.log(`Payment ${paymentIntentId} marked as refunded`);
+    console.info(`Payment ${paymentIntentId} marked as refunded`);
   } catch (error) {
     console.error(`Error handling charge.refunded for ${charge.id}:`, error);
     throw error;
@@ -101,7 +101,7 @@ export async function handlePaymentIntentProcessing(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.log(`Payment processing: ${paymentIntent.id}`);
+  console.info(`Payment processing: ${paymentIntent.id}`);
 
   try {
     // Get the existing payment
@@ -114,7 +114,7 @@ export async function handlePaymentIntentProcessing(
 
     // Update to processing status if needed
     await paymentService.updatePaymentStatus(paymentIntent.id, 'processing', event.id);
-    console.log(`Payment ${paymentIntent.id} marked as processing`);
+    console.info(`Payment ${paymentIntent.id} marked as processing`);
   } catch (error) {
     console.error(`Error handling payment_intent.processing for ${paymentIntent.id}:`, error);
     // Don't throw error for processing events as they're informational
@@ -126,7 +126,7 @@ export async function handlePaymentIntentProcessing(
  * Routes events to their respective handlers
  */
 export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
-  console.log(`Received Stripe webhook event: ${event.type}`);
+  console.info(`Received Stripe webhook event: ${event.type}`);
 
   try {
     switch (event.type) {
@@ -151,7 +151,7 @@ export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.info(`Unhandled event type: ${event.type}`);
     }
   } catch (error) {
     console.error(`Error handling webhook event ${event.type}:`, error);

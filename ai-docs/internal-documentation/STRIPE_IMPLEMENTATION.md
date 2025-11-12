@@ -5,6 +5,7 @@ This document provides a comprehensive guide for the Stripe payment webhook impl
 ## Overview
 
 The Stripe payment integration allows the backend to:
+
 - Create payment intents for orders
 - Process webhook events from Stripe
 - Verify payment signatures for security
@@ -45,6 +46,8 @@ The Stripe payment integration allows the backend to:
 13. Frontend shows success/failure to user
 ```
 
+![Stripe Flow Diagram](../../image.png)
+
 ---
 
 ## Database Changes
@@ -66,14 +69,17 @@ The `Payment` model has been updated with the following new fields:
 ### ✅ New Files Created
 
 1. **`src/constants/paymentStatus.ts`**
+
    - Payment status constants (pending, processing, succeeded, failed, canceled, refunded)
    - Payment provider constants (stripe, cash)
 
 2. **`src/configs/stripe.ts`**
+
    - Stripe SDK initialization
    - Webhook secret configuration
 
 3. **`src/services/stripeService.ts`**
+
    - Create PaymentIntent
    - Retrieve PaymentIntent
    - Cancel PaymentIntent
@@ -82,6 +88,7 @@ The `Payment` model has been updated with the following new fields:
    - Customer management
 
 4. **`src/services/paymentService.ts`**
+
    - Create payment records
    - Update payment status
    - Handle idempotency with stripeEventId
@@ -89,6 +96,7 @@ The `Payment` model has been updated with the following new fields:
    - Update order status based on payment status
 
 5. **`src/services/webhookHandlers/stripeWebhookHandler.ts`**
+
    - Handle `payment_intent.succeeded`
    - Handle `payment_intent.payment_failed`
    - Handle `payment_intent.canceled`
@@ -96,17 +104,21 @@ The `Payment` model has been updated with the following new fields:
    - Handle `charge.refunded`
 
 6. **`src/middlewares/stripeWebhookValidator.ts`**
+
    - Verify Stripe webhook signatures
    - Attach verified event to request
 
 7. **`src/controllers/webhookController.ts`**
+
    - Webhook endpoint controller
    - Routes events to handlers
 
 8. **`src/routes/webhookRoutes.ts`**
+
    - Webhook routes with raw body parsing
 
 9. **`src/schemas/paymentSchema.ts`**
+
    - Validation schemas for payment endpoints
 
 10. **`src/types/express.d.ts`**
@@ -115,25 +127,31 @@ The `Payment` model has been updated with the following new fields:
 ### ✅ Modified Files
 
 1. **`prisma/schema.prisma`**
+
    - Enhanced Payment model with new fields
 
 2. **`src/configs/env.ts`**
+
    - Added STRIPE_SECRET_KEY validation
    - Added STRIPE_WEBHOOK_SECRET validation
 
 3. **`.env.example`**
+
    - Added Stripe environment variables
 
 4. **`src/index.ts`**
+
    - Registered webhook routes with raw body parsing
    - Added webhook routes BEFORE express.json() middleware
 
 5. **`src/services/orderService.ts`**
+
    - Added `createOrderWithPayment()` function
    - Integrates Stripe PaymentIntent creation
    - Creates payment records
 
 6. **`src/controllers/orderController.ts`**
+
    - Added `createOrderWithPayment()` controller
    - Added `getOrderPayment()` controller
 
@@ -148,11 +166,13 @@ The `Payment` model has been updated with the following new fields:
 ### Order Endpoints (Authenticated)
 
 #### 1. Create Order with Payment
+
 ```
 POST /api/v1/orders/checkout
 ```
 
 **Headers:**
+
 ```json
 {
   "Authorization": "Bearer <access_token>",
@@ -161,6 +181,7 @@ POST /api/v1/orders/checkout
 ```
 
 **Request Body:**
+
 ```json
 {
   "addressId": "clxxxx..."
@@ -168,6 +189,7 @@ POST /api/v1/orders/checkout
 ```
 
 **Response (201):**
+
 ```json
 {
   "message": "Order created successfully. Complete payment to confirm.",
@@ -188,11 +210,13 @@ POST /api/v1/orders/checkout
 ```
 
 #### 2. Get Payment Details
+
 ```
 GET /api/v1/orders/:orderId/payment
 ```
 
 **Headers:**
+
 ```json
 {
   "Authorization": "Bearer <access_token>"
@@ -200,6 +224,7 @@ GET /api/v1/orders/:orderId/payment
 ```
 
 **Response (200):**
+
 ```json
 {
   "message": "Payment details retrieved successfully",
@@ -222,11 +247,13 @@ GET /api/v1/orders/:orderId/payment
 ### Webhook Endpoint (No Authentication)
 
 #### Stripe Webhook
+
 ```
 POST /api/v1/webhooks/stripe
 ```
 
 **Headers:**
+
 ```json
 {
   "stripe-signature": "t=xxx,v1=xxx",
@@ -251,6 +278,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
 ### Getting Stripe Keys
 
 1. **Secret Key:**
+
    - Go to [Stripe Dashboard](https://dashboard.stripe.com/)
    - Navigate to Developers → API keys
    - Copy the "Secret key" (starts with `sk_test_` for test mode)
@@ -306,6 +334,7 @@ bun run dev
 ### Local Testing with Stripe CLI
 
 1. **Install Stripe CLI:**
+
    ```bash
    # macOS
    brew install stripe/stripe-cli/stripe
@@ -314,16 +343,19 @@ bun run dev
    ```
 
 2. **Login to Stripe:**
+
    ```bash
    stripe login
    ```
 
 3. **Forward webhooks to local server:**
+
    ```bash
    stripe listen --forward-to localhost:5000/api/v1/webhooks/stripe
    ```
 
 4. **Copy the webhook signing secret** from the CLI output and update your `.env`:
+
    ```env
    STRIPE_WEBHOOK_SECRET=whsec_xxx_from_cli
    ```
@@ -337,6 +369,7 @@ bun run dev
 ### Testing the Flow
 
 1. **Create an order with payment:**
+
    ```bash
    curl -X POST http://localhost:5000/api/v1/orders/checkout \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
@@ -349,6 +382,7 @@ bun run dev
 2. **Use the returned `clientSecret` in your frontend** to confirm the payment with Stripe Elements or Stripe.js
 
 3. **Check the order status:**
+
    ```bash
    curl -X GET http://localhost:5000/api/v1/orders/ORDER_ID \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
@@ -365,20 +399,24 @@ bun run dev
 ## Security Features
 
 ### 1. Webhook Signature Verification
+
 - Every webhook request is verified using Stripe's signature
 - Invalid signatures are rejected with 400 status
 - Prevents unauthorized webhook calls
 
 ### 2. Idempotency
+
 - `stripeEventId` ensures events are processed only once
 - Prevents duplicate payment processing
 - Database constraint enforces uniqueness
 
 ### 3. Raw Body Parsing
+
 - Webhook route uses raw body for signature verification
 - Registered before JSON middleware to preserve raw payload
 
 ### 4. Authentication
+
 - All order endpoints require JWT authentication
 - Users can only access their own orders
 - Salon owners can access orders for their salons
@@ -424,6 +462,7 @@ The webhook endpoint returns **200 OK** immediately and processes events asynchr
 ### Payment Failures
 
 When a payment fails:
+
 1. Payment status → `failed`
 2. Order status → `PAYMENT_FAILED`
 3. `failureReason` is stored in the payment record
@@ -471,6 +510,7 @@ bun run dev | grep -i "payment\|stripe\|webhook"
 ### Webhook URL
 
 Production webhook URL format:
+
 ```
 https://api.yourdomain.com/api/v1/webhooks/stripe
 ```
@@ -484,6 +524,7 @@ https://api.yourdomain.com/api/v1/webhooks/stripe
 **Cause:** Wrong webhook secret or raw body not preserved
 
 **Solution:**
+
 1. Verify `STRIPE_WEBHOOK_SECRET` is correct
 2. Ensure webhook route is registered BEFORE `express.json()`
 3. Check that `express.raw()` is applied to webhook route
@@ -493,6 +534,7 @@ https://api.yourdomain.com/api/v1/webhooks/stripe
 **Cause:** `stripeEventId` not being stored properly
 
 **Solution:**
+
 1. Run database migration to add `stripeEventId` field
 2. Check that field has unique constraint
 3. Verify idempotency check in `paymentService.ts`
@@ -502,6 +544,7 @@ https://api.yourdomain.com/api/v1/webhooks/stripe
 **Cause:** Webhook not being received or processed
 
 **Solution:**
+
 1. Check webhook is registered in Stripe Dashboard
 2. Verify server is accessible from internet
 3. Use Stripe CLI to test locally
@@ -518,10 +561,10 @@ https://api.yourdomain.com/api/v1/webhooks/stripe
 const response = await fetch('/api/v1/orders/checkout', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json'
+    Authorization: `Bearer ${accessToken}`,
+    'Content-Type': 'application/json',
   },
-  body: JSON.stringify({ addressId: 'xxx' })
+  body: JSON.stringify({ addressId: 'xxx' }),
 });
 
 const { data } = await response.json();
@@ -532,14 +575,14 @@ const stripe = Stripe('pk_test_xxx');
 const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
   payment_method: {
     card: cardElement,
-    billing_details: { name: 'Customer Name' }
-  }
+    billing_details: { name: 'Customer Name' },
+  },
 });
 
 // 3. Poll for order status update
 const checkOrderStatus = async () => {
   const response = await fetch(`/api/v1/orders/${order.id}`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` }
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const { data } = await response.json();
@@ -572,6 +615,7 @@ setTimeout(() => clearInterval(pollInterval), 30000);
 ## Support
 
 For issues or questions:
+
 1. Check this documentation first
 2. Review Stripe Dashboard logs
 3. Check server logs for errors

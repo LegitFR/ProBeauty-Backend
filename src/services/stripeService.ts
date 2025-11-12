@@ -7,7 +7,7 @@ import { stripe, STRIPE_WEBHOOK_SECRET } from '@/configs/stripe';
  */
 export async function createPaymentIntent(
   amount: number,
-  currency: string = 'usd',
+  currency = 'usd',
   metadata: Record<string, string> = {}
 ): Promise<Stripe.PaymentIntent> {
   try {
@@ -45,9 +45,7 @@ export async function retrievePaymentIntent(
 /**
  * Cancel a Stripe PaymentIntent
  */
-export async function cancelPaymentIntent(
-  paymentIntentId: string
-): Promise<Stripe.PaymentIntent> {
+export async function cancelPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
   try {
     const paymentIntent = await stripe.paymentIntents.cancel(paymentIntentId);
     return paymentIntent;
@@ -60,10 +58,7 @@ export async function cancelPaymentIntent(
 /**
  * Verify Stripe webhook signature
  */
-export function verifyWebhookSignature(
-  payload: string | Buffer,
-  signature: string
-): Stripe.Event {
+export function verifyWebhookSignature(payload: string | Buffer, signature: string): Stripe.Event {
   try {
     const event = stripe.webhooks.constructEvent(payload, signature, STRIPE_WEBHOOK_SECRET);
     return event;

@@ -1,8 +1,8 @@
 import { Prisma, type Payment } from '@prisma/client';
 
 import { prisma } from '@/configs/db';
-import { PAYMENT_STATUS, PAYMENT_PROVIDER, type PaymentStatus } from '@/constants/paymentStatus';
 import { ORDER_STATUS } from '@/constants/orderStatus';
+import { PAYMENT_STATUS, PAYMENT_PROVIDER, type PaymentStatus } from '@/constants/paymentStatus';
 
 /**
  * Create a payment record in the database
@@ -58,9 +58,7 @@ export async function getPaymentByTxnId(txnId: string): Promise<Payment | null> 
 /**
  * Get payment by Stripe event ID (for idempotency)
  */
-export async function getPaymentByStripeEventId(
-  stripeEventId: string
-): Promise<Payment | null> {
+export async function getPaymentByStripeEventId(stripeEventId: string): Promise<Payment | null> {
   try {
     const payment = await prisma.payment.findUnique({
       where: { stripeEventId },
@@ -107,7 +105,7 @@ export async function updatePaymentStatus(
     // Check if this event has already been processed (idempotency)
     const existingPayment = await getPaymentByStripeEventId(stripeEventId);
     if (existingPayment) {
-      console.log(`Event ${stripeEventId} already processed. Skipping.`);
+      console.info(`Event ${stripeEventId} already processed. Skipping.`);
       return existingPayment;
     }
 
@@ -168,10 +166,7 @@ export async function updatePaymentStatus(
 /**
  * Mark payment as succeeded
  */
-export async function markPaymentSucceeded(
-  txnId: string,
-  stripeEventId: string
-): Promise<Payment> {
+export async function markPaymentSucceeded(txnId: string, stripeEventId: string): Promise<Payment> {
   return updatePaymentStatus(txnId, PAYMENT_STATUS.SUCCEEDED, stripeEventId);
 }
 
@@ -189,20 +184,14 @@ export async function markPaymentFailed(
 /**
  * Mark payment as canceled
  */
-export async function markPaymentCanceled(
-  txnId: string,
-  stripeEventId: string
-): Promise<Payment> {
+export async function markPaymentCanceled(txnId: string, stripeEventId: string): Promise<Payment> {
   return updatePaymentStatus(txnId, PAYMENT_STATUS.CANCELED, stripeEventId);
 }
 
 /**
  * Mark payment as refunded
  */
-export async function markPaymentRefunded(
-  txnId: string,
-  stripeEventId: string
-): Promise<Payment> {
+export async function markPaymentRefunded(txnId: string, stripeEventId: string): Promise<Payment> {
   return updatePaymentStatus(txnId, PAYMENT_STATUS.REFUNDED, stripeEventId);
 }
 

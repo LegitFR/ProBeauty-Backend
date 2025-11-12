@@ -30,7 +30,7 @@ export async function handleStripeWebhookEvent(req: Request, res: Response): Pro
     // Process the event asynchronously
     try {
       await handleStripeWebhook(event);
-      console.log(`Successfully processed webhook event: ${event.id}`);
+      console.info(`Successfully processed webhook event: ${event.id}`);
     } catch (error) {
       console.error(`Error processing webhook event ${event.id}:`, error);
       // We already responded with 200, so we just log the error

@@ -4,7 +4,6 @@ import { prisma } from '@/configs/db';
 import { ORDER_STATUS, type OrderStatus, isValidStatusTransition } from '@/constants/orderStatus';
 import { PAYMENT_STATUS, PAYMENT_PROVIDER } from '@/constants/paymentStatus';
 import * as cartService from '@/services/cartService';
-import * as paymentService from '@/services/paymentService';
 import * as stripeService from '@/services/stripeService';
 
 /**
@@ -184,9 +183,13 @@ export async function createOrderWithPayment(
     throw new Error('Failed to create order');
   }
 
+  if (!paymentIntent.client_secret) {
+    throw new Error('Failed to create payment intent');
+  }
+
   return {
     order,
-    clientSecret: paymentIntent.client_secret!,
+    clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
   };
 }
