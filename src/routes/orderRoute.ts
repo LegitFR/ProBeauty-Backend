@@ -6,6 +6,8 @@ import {
   getOrder,
   updateOrderStatus,
   cancelOrder,
+  createOrderWithPayment,
+  getOrderPayment,
 } from '@/controllers/orderController';
 import { authenticate } from '@/middlewares/auth/authenticate';
 import { validateRequest } from '@/middlewares/validateRequest';
@@ -20,6 +22,12 @@ const router = Router();
 
 // All order routes require authentication
 router.use(authenticate);
+
+/**
+ * POST /api/v1/orders/checkout
+ * Create a new order with Stripe payment
+ */
+router.post('/checkout', validateRequest({ body: createOrderSchema }), createOrderWithPayment);
 
 /**
  * POST /api/v1/orders
@@ -57,5 +65,11 @@ router.patch(
  * Cancel an order
  */
 router.post('/:id/cancel', validateRequest({ params: getOrderParamsSchema }), cancelOrder);
+
+/**
+ * GET /api/v1/orders/:id/payment
+ * Get payment details for an order
+ */
+router.get('/:id/payment', validateRequest({ params: getOrderParamsSchema }), getOrderPayment);
 
 export default router;

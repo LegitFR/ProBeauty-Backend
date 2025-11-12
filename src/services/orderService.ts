@@ -2,7 +2,10 @@ import { Prisma, type Order, type OrderItem, type Product } from '@prisma/client
 
 import { prisma } from '@/configs/db';
 import { ORDER_STATUS, type OrderStatus, isValidStatusTransition } from '@/constants/orderStatus';
+import { PAYMENT_STATUS, PAYMENT_PROVIDER } from '@/constants/paymentStatus';
 import * as cartService from '@/services/cartService';
+import * as paymentService from '@/services/paymentService';
+import * as stripeService from '@/services/stripeService';
 
 /**
  * Extended Order with items and product details
@@ -31,6 +34,160 @@ interface PaginatedOrders {
     limit: number;
     total: number;
     totalPages: number;
+  };
+}
+
+/**
+ * Order with payment intent response
+ */
+interface OrderWithPayment {
+  order: OrderWithItems;
+  clientSecret: string;
+  paymentIntentId: string;
+}
+
+/**
+ * Create an order from the user's cart with Stripe payment
+ * Validates stock, calculates totals, creates order with items, and initiates Stripe payment
+ */
+export async function createOrderWithPayment(
+  userId: string,
+  addressId: string
+): Promise<OrderWithPayment> {
+  // Validate cart has items and sufficient stock
+  const validation = await cartService.validateCartForCheckout(userId);
+  if (!validation.valid) {
+    throw new Error(`Cart validation failed: ${validation.errors.join(', ')}`);
+  }
+
+  // Get cart details
+  const { cart } = await cartService.getCartWithDetails(userId);
+
+  if (cart.cartItems.length === 0) {
+    throw new Error('Cart is empty');
+  }
+
+  // Verify address exists and belongs to user
+  const address = await prisma.address.findUnique({
+    where: { id: addressId },
+  });
+
+  if (!address) {
+    throw new Error('Address not found');
+  }
+
+  if (address.userId !== userId) {
+    throw new Error('Unauthorized: You do not own this address');
+  }
+
+  // All items must be from the same salon
+  const salonIds = new Set(cart.cartItems.map((item) => item.product.salonId));
+  if (salonIds.size > 1) {
+    throw new Error('Cart contains items from multiple salons');
+  }
+
+  const salonId = cart.cartItems[0].product.salonId;
+
+  // Calculate total
+  let total = 0;
+  for (const item of cart.cartItems) {
+    const itemTotal = parseFloat(item.product.price.toString()) * item.quantity;
+    total += itemTotal;
+  }
+
+  // Get user details for Stripe
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Create Stripe PaymentIntent
+  const paymentIntent = await stripeService.createPaymentIntent(total, 'usd', {
+    userId,
+    userName: user.name,
+    userEmail: user.email,
+  });
+
+  // Create order with items and payment in a transaction
+  const order = await prisma.$transaction(async (tx) => {
+    // Create order with PAYMENT_PENDING status
+    const newOrder = await tx.order.create({
+      data: {
+        userId,
+        salonId,
+        total: new Prisma.Decimal(total),
+        status: ORDER_STATUS.PAYMENT_PENDING,
+      },
+    });
+
+    // Create order items and reduce product quantities
+    for (const cartItem of cart.cartItems) {
+      // Create order item
+      await tx.orderItem.create({
+        data: {
+          orderId: newOrder.id,
+          productId: cartItem.productId,
+          quantity: cartItem.quantity,
+          unitPrice: cartItem.product.price,
+        },
+      });
+
+      // Reduce product quantity
+      await tx.product.update({
+        where: { id: cartItem.productId },
+        data: {
+          quantity: {
+            decrement: cartItem.quantity,
+          },
+        },
+      });
+    }
+
+    // Create payment record
+    await tx.payment.create({
+      data: {
+        orderId: newOrder.id,
+        provider: PAYMENT_PROVIDER.STRIPE,
+        amount: new Prisma.Decimal(total),
+        status: PAYMENT_STATUS.PENDING,
+        txnId: paymentIntent.id,
+        stripeCustomerId: paymentIntent.customer as string | null,
+        metadata: {
+          paymentIntentId: paymentIntent.id,
+          clientSecret: paymentIntent.client_secret,
+        } as Prisma.JsonValue,
+      },
+    });
+
+    // Clear the cart
+    await tx.cartItem.deleteMany({
+      where: { cartId: cart.id },
+    });
+
+    // Return order with items
+    return tx.order.findUnique({
+      where: { id: newOrder.id },
+      include: {
+        orderItems: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+  });
+
+  if (!order) {
+    throw new Error('Failed to create order');
+  }
+
+  return {
+    order,
+    clientSecret: paymentIntent.client_secret!,
+    paymentIntentId: paymentIntent.id,
   };
 }
 

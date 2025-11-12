@@ -177,19 +177,25 @@ model OrderItem {
 }
 
 model Payment {
-  id        String   @id @default(cuid())
-  orderId   String   @map("order_id")
-  provider  String
-  amount    Decimal  @db.Decimal(10, 2)
-  status    String
-  txnId     String   @map("txn_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  id               String   @id @default(cuid())
+  orderId          String   @map("order_id")
+  provider         String
+  amount           Decimal  @db.Decimal(10, 2)
+  status           String
+  txnId            String   @map("txn_id")
+  stripeEventId    String?  @unique @map("stripe_event_id")
+  stripeCustomerId String?  @map("stripe_customer_id")
+  metadata         Json?
+  failureReason    String?  @map("failure_reason") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // Relations
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([txnId])
+  @@index([stripeEventId])
   @@map("payments")
 }
 

@@ -14,11 +14,20 @@ import product from '@/routes/productRoute';
 import salon from '@/routes/salonRoute';
 import service from '@/routes/serviceRoute';
 import staff from '@/routes/staffRoute';
+import webhook from '@/routes/webhookRoutes';
 
 const app: Express = express();
 
 // Enable trust proxy for accurate client IP detection behind proxies/load balancers
 app.set('trust proxy', 1);
+
+// IMPORTANT: Webhook routes must be registered BEFORE express.json()
+// Stripe requires raw body for signature verification
+app.use(
+  '/api/v1/webhooks',
+  express.raw({ type: 'application/json' }),
+  webhook
+);
 
 app.use(express.json({ limit: '1mb' }));
 
