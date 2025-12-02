@@ -3,6 +3,20 @@ import type { Request, Response } from 'express';
 import { uploadToCloudinary, uploadMultipleToCloudinary } from '@/services/fileUploadService';
 import * as salonService from '@/services/salonService';
 
+const parseJsonField = (field: unknown) => {
+  if (!field) return null;
+  if (typeof field === 'string') {
+    try {
+      return JSON.parse(field);
+    } catch {
+      // If parsing fails, fall back to null to avoid runtime errors
+      return null;
+    }
+  }
+  // Already an object/array or some other non-string value – return as is
+  return field;
+};
+
 export async function createSalon(req: Request, res: Response): Promise<void> {
   const { name, address, phone, geo, hours } = req.body;
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
@@ -41,8 +55,8 @@ export async function createSalon(req: Request, res: Response): Promise<void> {
 
     const salonData = {
       ...salon,
-      geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
-      hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      geo: parseJsonField(salon.geo),
+      hours: parseJsonField(salon.hours),
       images: salon.images || [],
     };
 
@@ -72,8 +86,8 @@ export async function getSalon(req: Request, res: Response): Promise<void> {
     // Parse JSON fields
     const salonData = {
       ...salon,
-      geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
-      hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      geo: parseJsonField(salon.geo),
+      hours: parseJsonField(salon.hours),
       images: salon.images || [],
     };
 
@@ -110,8 +124,8 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
     // Parse JSON fields for all salons
     const salonsData = result.salons.map((salon) => ({
       ...salon,
-      geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
-      hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      geo: parseJsonField(salon.geo),
+      hours: parseJsonField(salon.hours),
       images: salon.images || [],
     }));
 
@@ -173,8 +187,8 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
     // Parse JSON fields
     const salonData = {
       ...salon,
-      geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
-      hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      geo: parseJsonField(salon.geo),
+      hours: parseJsonField(salon.hours),
       images: salon.images || [],
     };
 
@@ -233,8 +247,8 @@ export async function getAllSalons(req: Request, res: Response): Promise<void> {
     // Parse JSON fields for all salons
     const salonsData = result.salons.map((salon) => ({
       ...salon,
-      geo: salon.geo ? JSON.parse(salon.geo as unknown as string) : null,
-      hours: salon.hours ? JSON.parse(salon.hours as unknown as string) : null,
+      geo: parseJsonField(salon.geo),
+      hours: parseJsonField(salon.hours),
       images: salon.images || [],
     }));
 
