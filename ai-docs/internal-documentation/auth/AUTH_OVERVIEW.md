@@ -31,25 +31,29 @@ When making requests from client applications (web, mobile, Postman, curl), **yo
 const response = await fetch('http://localhost:5000/api/v1/auth/login', {
   method: 'POST',
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   },
   body: JSON.stringify({
     identifier: 'jane@example.com',
-    password: 'P@ssw0rd!'
-  })
+    password: 'password123',
+  }),
 });
 ```
 
 ```javascript
 // Example: Axios (Browser/Node.js)
-const response = await axios.post('http://localhost:5000/api/v1/auth/login', {
-  identifier: 'jane@example.com',
-  password: 'P@ssw0rd!'
-}, {
-  headers: {
-    'Content-Type': 'application/json'
+const response = await axios.post(
+  'http://localhost:5000/api/v1/auth/login',
+  {
+    identifier: 'jane@example.com',
+    password: 'password123',
+  },
+  {
+    headers: {
+      'Content-Type': 'application/json',
+    },
   }
-});
+);
 ```
 
 ### About X-Forwarded-For Header
@@ -59,6 +63,7 @@ The `X-Forwarded-For` header is **automatically set by infrastructure** (proxies
 **You do NOT manually set this header** from client applications. The server's `trust proxy` setting (enabled in `src/index.ts`) handles this automatically.
 
 **Infrastructure that sets this header:**
+
 - Reverse proxies (nginx, Apache)
 - Load balancers (AWS ALB/ELB, Azure Load Balancer)
 - CDNs (Cloudflare, Fastly)
@@ -84,7 +89,7 @@ Sample request body:
   "name": "Jane Doe",
   "email": "jane@example.com",
   "phone": "9876543210",
-  "password": "P@ssw0rd!",
+  "password": "password123",
   "role": "customer"
 }
 ```
@@ -107,7 +112,7 @@ curl -X POST "http://localhost:5000/api/v1/auth/signup" \
 		"name": "Jane Doe",
 		"email": "jane@example.com",
 		"phone": "9876543210",
-		"password": "P@ssw0rd!",
+		"password": "password123",
 		"role": "customer"
 	}'
 ```
@@ -153,7 +158,7 @@ Authenticates by email or phone and returns tokens.
 Sample request body:
 
 ```json
-{ "identifier": "jane@example.com", "password": "P@ssw0rd!" }
+{ "identifier": "jane@example.com", "password": "password123!" }
 ```
 
 Sample success response (200):
@@ -178,7 +183,7 @@ curl:
 ```bash
 curl -X POST "http://localhost:5000/api/v1/auth/login" \
 	-H "Content-Type: application/json" \
-	-d '{ "identifier": "jane@example.com", "password": "P@ssw0rd!" }'
+	-d '{ "identifier": "jane@example.com", "password": "password123" }'
 ```
 
 Errors: 401 (invalid credentials or inactive), 500 (server).
@@ -190,6 +195,7 @@ Errors: 401 (invalid credentials or inactive), 500 (server).
 Authenticates a user using Google OAuth and returns tokens. This endpoint supports both new user registration and account linking for existing users.
 
 **Authentication Flow:**
+
 1. Frontend obtains Google ID token using Google OAuth SDK
 2. Frontend sends the ID token to this endpoint
 3. Backend verifies the token with Google
@@ -241,7 +247,7 @@ const idToken = googleUser.credential;
 const response = await fetch('http://localhost:5000/api/v1/auth/google', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ idToken })
+  body: JSON.stringify({ idToken }),
 });
 
 const data = await response.json();
@@ -251,11 +257,13 @@ localStorage.setItem('refreshToken', data.refreshToken);
 ```
 
 **Database Schema Notes:**
+
 - User model includes `googleId` (unique, nullable) for linking Google accounts
 - `authProvider` field tracks authentication method: `"local"`, `"google"`, or `"both"`
 - Google OAuth users have `password: null`, `isActive: true`, `otpVerified: true` by default
 
 **Required Environment Variables:**
+
 - `GOOGLE_CLIENT_ID`: Google OAuth 2.0 Client ID
 - `GOOGLE_CLIENT_SECRET`: Google OAuth 2.0 Client Secret
 

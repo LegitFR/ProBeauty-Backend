@@ -53,3 +53,21 @@ export const sendResetPasswordSuccessEmail = async (email: string, name: string)
   const htmlContent = injectData(template, { name });
   await sendEmail(email, 'Password Reset Successfully', htmlContent);
 };
+
+export const sendEmailChangeOtpEmail = async (
+  email: string,
+  name: string,
+  otp: string
+): Promise<void> => {
+  const templatePath = path.join(__dirname, 'templates', 'emailChangeOtp.html');
+  const template = fs.readFileSync(templatePath, 'utf-8');
+  const htmlContent = injectData(template, { name, otp });
+  await sendEmail(email, 'Confirm Your New Email Address', htmlContent);
+};
+
+export const sendEmailChangeSuccessEmail = async (email: string, name: string): Promise<void> => {
+  const templatePath = path.join(__dirname, 'templates', 'emailChangeSuccess.html');
+  const template = fs.readFileSync(templatePath, 'utf-8');
+  const htmlContent = injectData(template, { name });
+  await sendEmail(email, 'Email Address Updated', htmlContent);
+};

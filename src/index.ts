@@ -14,6 +14,7 @@ import product from '@/routes/productRoute';
 import salon from '@/routes/salonRoute';
 import service from '@/routes/serviceRoute';
 import staff from '@/routes/staffRoute';
+import user from '@/routes/userRoute';
 
 const app: Express = express();
 
@@ -45,6 +46,7 @@ const initializeApp = async () => {
     });
 
     app.use('/api/v1/auth', auth);
+    app.use('/api/v1/user', user);
     app.use('/api/v1/salons', salon);
     app.use('/api/v1/products', product);
     app.use('/api/v1/services', service);
