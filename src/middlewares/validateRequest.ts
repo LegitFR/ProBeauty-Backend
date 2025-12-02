@@ -26,7 +26,33 @@ export const validateRequest = (schemas: ZodSchemaGroup) => {
             });
             return;
           }
-          req[key] = result.data;
+          // For some properties like `query`, Express / the underlying router
+          // exposes them via a getter-only property on the request object.
+          // Direct reassignment (e.g. `req.query = ...`) will throw
+          // "Cannot set property query of #<IncomingMessage> which has only a getter".
+          // To avoid that, we mutate/merge into the existing object instead of
+          // replacing the property descriptor on `req`.
+          if (key === 'body') {
+            // `body` is safe to reassign in our stack.
+            req.body = result.data as unknown;
+          } else if (key === 'query') {
+            Object.assign(req.query, result.data);
+          } else if (key === 'params') {
+            Object.assign(req.params, result.data);
+          } else if (key === 'headers') {
+            Object.assign(req.headers, result.data);
+          } else if (key === 'cookies') {
+            // cookies may be undefined if cookie-parser isn't used
+            if (!req.cookies) {
+              (req as Request & { cookies: Record<string, unknown> }).cookies =
+                result.data as Record<string, unknown>;
+            } else {
+              Object.assign(
+                req.cookies as Record<string, unknown>,
+                result.data as Record<string, unknown>
+              );
+            }
+          }
         }
       }
       next();
