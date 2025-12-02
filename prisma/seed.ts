@@ -1,4 +1,4 @@
-const PrismaClient = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -10,7 +10,6 @@ async function main() {
   await prisma.cartItem.deleteMany();
   await prisma.cart.deleteMany();
   await prisma.review.deleteMany();
-  await prisma.promotion.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
@@ -327,6 +326,63 @@ async function main() {
 
   console.log(`✅ Created ${services.length} services`);
 
+  // Create Additional Salons for Enhanced Sample Data
+  const additionalSalons = await Promise.all([
+    prisma.salon.create({
+      data: {
+        ownerId: users[0].id, // Sarah Johnson
+        name: 'Luxe Hair & Spa',
+        address: '321 Fifth Avenue, New York, NY 10016',
+        geo: {
+          latitude: 40.7614,
+          longitude: -73.9776,
+        },
+        hours: {
+          monday: { open: '10:00', close: '20:00' },
+          tuesday: { open: '10:00', close: '20:00' },
+          wednesday: { open: '10:00', close: '20:00' },
+          thursday: { open: '10:00', close: '21:00' },
+          friday: { open: '10:00', close: '21:00' },
+          saturday: { open: '09:00', close: '19:00' },
+          sunday: { open: '11:00', close: '18:00' },
+        },
+        verified: true,
+        images: [
+          'https://images.unsplash.com/photo-1633612286906-04c2b6b35e22?w=500&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+    prisma.salon.create({
+      data: {
+        ownerId: users[1].id, // Michael Chen
+        name: 'Prime Beauty Collective',
+        address: '2150 Wilshire Boulevard, Beverly Hills, CA 90211',
+        geo: {
+          latitude: 34.0752,
+          longitude: -118.4009,
+        },
+        hours: {
+          monday: { open: '09:00', close: '19:00' },
+          tuesday: { open: '09:00', close: '19:00' },
+          wednesday: { open: '09:00', close: '19:00' },
+          thursday: { open: '09:00', close: '20:00' },
+          friday: { open: '09:00', close: '20:00' },
+          saturday: { open: '09:00', close: '18:00' },
+          sunday: { open: '10:00', close: '17:00' },
+        },
+        verified: true,
+        images: [
+          'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=500&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1570541308623-37c24fb2638f?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+  ]);
+
+  const allSalons = [...salons, ...additionalSalons];
+  console.log(`✅ Created ${additionalSalons.length} additional salons`);
+
   // Create Products
   const products = await Promise.all([
     // Glamour Studio Products
@@ -337,7 +393,9 @@ async function main() {
         sku: 'SHMP-001',
         price: 28.0,
         quantity: 50,
-        images: ['https://example.com/shampoo1.jpg', 'https://example.com/shampoo2.jpg'],
+        images: [
+          'https://images.unsplash.com/photo-1625948515291-69613efd103f?w=500&h=400&fit=crop',
+        ],
       },
     }),
     prisma.product.create({
@@ -347,7 +405,9 @@ async function main() {
         sku: 'SERUM-001',
         price: 35.0,
         quantity: 30,
-        images: ['https://example.com/serum1.jpg'],
+        images: [
+          'https://images.unsplash.com/photo-1599599810694-b5ac4dd33fdf?w=500&h=400&fit=crop',
+        ],
       },
     }),
     prisma.product.create({
@@ -357,7 +417,9 @@ async function main() {
         sku: 'SPRAY-001',
         price: 22.0,
         quantity: 40,
-        images: ['https://example.com/spray1.jpg'],
+        images: [
+          'https://images.unsplash.com/photo-1631730486211-cd20e1f60154?w=500&h=400&fit=crop',
+        ],
       },
     }),
     // Urban Cuts & Color Products
@@ -368,7 +430,9 @@ async function main() {
         sku: 'NPOL-001',
         price: 12.0,
         quantity: 100,
-        images: ['https://example.com/polish1.jpg'],
+        images: [
+          'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=500&h=400&fit=crop',
+        ],
       },
     }),
     prisma.product.create({
@@ -378,7 +442,9 @@ async function main() {
         sku: 'COIL-001',
         price: 15.0,
         quantity: 60,
-        images: ['https://example.com/cuticle1.jpg'],
+        images: [
+          'https://images.unsplash.com/photo-1608309168355-56ac2c1b67c7?w=500&h=400&fit=crop',
+        ],
       },
     }),
     // The Beauty Lounge Products
@@ -389,7 +455,9 @@ async function main() {
         sku: 'BERD-001',
         price: 25.0,
         quantity: 35,
-        images: ['https://example.com/beard1.jpg'],
+        images: [
+          'https://images.unsplash.com/photo-1596728846592-c0d0e5007ead?w=500&h=400&fit=crop',
+        ],
       },
     }),
     prisma.product.create({
@@ -399,7 +467,86 @@ async function main() {
         sku: 'POMD-001',
         price: 18.0,
         quantity: 45,
-        images: ['https://example.com/pomade1.jpg'],
+        images: [
+          'https://images.unsplash.com/photo-1631730486211-cd20e1f60154?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+    // Luxe Hair & Spa Products
+    prisma.product.create({
+      data: {
+        salonId: additionalSalons[0].id,
+        title: 'Premium Hydrating Conditioner',
+        sku: 'COND-LUXE-001',
+        price: 42.0,
+        quantity: 25,
+        images: [
+          'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=500&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1617278054385-cbb4db1a8a2c?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+    prisma.product.create({
+      data: {
+        salonId: additionalSalons[0].id,
+        title: 'Luxury Hair Mask - Keratin',
+        sku: 'MASK-LUXE-001',
+        price: 48.0,
+        quantity: 20,
+        images: [
+          'https://images.unsplash.com/photo-1570541308623-37c24fb2638f?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+    prisma.product.create({
+      data: {
+        salonId: additionalSalons[0].id,
+        title: 'Silk Pillowcase - Sleep Package',
+        sku: 'PILLOWCASE-LUXE-001',
+        price: 55.0,
+        quantity: 15,
+        images: [
+          'https://images.unsplash.com/photo-1607622814075-e51df1bdc82f?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+    // Prime Beauty Collective Products
+    prisma.product.create({
+      data: {
+        salonId: additionalSalons[1].id,
+        title: 'Diamond Facial Serum - Premium',
+        sku: 'SERUM-PRIME-001',
+        price: 85.0,
+        quantity: 18,
+        images: [
+          'https://images.unsplash.com/photo-1611936281663-a2fcca488ddd?w=500&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1596728846592-c0d0e5007ead?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+    prisma.product.create({
+      data: {
+        salonId: additionalSalons[1].id,
+        title: 'Collagen Face Mask - 24K Gold',
+        sku: 'MASK-PRIME-001',
+        price: 65.0,
+        quantity: 22,
+        images: [
+          'https://images.unsplash.com/photo-1607554886223-403bdd3b808d?w=500&h=400&fit=crop',
+        ],
+      },
+    }),
+    prisma.product.create({
+      data: {
+        salonId: additionalSalons[1].id,
+        title: 'Volumizing Hair Treatment Oil',
+        sku: 'OIL-PRIME-001',
+        price: 52.0,
+        quantity: 30,
+        images: [
+          'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=500&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1631730486211-cd20e1f60154?w=500&h=400&fit=crop',
+        ],
       },
     }),
   ]);
@@ -564,32 +711,6 @@ async function main() {
 
   console.log(`✅ Created ${reviews.length} reviews`);
 
-  // Create Promotions
-  const promotions = await Promise.all([
-    prisma.promotion.create({
-      data: {
-        salonId: salons[0].id,
-        title: 'New Client Special',
-        discountPercent: 20.0,
-        validFrom: new Date(),
-        validUntil: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        isActive: true,
-      },
-    }),
-    prisma.promotion.create({
-      data: {
-        salonId: salons[1].id,
-        title: 'Summer Sale',
-        discountPercent: 15.0,
-        validFrom: new Date(),
-        validUntil: new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000), // 60 days
-        isActive: true,
-      },
-    }),
-  ]);
-
-  console.log(`✅ Created ${promotions.length} promotions`);
-
   // Create Carts
   const carts = await Promise.all([
     prisma.cart.create({
@@ -659,7 +780,7 @@ async function main() {
   console.log(`
   📊 Summary:
   - ${users.length} users
-  - ${salons.length} salons
+  - ${allSalons.length} salons (${salons.length} original + ${additionalSalons.length} premium)
   - ${staff.length} staff members
   - ${services.length} services
   - ${products.length} products
@@ -668,7 +789,6 @@ async function main() {
   - ${orderItems.length} order items
   - ${payments.length} payments
   - ${reviews.length} reviews
-  - ${promotions.length} promotions
   - ${carts.length} carts
   - ${cartItems.length} cart items
   - ${notifications.length} notifications
