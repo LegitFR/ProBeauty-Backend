@@ -1,6 +1,3 @@
-// This is your Prisma schema file
-// Learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,106 +8,96 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  phone        String?
-  role         String
-  password     String?
-  googleId     String?   @unique @map("google_id")
-  authProvider String    @default("local") @map("auth_provider")
-  otp          String?
-  otpExpiresAt DateTime? @map("otp_expires_at")
-  otpVerified  Boolean   @default(false) @map("otp_verified")
-  isActive     Boolean   @default(false) @map("is_active")
-  refreshToken String?   @map("refresh_token")
-  lastLogin    DateTime? @map("last_login")
-  createdAt    DateTime  @default(now()) @map("created_at")
-
-  // Relations
-  ownedSalons   Salon[]
-  staffProfiles Staff[]
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  phone         String?
+  role          String
+  createdAt     DateTime       @default(now()) @map("created_at")
+  isActive      Boolean        @default(false) @map("is_active")
+  lastLogin     DateTime?      @map("last_login")
+  otp           String?
+  otpExpiresAt  DateTime?      @map("otp_expires_at")
+  otpVerified   Boolean        @default(false) @map("otp_verified")
+  password      String?
+  refreshToken  String?        @map("refresh_token")
+  authProvider  String         @default("local") @map("auth_provider")
+  googleId      String?        @unique @map("google_id")
+  addresses     Address[]
   bookings      Booking[]
-  orders        Order[]
-  reviews       Review[]
   cart          Cart?
   notifications Notification[]
-  addresses     Address[]
+  orders        Order[]
+  reviews       Review[]
+  ownedSalons   Salon[]
+  staffProfiles Staff[]
 
   @@map("users")
 }
 
 model Salon {
-  id        String   @id @default(cuid())
-  ownerId   String   @map("owner_id")
+  id        String    @id @default(cuid())
+  ownerId   String    @map("owner_id")
   name      String
   address   String
   geo       Json?
   hours     Json?
+  verified  Boolean   @default(false)
+  createdAt DateTime  @default(now()) @map("created_at")
   thumbnail String?
   images    String[]
-  verified  Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  staff    Staff[]
-  services Service[]
-  products Product[]
-  bookings Booking[]
-  orders   Order[]
-  reviews  Review[]
+  bookings  Booking[]
+  orders    Order[]
+  products  Product[]
+  reviews   Review[]
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  services  Service[]
+  staff     Staff[]
 
   @@index([ownerId])
   @@map("salons")
 }
 
 model Staff {
-  id           String @id @default(cuid())
-  salonId      String @map("salon_id")
+  id           String    @id @default(cuid())
+  salonId      String    @map("salon_id")
+  userId       String?   @map("user_id")
   role         String
   availability Json?
-
-  // Relations
-  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  bookings Booking[]
-  user     User?     @relation(fields: [userId], references: [id])
-  userId   String?   @map("user_id")
+  bookings     Booking[]
+  salon        Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user         User?     @relation(fields: [userId], references: [id])
 
   @@index([salonId])
   @@map("staff")
 }
 
 model Service {
-  id              String  @id @default(cuid())
-  salonId         String  @map("salon_id")
+  id              String    @id @default(cuid())
+  salonId         String    @map("salon_id")
   title           String
-  durationMinutes Int     @map("duration_minutes")
-  price           Decimal @db.Decimal(10, 2)
-
-  // Relations
-  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  bookings Booking[]
-  reviews  Review[]
+  durationMinutes Int       @map("duration_minutes")
+  price           Decimal   @db.Decimal(10, 2)
+  bookings        Booking[]
+  reviews         Review[]
+  salon           Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
   @@index([salonId])
   @@map("services")
 }
 
 model Product {
-  id       String   @id @default(cuid())
-  salonId  String   @map("salon_id")
-  title    String
-  sku      String   @unique
-  price    Decimal  @db.Decimal(10, 2)
-  quantity Int
-  images   String[]
-
-  // Relations
-  salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
-  reviews    Review[]
+  id         String      @id @default(cuid())
+  salonId    String      @map("salon_id")
+  title      String
+  sku        String      @unique
+  price      Decimal     @db.Decimal(10, 2)
+  quantity   Int
+  images     String[]
   cartItems  CartItem[]
+  orderItems OrderItem[]
+  salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  reviews    Review[]
 
   @@index([salonId])
   @@map("products")
@@ -125,12 +112,10 @@ model Booking {
   startTime DateTime @map("start_time")
   endTime   DateTime @map("end_time")
   status    String
-
-  // Relations
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  salon   Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  staff   Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([salonId])
@@ -141,17 +126,15 @@ model Booking {
 }
 
 model Order {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  salonId   String   @map("salon_id")
-  total     Decimal  @db.Decimal(10, 2)
-  status    String
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  id         String      @id @default(cuid())
+  userId     String      @map("user_id")
+  salonId    String      @map("salon_id")
+  total      Decimal     @db.Decimal(10, 2)
+  status     String
+  createdAt  DateTime    @default(now()) @map("created_at")
   orderItems OrderItem[]
+  salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   payments   Payment[]
 
   @@index([userId])
@@ -166,10 +149,8 @@ model OrderItem {
   productId String  @map("product_id")
   quantity  Int
   unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
-
-  // Relations
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([productId])
@@ -184,9 +165,7 @@ model Payment {
   status    String
   txnId     String   @map("txn_id")
   createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([txnId])
@@ -200,14 +179,12 @@ model Review {
   serviceId String?  @map("service_id")
   productId String?  @map("product_id")
   rating    Int
-  comment   String?  @db.Text
+  comment   String?
   createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  salon   Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  service Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([salonId])
@@ -217,11 +194,9 @@ model Review {
 }
 
 model Cart {
-  id        String   @id @default(cuid())
-  userId    String   @unique @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
+  id        String     @id @default(cuid())
+  userId    String     @unique @map("user_id")
+  createdAt DateTime   @default(now()) @map("created_at")
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   cartItems CartItem[]
 
@@ -229,14 +204,12 @@ model Cart {
 }
 
 model CartItem {
-  id        String @id @default(cuid())
-  cartId    String @map("cart_id")
-  productId String @map("product_id")
+  id        String  @id @default(cuid())
+  cartId    String  @map("cart_id")
+  productId String  @map("product_id")
   quantity  Int
-
-  // Relations
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([cartId])
   @@index([productId])
@@ -247,13 +220,11 @@ model Notification {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
   title     String
-  message   String   @db.Text
+  message   String
   type      String
   isRead    Boolean  @default(false) @map("is_read")
   createdAt DateTime @default(now()) @map("created_at")
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
@@ -274,9 +245,7 @@ model Address {
   isDefault    Boolean  @default(false) @map("is_default")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("addresses")

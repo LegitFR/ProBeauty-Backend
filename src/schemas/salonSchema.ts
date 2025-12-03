@@ -25,6 +25,7 @@ export const createSalonSchema: AnyZodObject = z.object({
     })
     .optional(),
   // Note: thumbnail and images are handled as file uploads via multer, not in body
+  venueType: z.enum(['male', 'female', 'everyone']).optional(),
 });
 
 export const updateSalonSchema: AnyZodObject = z.object({
@@ -52,6 +53,7 @@ export const updateSalonSchema: AnyZodObject = z.object({
     })
     .optional(),
   // Note: thumbnail and images are handled as file uploads via multer, not in body
+  venueType: z.enum(['male', 'female', 'everyone']).optional(),
 });
 
 export const getSalonParamsSchema: AnyZodObject = z.object({
@@ -64,5 +66,34 @@ export const getSalonQuerySchema: AnyZodObject = z.object({
   verified: z
     .string()
     .transform((v) => v === 'true')
+    .optional(),
+});
+
+export const salonSearchQuerySchema: AnyZodObject = z.object({
+  page: z.string().transform(Number).optional(),
+  limit: z.string().transform(Number).optional(),
+  venueType: z.enum(['male', 'female', 'everyone']).optional(),
+  maxPrice: z
+    .string()
+    .transform(Number)
+    .refine((val) => !Number.isNaN(val) && val >= 0, 'maxPrice must be a positive number')
+    .optional(),
+  sortBy: z.enum(['top_rated', 'recommended', 'nearest']).optional(),
+  service: z.string().min(1).optional(),
+  location: z.string().min(1).optional(),
+  date: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'date must be a valid ISO date')
+    .optional(),
+  time: z.enum(['morning', 'afternoon', 'evening', 'night']).optional(),
+  latitude: z
+    .string()
+    .transform(Number)
+    .refine((val) => !Number.isNaN(val), 'latitude must be a number')
+    .optional(),
+  longitude: z
+    .string()
+    .transform(Number)
+    .refine((val) => !Number.isNaN(val), 'longitude must be a number')
     .optional(),
 });

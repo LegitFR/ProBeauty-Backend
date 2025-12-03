@@ -7,6 +7,7 @@ import {
   updateSalon,
   deleteSalon,
   getAllSalons,
+  searchSalons,
 } from '@/controllers/salonController';
 import { authenticate } from '@/middlewares/auth/authenticate';
 import { uploadSalonImages, handleMulterError } from '@/middlewares/uploadMiddleware';
@@ -16,12 +17,16 @@ import {
   updateSalonSchema,
   getSalonParamsSchema,
   getSalonQuerySchema,
+  salonSearchQuerySchema,
 } from '@/schemas/salonSchema';
 
 const router = Router();
 
 // Public route to get all salons with pagination and filtering
 router.get('/', validateRequest({ query: getSalonQuerySchema }), getAllSalons);
+
+// Public search route with advanced filters
+router.get('/search', validateRequest({ query: salonSearchQuerySchema }), searchSalons);
 
 // Protected route to register a new salon (requires authentication)
 router.post(

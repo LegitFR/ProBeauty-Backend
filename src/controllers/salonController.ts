@@ -18,7 +18,7 @@ const parseJsonField = (field: unknown) => {
 };
 
 export async function createSalon(req: Request, res: Response): Promise<void> {
-  const { name, address, phone, geo, hours } = req.body;
+  const { name, address, phone, geo, hours, venueType } = req.body;
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const ownerId = req.user?.id;
 
@@ -51,6 +51,7 @@ export async function createSalon(req: Request, res: Response): Promise<void> {
       hours,
       thumbnail: thumbnailUrl,
       images: imageUrls.length > 0 ? imageUrls : undefined,
+      venueType,
     });
 
     const salonData = {
@@ -144,7 +145,7 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
 
 export async function updateSalon(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { name, address, phone, geo, hours } = req.body;
+  const { name, address, phone, geo, hours, venueType } = req.body;
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
   const ownerId = req.user?.id;
 
@@ -177,6 +178,7 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
       hours,
       thumbnail: thumbnailUrl,
       images: imageUrls,
+      venueType,
     });
 
     if (!salon) {
@@ -255,6 +257,55 @@ export async function getAllSalons(req: Request, res: Response): Promise<void> {
     res.status(200).json({
       message: 'All salons retrieved successfully',
       data: salonsData,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? undefined : value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+  return undefined;
+};
+
+const toEnum = <T extends string>(value: unknown, allowed: readonly T[]): T | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  return allowed.includes(value as T) ? (value as T) : undefined;
+};
+
+export async function searchSalons(req: Request, res: Response): Promise<void> {
+  try {
+    const filters = {
+      page: toNumber(req.query.page),
+      limit: toNumber(req.query.limit),
+      venueType: toEnum(req.query.venueType, ['male', 'female', 'everyone'] as const),
+      maxPrice: toNumber(req.query.maxPrice),
+      sortBy: toEnum(req.query.sortBy, ['top_rated', 'recommended', 'nearest'] as const),
+      service: typeof req.query.service === 'string' ? req.query.service : undefined,
+      location: typeof req.query.location === 'string' ? req.query.location : undefined,
+      date: typeof req.query.date === 'string' ? req.query.date : undefined,
+      time: toEnum(req.query.time, ['morning', 'afternoon', 'evening', 'night'] as const),
+      latitude: toNumber(req.query.latitude),
+      longitude: toNumber(req.query.longitude),
+    };
+
+    const result = await salonService.searchSalonsWithServices(filters);
+
+    res.status(200).json({
+      message: 'Salon search completed successfully',
+      data: result.salons,
       pagination: result.pagination,
     });
   } catch (error) {
