@@ -40,6 +40,7 @@ model Salon {
   ownerId   String    @map("owner_id")
   name      String
   address   String
+  venueType String    @default("everyone") @map("venue_type")
   geo       Json?
   hours     Json?
   verified  Boolean   @default(false)
