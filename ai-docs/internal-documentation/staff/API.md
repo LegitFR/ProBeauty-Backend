@@ -13,29 +13,55 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 **Authentication:** Required (Bearer token)
 
 **Request Body:**
+
 ```json
 {
   "salonId": "clv1234567890abcdefgh",
   "role": "Hair Stylist",
   "availability": {
-    "monday": "09:00-18:00",
-    "tuesday": "09:00-18:00",
-    "wednesday": "09:00-18:00",
-    "thursday": "09:00-18:00",
-    "friday": "09:00-18:00",
-    "saturday": "10:00-16:00"
+    "monday": {
+      "isAvailable": true,
+      "slots": [{ "start": "09:00", "end": "18:00" }]
+    },
+    "tuesday": {
+      "isAvailable": true,
+      "slots": [{ "start": "09:00", "end": "18:00" }]
+    },
+    "wednesday": {
+      "isAvailable": true,
+      "slots": [{ "start": "09:00", "end": "18:00" }]
+    },
+    "thursday": {
+      "isAvailable": true,
+      "slots": [{ "start": "09:00", "end": "18:00" }]
+    },
+    "friday": {
+      "isAvailable": true,
+      "slots": [{ "start": "09:00", "end": "18:00" }]
+    },
+    "saturday": {
+      "isAvailable": true,
+      "slots": [{ "start": "10:00", "end": "16:00" }]
+    },
+    "sunday": {
+      "isAvailable": false
+    }
   },
   "userId": "clv0987654321zyxwvuts"
 }
 ```
 
 **Request Parameters:**
+
 - `salonId` (string, required) — CUID format salon ID
 - `role` (string, required) — Staff role/position, 2+ characters
-- `availability` (object, optional) — Availability schedule
+- `availability` (object, optional) — Weekly availability object with keys for each day (`monday`–`sunday`), each containing:
+  - `isAvailable` (boolean, required)
+  - `slots` (array, optional) — List of time slots with `start` and `end` in `HH:mm` format
 - `userId` (string, optional) — CUID format user ID to associate with staff member
 
 **Success Response (201 Created):**
+
 ```json
 {
   "message": "Staff member created successfully",
@@ -44,12 +70,33 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
     "salonId": "clv1234567890abcdefgh",
     "role": "Hair Stylist",
     "availability": {
-      "monday": "09:00-18:00",
-      "tuesday": "09:00-18:00",
-      "wednesday": "09:00-18:00",
-      "thursday": "09:00-18:00",
-      "friday": "09:00-18:00",
-      "saturday": "10:00-16:00"
+      "monday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "tuesday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "wednesday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "thursday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "friday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "saturday": {
+        "isAvailable": true,
+        "slots": [{ "start": "10:00", "end": "16:00" }]
+      },
+      "sunday": {
+        "isAvailable": false
+      }
     },
     "userId": "clv0987654321zyxwvuts",
     "salon": {
@@ -67,6 +114,7 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 ```
 
 **Error Response (403 Forbidden):**
+
 ```json
 {
   "message": "Unauthorized: You do not own this salon"
@@ -74,6 +122,7 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 ```
 
 **Error Response (400 Bad Request):**
+
 ```json
 {
   "message": "User not found"
@@ -81,22 +130,23 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 ```
 
 **cURL Command:**
+
 ```bash
 curl -X POST http://localhost:5000/api/v1/staff \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "salonId": "clv1234567890abcdefgh",
+    "salonId": "cmiplyw1n0002li2gbggmr85q",
     "role": "Hair Stylist",
     "availability": {
-      "monday": "09:00-18:00",
-      "tuesday": "09:00-18:00",
-      "wednesday": "09:00-18:00",
-      "thursday": "09:00-18:00",
-      "friday": "09:00-18:00",
-      "saturday": "10:00-16:00"
-    },
-    "userId": "clv0987654321zyxwvuts"
+      "monday":   { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
+      "tuesday":  { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
+      "wednesday":{ "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
+      "thursday": { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
+      "friday":   { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
+      "saturday": { "isAvailable": true,  "slots": [ { "start": "10:00", "end": "16:00" } ] },
+      "sunday":   { "isAvailable": false }
+    }
   }'
 ```
 
@@ -111,9 +161,11 @@ curl -X POST http://localhost:5000/api/v1/staff \
 **Authentication:** Not required
 
 **URL Parameters:**
+
 - `id` (string, required) — Staff ID in CUID format
 
 **Success Response (200 OK):**
+
 ```json
 {
   "message": "Staff member fetched successfully",
@@ -122,12 +174,33 @@ curl -X POST http://localhost:5000/api/v1/staff \
     "salonId": "clv1234567890abcdefgh",
     "role": "Hair Stylist",
     "availability": {
-      "monday": "09:00-18:00",
-      "tuesday": "09:00-18:00",
-      "wednesday": "09:00-18:00",
-      "thursday": "09:00-18:00",
-      "friday": "09:00-18:00",
-      "saturday": "10:00-16:00"
+      "monday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "tuesday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "wednesday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "thursday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "friday": {
+        "isAvailable": true,
+        "slots": [{ "start": "09:00", "end": "18:00" }]
+      },
+      "saturday": {
+        "isAvailable": true,
+        "slots": [{ "start": "10:00", "end": "16:00" }]
+      },
+      "sunday": {
+        "isAvailable": false
+      }
     },
     "userId": "clv0987654321zyxwvuts",
     "salon": {
@@ -154,6 +227,7 @@ curl -X POST http://localhost:5000/api/v1/staff \
 ```
 
 **Error Response (404 Not Found):**
+
 ```json
 {
   "message": "Staff member not found"
@@ -161,6 +235,7 @@ curl -X POST http://localhost:5000/api/v1/staff \
 ```
 
 **cURL Command:**
+
 ```bash
 curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
   -H "Content-Type: application/json"
@@ -177,14 +252,17 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 **Authentication:** Not required
 
 **URL Parameters:**
+
 - `salonId` (string, required) — Salon ID in CUID format
 
 **Query Parameters:**
+
 - `page` (number, optional) — Page number for pagination (default: 1)
 - `limit` (number, optional) — Number of results per page (default: 10)
 - `role` (string, optional) — Filter by staff role
 
 **Success Response (200 OK):**
+
 ```json
 {
   "message": "Salon staff retrieved successfully",
@@ -194,12 +272,33 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
       "salonId": "clv1234567890abcdefgh",
       "role": "Hair Stylist",
       "availability": {
-        "monday": "09:00-18:00",
-        "tuesday": "09:00-18:00",
-        "wednesday": "09:00-18:00",
-        "thursday": "09:00-18:00",
-        "friday": "09:00-18:00",
-        "saturday": "10:00-16:00"
+        "monday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "tuesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "wednesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "thursday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "friday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "saturday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "16:00" }]
+        },
+        "sunday": {
+          "isAvailable": false
+        }
       },
       "userId": "clv0987654321zyxwvuts",
       "salon": {
@@ -217,12 +316,32 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
       "salonId": "clv1234567890abcdefgh",
       "role": "Nail Technician",
       "availability": {
-        "monday": "10:00-19:00",
-        "tuesday": "10:00-19:00",
-        "wednesday": "off",
-        "thursday": "10:00-19:00",
-        "friday": "10:00-19:00",
-        "saturday": "10:00-17:00"
+        "monday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "19:00" }]
+        },
+        "tuesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "19:00" }]
+        },
+        "wednesday": {
+          "isAvailable": false
+        },
+        "thursday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "19:00" }]
+        },
+        "friday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "19:00" }]
+        },
+        "saturday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "17:00" }]
+        },
+        "sunday": {
+          "isAvailable": false
+        }
       },
       "userId": "clv0987654321zyxwvua",
       "salon": {
@@ -246,12 +365,14 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 ```
 
 **cURL Command:**
+
 ```bash
 curl -X GET http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh \
   -H "Content-Type: application/json"
 ```
 
 **cURL Command with Query Parameters:**
+
 ```bash
 curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page=1&limit=10&role=Hair%20Stylist" \
   -H "Content-Type: application/json"
@@ -268,12 +389,14 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
 **Authentication:** Not required
 
 **Query Parameters:**
+
 - `page` (number, optional) — Page number for pagination (default: 1)
 - `limit` (number, optional) — Number of results per page (default: 10)
 - `salonId` (string, optional) — Filter by salon ID
 - `role` (string, optional) — Filter by staff role
 
 **Success Response (200 OK):**
+
 ```json
 {
   "message": "Staff members retrieved successfully",
@@ -283,12 +406,33 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
       "salonId": "clv1234567890abcdefgh",
       "role": "Hair Stylist",
       "availability": {
-        "monday": "09:00-18:00",
-        "tuesday": "09:00-18:00",
-        "wednesday": "09:00-18:00",
-        "thursday": "09:00-18:00",
-        "friday": "09:00-18:00",
-        "saturday": "10:00-16:00"
+        "monday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "tuesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "wednesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "thursday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "friday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "saturday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "16:00" }]
+        },
+        "sunday": {
+          "isAvailable": false
+        }
       },
       "userId": "clv0987654321zyxwvuts",
       "salon": {
@@ -312,12 +456,14 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
 ```
 
 **cURL Command:**
+
 ```bash
 curl -X GET http://localhost:5000/api/v1/staff \
   -H "Content-Type: application/json"
 ```
 
 **cURL Command with Filters:**
+
 ```bash
 curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv1234567890abcdefgh&role=Hair%20Stylist" \
   -H "Content-Type: application/json"
@@ -334,30 +480,55 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 **Authentication:** Required (Bearer token)
 
 **URL Parameters:**
+
 - `id` (string, required) — Staff ID in CUID format
 
 **Request Body (all fields optional):**
+
 ```json
 {
   "role": "Senior Hair Stylist",
   "availability": {
-    "monday": "08:00-18:00",
-    "tuesday": "08:00-18:00",
-    "wednesday": "08:00-18:00",
-    "thursday": "08:00-18:00",
-    "friday": "08:00-18:00",
-    "saturday": "10:00-17:00"
+    "monday": {
+      "isAvailable": true,
+      "slots": [{ "start": "08:00", "end": "18:00" }]
+    },
+    "tuesday": {
+      "isAvailable": true,
+      "slots": [{ "start": "08:00", "end": "18:00" }]
+    },
+    "wednesday": {
+      "isAvailable": true,
+      "slots": [{ "start": "08:00", "end": "18:00" }]
+    },
+    "thursday": {
+      "isAvailable": true,
+      "slots": [{ "start": "08:00", "end": "18:00" }]
+    },
+    "friday": {
+      "isAvailable": true,
+      "slots": [{ "start": "08:00", "end": "18:00" }]
+    },
+    "saturday": {
+      "isAvailable": true,
+      "slots": [{ "start": "10:00", "end": "17:00" }]
+    },
+    "sunday": {
+      "isAvailable": false
+    }
   },
   "userId": "clv0987654321zyxwvuts"
 }
 ```
 
 **Request Parameters:**
+
 - `role` (string, optional) — New staff role, 2+ characters
-- `availability` (object, optional) — Updated availability schedule
+- `availability` (object, optional) — Weekly availability object with keys for each day (`monday`–`sunday`), same structure as in Create Staff
 - `userId` (string, optional) — New user ID to associate with staff member
 
 **Success Response (200 OK):**
+
 ```json
 {
   "message": "Staff member updated successfully",
@@ -366,12 +537,33 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
     "salonId": "clv1234567890abcdefgh",
     "role": "Senior Hair Stylist",
     "availability": {
-      "monday": "08:00-18:00",
-      "tuesday": "08:00-18:00",
-      "wednesday": "08:00-18:00",
-      "thursday": "08:00-18:00",
-      "friday": "08:00-18:00",
-      "saturday": "10:00-17:00"
+      "monday": {
+        "isAvailable": true,
+        "slots": [{ "start": "08:00", "end": "18:00" }]
+      },
+      "tuesday": {
+        "isAvailable": true,
+        "slots": [{ "start": "08:00", "end": "18:00" }]
+      },
+      "wednesday": {
+        "isAvailable": true,
+        "slots": [{ "start": "08:00", "end": "18:00" }]
+      },
+      "thursday": {
+        "isAvailable": true,
+        "slots": [{ "start": "08:00", "end": "18:00" }]
+      },
+      "friday": {
+        "isAvailable": true,
+        "slots": [{ "start": "08:00", "end": "18:00" }]
+      },
+      "saturday": {
+        "isAvailable": true,
+        "slots": [{ "start": "10:00", "end": "17:00" }]
+      },
+      "sunday": {
+        "isAvailable": false
+      }
     },
     "userId": "clv0987654321zyxwvuts",
     "salon": {
@@ -388,6 +580,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 ```
 
 **Error Response (403 Forbidden):**
+
 ```json
 {
   "message": "Unauthorized: You do not own this staff member"
@@ -395,6 +588,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 ```
 
 **Error Response (400 Bad Request):**
+
 ```json
 {
   "message": "User not found"
@@ -402,6 +596,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 ```
 
 **cURL Command:**
+
 ```bash
 curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -409,12 +604,45 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
   -d '{
     "role": "Senior Hair Stylist",
     "availability": {
-      "monday": "08:00-18:00",
-      "tuesday": "08:00-18:00",
-      "wednesday": "08:00-18:00",
-      "thursday": "08:00-18:00",
-      "friday": "08:00-18:00",
-      "saturday": "10:00-17:00"
+      "monday": {
+        "isAvailable": true,
+        "slots": [
+          { "start": "08:00", "end": "18:00" }
+        ]
+      },
+      "tuesday": {
+        "isAvailable": true,
+        "slots": [
+          { "start": "08:00", "end": "18:00" }
+        ]
+      },
+      "wednesday": {
+        "isAvailable": true,
+        "slots": [
+          { "start": "08:00", "end": "18:00" }
+        ]
+      },
+      "thursday": {
+        "isAvailable": true,
+        "slots": [
+          { "start": "08:00", "end": "18:00" }
+        ]
+      },
+      "friday": {
+        "isAvailable": true,
+        "slots": [
+          { "start": "08:00", "end": "18:00" }
+        ]
+      },
+      "saturday": {
+        "isAvailable": true,
+        "slots": [
+          { "start": "10:00", "end": "17:00" }
+        ]
+      },
+      "sunday": {
+        "isAvailable": false
+      }
     }
   }'
 ```
@@ -430,9 +658,11 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 **Authentication:** Required (Bearer token)
 
 **URL Parameters:**
+
 - `id` (string, required) — Staff ID in CUID format
 
 **Success Response (200 OK):**
+
 ```json
 {
   "message": "Staff member deleted successfully"
@@ -440,6 +670,7 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 ```
 
 **Error Response (403 Forbidden):**
+
 ```json
 {
   "message": "Unauthorized: You do not own this staff member"
@@ -447,6 +678,7 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 ```
 
 **Error Response (404 Not Found):**
+
 ```json
 {
   "message": "Staff member not found"
@@ -454,6 +686,7 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 ```
 
 **cURL Command:**
+
 ```bash
 curl -X DELETE http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -464,10 +697,14 @@ curl -X DELETE http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 
 ## Validation Rules
 
-- **salonId**: Must be a valid CUID format
+- **salonId**: Must be a valid CUID format, supplied in the request body
 - **role**: Minimum 2 characters
-- **availability**: JSON object with optional schedule data
-- **userId**: Must be a valid CUID format and exist in database
+- **availability**: Weekly availability object with:
+  - Keys for each day of the week: `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`
+  - For each day:
+    - `isAvailable`: boolean (required)
+    - `slots`: optional array of `{ "start": "HH:mm", "end": "HH:mm" }` objects
+- **userId**: Optional; when provided, must be a valid CUID format and reference an existing user
 - **id (in URL)**: Must be a valid CUID format
 
 ## Authentication Notes
