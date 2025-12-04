@@ -60,28 +60,29 @@ model Salon {
 }
 
 model Staff {
-  id           String    @id @default(cuid())
-  salonId      String    @map("salon_id")
-  userId       String?   @map("user_id")
-  role         String
+  id           String         @id @default(cuid())
+  salonId      String         @map("salon_id")
+  userId       String?        @map("user_id")
   availability Json?
   bookings     Booking[]
-  salon        Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  user         User?     @relation(fields: [userId], references: [id])
+  salon        Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user         User?          @relation(fields: [userId], references: [id])
+  services     StaffService[]
 
   @@index([salonId])
   @@map("staff")
 }
 
 model Service {
-  id              String    @id @default(cuid())
-  salonId         String    @map("salon_id")
+  id              String         @id @default(cuid())
+  salonId         String         @map("salon_id")
   title           String
-  durationMinutes Int       @map("duration_minutes")
-  price           Decimal   @db.Decimal(10, 2)
+  durationMinutes Int            @map("duration_minutes")
+  price           Decimal        @db.Decimal(10, 2)
   bookings        Booking[]
   reviews         Review[]
-  salon           Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  salon           Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  staff           StaffService[]
 
   @@index([salonId])
   @@map("services")
@@ -250,4 +251,18 @@ model Address {
 
   @@index([userId])
   @@map("addresses")
+}
+
+model StaffService {
+  id        String   @id @default(cuid())
+  staffId   String   @map("staff_id")
+  serviceId String   @map("service_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, serviceId])
+  @@index([staffId])
+  @@index([serviceId])
+  @@map("staff_services")
 }

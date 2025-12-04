@@ -29,13 +29,18 @@ export type DayAvailability = z.infer<typeof dayAvailabilitySchema>;
 
 export const createStaffSchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID format'),
-  role: z.string().min(2, 'Staff role must be at least 2 characters'),
+  serviceIds: z
+    .array(z.string().cuid('Invalid service ID format'))
+    .min(1, 'At least one service must be assigned'),
   availability: staffAvailabilitySchema.optional(),
   userId: z.string().cuid('Invalid user ID format').optional(),
 });
 
 export const updateStaffSchema: AnyZodObject = z.object({
-  role: z.string().min(2, 'Staff role must be at least 2 characters').optional(),
+  serviceIds: z
+    .array(z.string().cuid('Invalid service ID format'))
+    .min(1, 'At least one service must be assigned')
+    .optional(),
   availability: staffAvailabilitySchema.optional(),
   userId: z.string().cuid('Invalid user ID format').optional(),
 });
@@ -48,7 +53,6 @@ export const getStaffQuerySchema: AnyZodObject = z.object({
   page: z.string().transform(Number).optional(),
   limit: z.string().transform(Number).optional(),
   salonId: z.string().cuid('Invalid salon ID format').optional(),
-  role: z.string().optional(),
 });
 
 export const getSalonStaffParamsSchema: AnyZodObject = z.object({

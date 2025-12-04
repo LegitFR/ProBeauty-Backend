@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import * as staffService from '@/services/staffService';
 
 export async function createStaff(req: Request, res: Response): Promise<void> {
-  const { salonId, role, availability, userId } = req.body;
+  const { salonId, serviceIds, availability, userId } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -14,7 +14,7 @@ export async function createStaff(req: Request, res: Response): Promise<void> {
   try {
     const staff = await staffService.createStaff(ownerId, {
       salonId,
-      role,
+      serviceIds,
       availability,
       userId,
     });
@@ -35,6 +35,13 @@ export async function createStaff(req: Request, res: Response): Promise<void> {
         return;
       }
       if (error.message === 'User not found') {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+      if (
+        error.message.includes('services not found') ||
+        error.message.includes('do not belong to this salon')
+      ) {
         res.status(400).json({ message: error.message });
         return;
       }
@@ -75,14 +82,13 @@ export async function getStaff(req: Request, res: Response): Promise<void> {
 }
 
 export async function getAllStaff(req: Request, res: Response): Promise<void> {
-  const { page, limit, salonId, role } = req.query;
+  const { page, limit, salonId } = req.query;
 
   try {
     const filters = {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       salonId: salonId as string | undefined,
-      role: role as string | undefined,
     };
 
     const result = await staffService.getAllStaff(filters);
@@ -107,13 +113,12 @@ export async function getAllStaff(req: Request, res: Response): Promise<void> {
 
 export async function getStaffBySalon(req: Request, res: Response): Promise<void> {
   const { salonId } = req.params;
-  const { page, limit, role } = req.query;
+  const { page, limit } = req.query;
 
   try {
     const filters = {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
-      role: role as string | undefined,
     };
 
     const result = await staffService.getStaffBySalonId(salonId, filters);
@@ -138,7 +143,7 @@ export async function getStaffBySalon(req: Request, res: Response): Promise<void
 
 export async function updateStaff(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { role, availability, userId } = req.body;
+  const { serviceIds, availability, userId } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -148,7 +153,7 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
 
   try {
     const staff = await staffService.updateStaff(id, ownerId, {
-      role,
+      serviceIds,
       availability,
       userId,
     });
@@ -168,9 +173,18 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
       data: staffData,
     });
   } catch (error) {
-    if (error instanceof Error && error.message === 'User not found') {
-      res.status(400).json({ message: error.message });
-      return;
+    if (error instanceof Error) {
+      if (error.message === 'User not found') {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+      if (
+        error.message.includes('services not found') ||
+        error.message.includes('do not belong to this salon')
+      ) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
     }
     res.status(500).json({
       message: 'Internal server error',

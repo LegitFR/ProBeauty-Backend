@@ -17,7 +17,7 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 ```json
 {
   "salonId": "clv1234567890abcdefgh",
-  "role": "Hair Stylist",
+  "serviceIds": ["clv1111111111abcdefgh", "clv2222222222abcdefgh"],
   "availability": {
     "monday": {
       "isAvailable": true,
@@ -54,7 +54,7 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 **Request Parameters:**
 
 - `salonId` (string, required) — CUID format salon ID
-- `role` (string, required) — Staff role/position, 2+ characters
+- `serviceIds` (array of strings, required) — Array of service IDs that this staff member can perform. Must contain at least one service ID. All services must belong to the specified salon.
 - `availability` (object, optional) — Weekly availability object with keys for each day (`monday`–`sunday`), each containing:
   - `isAvailable` (boolean, required)
   - `slots` (array, optional) — List of time slots with `start` and `end` in `HH:mm` format
@@ -68,7 +68,24 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
   "data": {
     "id": "clv9876543210zyxwvuts",
     "salonId": "clv1234567890abcdefgh",
-    "role": "Hair Stylist",
+    "services": [
+      {
+        "id": "clv1111111111abcdefgh",
+        "service": {
+          "id": "clv1111111111abcdefgh",
+          "title": "Haircut",
+          "price": 500
+        }
+      },
+      {
+        "id": "clv2222222222abcdefgh",
+        "service": {
+          "id": "clv2222222222abcdefgh",
+          "title": "Hair Styling",
+          "price": 800
+        }
+      }
+    ],
     "availability": {
       "monday": {
         "isAvailable": true,
@@ -137,7 +154,16 @@ curl -X POST http://localhost:5000/api/v1/staff \
   -H "Content-Type: application/json" \
   -d '{
     "salonId": "cmiplyw1n0002li2gbggmr85q",
-    "role": "Hair Stylist",
+    "services": [
+      {
+        "id": "clv1111111111abcdefgh",
+        "service": {
+          "id": "clv1111111111abcdefgh",
+          "title": "Haircut",
+          "price": 500
+        }
+      }
+    ],
     "availability": {
       "monday":   { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
       "tuesday":  { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
@@ -172,7 +198,24 @@ curl -X POST http://localhost:5000/api/v1/staff \
   "data": {
     "id": "clv9876543210zyxwvuts",
     "salonId": "clv1234567890abcdefgh",
-    "role": "Hair Stylist",
+    "services": [
+      {
+        "id": "clv1111111111abcdefgh",
+        "service": {
+          "id": "clv1111111111abcdefgh",
+          "title": "Haircut",
+          "price": 500
+        }
+      },
+      {
+        "id": "clv2222222222abcdefgh",
+        "service": {
+          "id": "clv2222222222abcdefgh",
+          "title": "Hair Styling",
+          "price": 800
+        }
+      }
+    ],
     "availability": {
       "monday": {
         "isAvailable": true,
@@ -259,7 +302,6 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 
 - `page` (number, optional) — Page number for pagination (default: 1)
 - `limit` (number, optional) — Number of results per page (default: 10)
-- `role` (string, optional) — Filter by staff role
 
 **Success Response (200 OK):**
 
@@ -270,7 +312,16 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
     {
       "id": "clv9876543210zyxwvuts",
       "salonId": "clv1234567890abcdefgh",
-      "role": "Hair Stylist",
+      "services": [
+        {
+          "id": "clv1111111111abcdefgh",
+          "service": {
+            "id": "clv1111111111abcdefgh",
+            "title": "Haircut",
+            "price": 500
+          }
+        }
+      ],
       "availability": {
         "monday": {
           "isAvailable": true,
@@ -314,7 +365,16 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
     {
       "id": "clv9876543210zyxwvuta",
       "salonId": "clv1234567890abcdefgh",
-      "role": "Nail Technician",
+      "services": [
+        {
+          "id": "clv4444444444abcdefgh",
+          "service": {
+            "id": "clv4444444444abcdefgh",
+            "title": "Manicure",
+            "price": 600
+          }
+        }
+      ],
       "availability": {
         "monday": {
           "isAvailable": true,
@@ -374,7 +434,7 @@ curl -X GET http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh \
 **cURL Command with Query Parameters:**
 
 ```bash
-curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page=1&limit=10&role=Hair%20Stylist" \
+curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page=1&limit=10" \
   -H "Content-Type: application/json"
 ```
 
@@ -393,7 +453,6 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
 - `page` (number, optional) — Page number for pagination (default: 1)
 - `limit` (number, optional) — Number of results per page (default: 10)
 - `salonId` (string, optional) — Filter by salon ID
-- `role` (string, optional) — Filter by staff role
 
 **Success Response (200 OK):**
 
@@ -404,7 +463,16 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
     {
       "id": "clv9876543210zyxwvuts",
       "salonId": "clv1234567890abcdefgh",
-      "role": "Hair Stylist",
+      "services": [
+        {
+          "id": "clv1111111111abcdefgh",
+          "service": {
+            "id": "clv1111111111abcdefgh",
+            "title": "Haircut",
+            "price": 500
+          }
+        }
+      ],
       "availability": {
         "monday": {
           "isAvailable": true,
@@ -465,7 +533,7 @@ curl -X GET http://localhost:5000/api/v1/staff \
 **cURL Command with Filters:**
 
 ```bash
-curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv1234567890abcdefgh&role=Hair%20Stylist" \
+curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv1234567890abcdefgh" \
   -H "Content-Type: application/json"
 ```
 
@@ -487,7 +555,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 
 ```json
 {
-  "role": "Senior Hair Stylist",
+  "serviceIds": ["clv1111111111abcdefgh", "clv3333333333abcdefgh"],
   "availability": {
     "monday": {
       "isAvailable": true,
@@ -523,7 +591,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 
 **Request Parameters:**
 
-- `role` (string, optional) — New staff role, 2+ characters
+- `serviceIds` (array of strings, optional) — Array of service IDs that this staff member can perform. Must contain at least one service ID if provided. All services must belong to the staff member's salon.
 - `availability` (object, optional) — Weekly availability object with keys for each day (`monday`–`sunday`), same structure as in Create Staff
 - `userId` (string, optional) — New user ID to associate with staff member
 
@@ -535,7 +603,24 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
   "data": {
     "id": "clv9876543210zyxwvuts",
     "salonId": "clv1234567890abcdefgh",
-    "role": "Senior Hair Stylist",
+    "services": [
+      {
+        "id": "clv1111111111abcdefgh",
+        "service": {
+          "id": "clv1111111111abcdefgh",
+          "title": "Haircut",
+          "price": 500
+        }
+      },
+      {
+        "id": "clv3333333333abcdefgh",
+        "service": {
+          "id": "clv3333333333abcdefgh",
+          "title": "Senior Hair Styling",
+          "price": 1200
+        }
+      }
+    ],
     "availability": {
       "monday": {
         "isAvailable": true,
@@ -602,7 +687,7 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "role": "Senior Hair Stylist",
+    "serviceIds": ["clv1111111111abcdefgh", "clv3333333333abcdefgh"],
     "availability": {
       "monday": {
         "isAvailable": true,
@@ -698,7 +783,7 @@ curl -X DELETE http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 ## Validation Rules
 
 - **salonId**: Must be a valid CUID format, supplied in the request body
-- **role**: Minimum 2 characters
+- **serviceIds**: Array of service IDs (CUID format). Must contain at least one service ID. All services must belong to the specified salon.
 - **availability**: Weekly availability object with:
   - Keys for each day of the week: `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`
   - For each day:

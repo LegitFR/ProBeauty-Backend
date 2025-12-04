@@ -4,13 +4,13 @@ import { prisma } from '@/configs/db';
 
 interface CreateStaffData {
   salonId: string;
-  role: string;
+  serviceIds: string[];
   availability?: Record<string, unknown> | null;
   userId?: string;
 }
 
 interface UpdateStaffData {
-  role?: string;
+  serviceIds?: string[];
   availability?: Record<string, unknown> | null;
   userId?: string;
 }
@@ -19,7 +19,6 @@ interface GetStaffFilters {
   page?: number;
   limit?: number;
   salonId?: string;
-  role?: string;
 }
 
 export async function createStaff(ownerId: string, data: CreateStaffData) {
@@ -43,14 +42,32 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
     }
   }
 
+  // Verify all services exist and belong to the salon
+  if (data.serviceIds && data.serviceIds.length > 0) {
+    const services = await prisma.service.findMany({
+      where: {
+        id: { in: data.serviceIds },
+        salonId: data.salonId,
+      },
+    });
+
+    if (services.length !== data.serviceIds.length) {
+      throw new Error('One or more services not found or do not belong to this salon');
+    }
+  }
+
   return prisma.staff.create({
     data: {
       salonId: data.salonId,
-      role: data.role,
       availability: data.availability
         ? (JSON.stringify(data.availability) as Prisma.InputJsonValue)
         : undefined,
       userId: data.userId,
+      services: {
+        create: data.serviceIds.map((serviceId) => ({
+          serviceId,
+        })),
+      },
     },
     include: {
       salon: {
@@ -58,6 +75,13 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
       },
       user: {
         select: { id: true, name: true, email: true, phone: true },
+      },
+      services: {
+        include: {
+          service: {
+            select: { id: true, title: true, price: true },
+          },
+        },
       },
     },
   });
@@ -72,6 +96,13 @@ export async function getStaffById(id: string) {
       },
       user: {
         select: { id: true, name: true, email: true, phone: true },
+      },
+      services: {
+        include: {
+          service: {
+            select: { id: true, title: true, price: true, durationMinutes: true },
+          },
+        },
       },
       bookings: {
         select: {
@@ -89,7 +120,6 @@ export async function getStaffById(id: string) {
 
 interface StaffWhereClause {
   salonId?: string;
-  role?: string;
 }
 
 export async function getAllStaff(filters?: GetStaffFilters) {
@@ -101,10 +131,6 @@ export async function getAllStaff(filters?: GetStaffFilters) {
 
   if (filters?.salonId) {
     where.salonId = filters.salonId;
-  }
-
-  if (filters?.role) {
-    where.role = filters.role;
   }
 
   const [staff, total] = await Promise.all([
@@ -119,8 +145,15 @@ export async function getAllStaff(filters?: GetStaffFilters) {
         user: {
           select: { id: true, name: true, email: true },
         },
+        services: {
+          include: {
+            service: {
+              select: { id: true, title: true, price: true },
+            },
+          },
+        },
       },
-      orderBy: { role: 'asc' },
+      orderBy: { createdAt: 'desc' },
     }),
     prisma.staff.count({ where }),
   ]);
@@ -143,10 +176,6 @@ export async function getStaffBySalonId(salonId: string, filters?: GetStaffFilte
 
   const where: StaffWhereClause = { salonId };
 
-  if (filters?.role) {
-    where.role = filters.role;
-  }
-
   const [staff, total] = await Promise.all([
     prisma.staff.findMany({
       where,
@@ -159,8 +188,15 @@ export async function getStaffBySalonId(salonId: string, filters?: GetStaffFilte
         user: {
           select: { id: true, name: true, email: true },
         },
+        services: {
+          include: {
+            service: {
+              select: { id: true, title: true, price: true },
+            },
+          },
+        },
       },
-      orderBy: { role: 'asc' },
+      orderBy: { createdAt: 'desc' },
     }),
     prisma.staff.count({ where }),
   ]);
@@ -197,15 +233,43 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
     }
   }
 
+  // If serviceIds are being updated, verify all services exist and belong to the salon
+  if (data.serviceIds !== undefined) {
+    if (data.serviceIds.length > 0) {
+      const services = await prisma.service.findMany({
+        where: {
+          id: { in: data.serviceIds },
+          salonId: staff.salonId,
+        },
+      });
+
+      if (services.length !== data.serviceIds.length) {
+        throw new Error('One or more services not found or do not belong to this salon');
+      }
+    }
+
+    // Update service associations
+    await prisma.staffService.deleteMany({
+      where: { staffId: id },
+    });
+  }
+
   return prisma.staff.update({
     where: { id },
     data: {
-      role: data.role,
       availability:
         data.availability !== undefined
           ? (JSON.stringify(data.availability) as Prisma.InputJsonValue)
           : undefined,
       userId: data.userId,
+      services:
+        data.serviceIds !== undefined
+          ? {
+              create: data.serviceIds.map((serviceId) => ({
+                serviceId,
+              })),
+            }
+          : undefined,
     },
     include: {
       salon: {
@@ -213,6 +277,13 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
       },
       user: {
         select: { id: true, name: true, email: true },
+      },
+      services: {
+        include: {
+          service: {
+            select: { id: true, title: true, price: true },
+          },
+        },
       },
     },
   });

@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '@/configs/db';
+import type { StaffAvailability } from '@/schemas/staffSchema';
+import { parseStaffAvailability, isSlotAvailable } from '@/utils/availabilityUtils';
 
 type VenueType = 'male' | 'female' | 'everyone';
 
@@ -231,13 +233,56 @@ const DAY_KEYS: string[] = [
 
 type SalonWithRelations = Prisma.SalonGetPayload<{
   include: {
-    services: true;
+    services: {
+      include: {
+        staff: {
+          include: {
+            staff: {
+              include: {
+                user: {
+                  select: {
+                    id: true;
+                    name: true;
+                    email: true;
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
     reviews: true;
   };
 }>;
 
+type ServiceWithStaff = SalonWithRelations['services'][number];
+type StaffServiceRelation = ServiceWithStaff['staff'][number];
+type StaffWithUser = StaffServiceRelation['staff'];
+
+interface ProcessedService {
+  id: string;
+  title: string;
+  price: Prisma.Decimal;
+  durationMinutes: number;
+  staff: {
+    id: string;
+    userId: string | null;
+    user: { id: string; name: string; email: string } | null;
+    availability: StaffAvailability | null;
+  }[];
+}
+
+interface ProcessedSalon extends Omit<SalonWithRelations, 'services' | 'geo' | 'hours'> {
+  services: ProcessedService[];
+  averageRating: number;
+  distanceKm?: number;
+  geo: unknown;
+  hours: unknown;
+}
+
 interface SearchResult {
-  salons: (SalonWithRelations & { averageRating: number; distanceKm?: number })[];
+  salons: ProcessedSalon[];
   pagination: {
     page: number;
     limit: number;
@@ -423,6 +468,132 @@ function sanitizeSalonResponse(
   };
 }
 
+/**
+ * Check if staff is available for a specific date and time segment
+ */
+async function isStaffAvailableForTimeSegment(
+  staffId: string,
+  date: string,
+  timeSegment: NonNullable<SearchSalonsFilters['time']>,
+  serviceDurationMinutes: number
+): Promise<boolean> {
+  const targetDate = new Date(date);
+  if (Number.isNaN(targetDate.getTime())) {
+    return false;
+  }
+
+  // Get staff with availability
+  const staff = await prisma.staff.findUnique({
+    where: { id: staffId },
+    select: { availability: true },
+  });
+
+  if (!staff) {
+    return false;
+  }
+
+  const staffAvailability = parseStaffAvailability(staff.availability);
+  if (!staffAvailability) {
+    return false;
+  }
+
+  // Get time segment range
+  const segmentRange = TIME_SEGMENT_RANGES[timeSegment];
+  const dayIndex = targetDate.getDay();
+  const dayKey = DAY_KEYS[dayIndex];
+
+  const validDayKeys: (keyof StaffAvailability)[] = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ];
+
+  if (!validDayKeys.includes(dayKey as keyof StaffAvailability)) {
+    return false;
+  }
+
+  const dayAvailability = staffAvailability[dayKey as keyof StaffAvailability];
+  if (!dayAvailability.isAvailable || !dayAvailability.slots) {
+    return false;
+  }
+
+  // Check if any availability slot overlaps with the time segment
+  const hasOverlap = dayAvailability.slots.some((slot: { start: string; end: string }) => {
+    const slotStartMinutes = timeStringToMinutes(slot.start);
+    const slotEndMinutes = timeStringToMinutes(slot.end);
+    if (slotStartMinutes === null || slotEndMinutes === null) {
+      return false;
+    }
+
+    // Check if segment overlaps with slot
+    const overlaps =
+      Math.max(slotStartMinutes, segmentRange.startMinutes) <
+      Math.min(slotEndMinutes, segmentRange.endMinutes);
+
+    if (!overlaps) {
+      return false;
+    }
+
+    // Check if there's enough time for the service within the overlapping period
+    const overlapStart = Math.max(slotStartMinutes, segmentRange.startMinutes);
+    const overlapEnd = Math.min(slotEndMinutes, segmentRange.endMinutes);
+    const overlapDuration = overlapEnd - overlapStart;
+
+    return overlapDuration >= serviceDurationMinutes;
+  });
+
+  if (!hasOverlap) {
+    return false;
+  }
+
+  // Check for existing bookings on this date
+  const dayStart = new Date(targetDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(targetDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const existingBookings = await prisma.booking.findMany({
+    where: {
+      staffId,
+      startTime: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        notIn: ['CANCELLED', 'NO_SHOW'],
+      },
+    },
+    select: {
+      startTime: true,
+      endTime: true,
+    },
+  });
+
+  // Check if there's at least one available slot within the time segment
+  // We'll check a sample time within the segment
+  const sampleStartMinutes = Math.max(
+    segmentRange.startMinutes,
+    dayAvailability.slots[0] ? timeStringToMinutes(dayAvailability.slots[0].start) || 0 : 0
+  );
+  const sampleEndMinutes = sampleStartMinutes + serviceDurationMinutes;
+
+  if (sampleEndMinutes > segmentRange.endMinutes) {
+    return false;
+  }
+
+  // Create sample datetime for availability check
+  const sampleStart = new Date(targetDate);
+  sampleStart.setHours(Math.floor(sampleStartMinutes / 60), sampleStartMinutes % 60, 0, 0);
+  const sampleEnd = new Date(sampleStart);
+  sampleEnd.setMinutes(sampleEnd.getMinutes() + serviceDurationMinutes);
+
+  return isSlotAvailable(sampleStart, sampleEnd, staffAvailability, existingBookings);
+}
+
 export async function searchSalonsWithServices(
   filters: SearchSalonsFilters
 ): Promise<SearchResult> {
@@ -489,8 +660,43 @@ export async function searchSalonsWithServices(
             orderBy: {
               price: 'asc',
             },
+            include: {
+              staff: {
+                include: {
+                  staff: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          email: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           }
-        : true,
+        : {
+            include: {
+              staff: {
+                include: {
+                  staff: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          name: true,
+                          email: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
       reviews: true,
     },
   });
@@ -509,10 +715,72 @@ export async function searchSalonsWithServices(
 
   const total = sortedSalons.length;
   const startIndex = (page - 1) * limit;
-  const pagedSalons = sortedSalons.slice(startIndex, startIndex + limit).map(sanitizeSalonResponse);
+  const pagedSalons = sortedSalons.slice(startIndex, startIndex + limit);
+
+  // Process services to include staff with availability filtering
+  const processedSalons = await Promise.all(
+    pagedSalons.map(async (salon) => {
+      const processedServices = await Promise.all(
+        salon.services.map(async (service: ServiceWithStaff) => {
+          // Get all staff for this service
+          const staffServices: StaffServiceRelation[] = service.staff || [];
+          let availableStaff: StaffWithUser[] = staffServices
+            .map((ss: StaffServiceRelation) => ss.staff)
+            .filter(
+              (staff: StaffWithUser | null): staff is StaffWithUser =>
+                staff !== null && staff !== undefined
+            );
+
+          // If date and time are provided, filter staff by availability
+          if (filters.date && filters.time) {
+            const date = filters.date;
+            const time = filters.time;
+            const availabilityChecks = await Promise.all(
+              availableStaff.map(async (staff: StaffWithUser) => {
+                const isAvailable = await isStaffAvailableForTimeSegment(
+                  staff.id,
+                  date,
+                  time,
+                  service.durationMinutes
+                );
+                return { staff, isAvailable };
+              })
+            );
+
+            // Only include available staff
+            availableStaff = availabilityChecks
+              .filter((check) => check.isAvailable)
+              .map((check) => check.staff);
+          }
+
+          // Format staff data for response
+          const staffData = availableStaff.map((staff) => ({
+            id: staff.id,
+            userId: staff.userId,
+            user: staff.user,
+            availability: staff.availability ? parseStaffAvailability(staff.availability) : null,
+          }));
+
+          return {
+            id: service.id,
+            title: service.title,
+            price: service.price,
+            durationMinutes: service.durationMinutes,
+            staff: staffData,
+          };
+        })
+      );
+
+      const sanitizedSalon = sanitizeSalonResponse(salon);
+      return {
+        ...sanitizedSalon,
+        services: processedServices,
+      };
+    })
+  );
 
   return {
-    salons: pagedSalons,
+    salons: processedSalons,
     pagination: {
       page,
       limit,

@@ -169,7 +169,6 @@ export async function createBooking(data: CreateBookingData) {
       staff: {
         select: {
           id: true,
-          role: true,
           user: {
             select: {
               name: true,
@@ -217,7 +216,6 @@ export async function getBookingById(id: string) {
       staff: {
         select: {
           id: true,
-          role: true,
           user: {
             select: {
               name: true,
@@ -289,7 +287,6 @@ export async function getBookings(filters: GetBookingsFilters) {
       staff: {
         select: {
           id: true,
-          role: true,
           user: {
             select: {
               name: true,
@@ -341,7 +338,7 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
   }
 
   let slots: { startTime: string; endTime: string; available: boolean }[] = [];
-  let staffInfo: { id: string; role: string } | null = null;
+  let staffInfo: { id: string } | null = null;
 
   if (staffId) {
     // Verify staff exists and belongs to salon
@@ -356,7 +353,6 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
 
     staffInfo = {
       id: staff.id,
-      role: staff.role,
     };
 
     // Parse staff availability
@@ -566,7 +562,6 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       staff: {
         select: {
           id: true,
-          role: true,
           user: {
             select: {
               name: true,
@@ -629,7 +624,6 @@ export async function cancelBooking(id: string) {
       staff: {
         select: {
           id: true,
-          role: true,
           user: {
             select: {
               name: true,
@@ -696,7 +690,6 @@ export async function confirmBooking(id: string) {
       staff: {
         select: {
           id: true,
-          role: true,
           user: {
             select: {
               name: true,
@@ -759,7 +752,6 @@ export async function completeBooking(id: string) {
       staff: {
         select: {
           id: true,
-          role: true,
           user: {
             select: {
               name: true,
