@@ -4,13 +4,13 @@ import { prisma } from '@/configs/db';
 
 interface CreateStaffData {
   salonId: string;
-  serviceIds: string[];
+  serviceId: string;
   availability?: Record<string, unknown> | null;
   userId?: string;
 }
 
 interface UpdateStaffData {
-  serviceIds?: string[];
+  serviceId?: string;
   availability?: Record<string, unknown> | null;
   userId?: string;
 }
@@ -42,18 +42,15 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
     }
   }
 
-  // Verify all services exist and belong to the salon
-  if (data.serviceIds && data.serviceIds.length > 0) {
-    const services = await prisma.service.findMany({
-      where: {
-        id: { in: data.serviceIds },
-        salonId: data.salonId,
-      },
-    });
+  // Verify service exists and belongs to the salon
+  const service = await prisma.service.findUnique({
+    where: {
+      id: data.serviceId,
+    },
+  });
 
-    if (services.length !== data.serviceIds.length) {
-      throw new Error('One or more services not found or do not belong to this salon');
-    }
+  if (!service || service.salonId !== data.salonId) {
+    throw new Error('Service not found or does not belong to this salon');
   }
 
   return prisma.staff.create({
@@ -64,9 +61,9 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
         : undefined,
       userId: data.userId,
       services: {
-        create: data.serviceIds.map((serviceId) => ({
-          serviceId,
-        })),
+        create: {
+          serviceId: data.serviceId,
+        },
       },
     },
     include: {
@@ -233,22 +230,19 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
     }
   }
 
-  // If serviceIds are being updated, verify all services exist and belong to the salon
-  if (data.serviceIds !== undefined) {
-    if (data.serviceIds.length > 0) {
-      const services = await prisma.service.findMany({
-        where: {
-          id: { in: data.serviceIds },
-          salonId: staff.salonId,
-        },
-      });
+  // If serviceId is being updated, verify service exists and belongs to the salon
+  if (data.serviceId !== undefined) {
+    const service = await prisma.service.findUnique({
+      where: {
+        id: data.serviceId,
+      },
+    });
 
-      if (services.length !== data.serviceIds.length) {
-        throw new Error('One or more services not found or do not belong to this salon');
-      }
+    if (!service || service.salonId !== staff.salonId) {
+      throw new Error('Service not found or does not belong to this salon');
     }
 
-    // Update service associations
+    // Update service association (delete old and create new)
     await prisma.staffService.deleteMany({
       where: { staffId: id },
     });
@@ -263,11 +257,11 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
           : undefined,
       userId: data.userId,
       services:
-        data.serviceIds !== undefined
+        data.serviceId !== undefined
           ? {
-              create: data.serviceIds.map((serviceId) => ({
-                serviceId,
-              })),
+              create: {
+                serviceId: data.serviceId,
+              },
             }
           : undefined,
     },

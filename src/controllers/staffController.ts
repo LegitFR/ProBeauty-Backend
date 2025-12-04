@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import * as staffService from '@/services/staffService';
 
 export async function createStaff(req: Request, res: Response): Promise<void> {
-  const { salonId, serviceIds, availability, userId } = req.body;
+  const { salonId, serviceId, availability, userId } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -14,7 +14,7 @@ export async function createStaff(req: Request, res: Response): Promise<void> {
   try {
     const staff = await staffService.createStaff(ownerId, {
       salonId,
-      serviceIds,
+      serviceId,
       availability,
       userId,
     });
@@ -38,10 +38,7 @@ export async function createStaff(req: Request, res: Response): Promise<void> {
         res.status(400).json({ message: error.message });
         return;
       }
-      if (
-        error.message.includes('services not found') ||
-        error.message.includes('do not belong to this salon')
-      ) {
+      if (error.message.includes('Service not found or does not belong to this salon')) {
         res.status(400).json({ message: error.message });
         return;
       }
@@ -143,7 +140,7 @@ export async function getStaffBySalon(req: Request, res: Response): Promise<void
 
 export async function updateStaff(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { serviceIds, availability, userId } = req.body;
+  const { serviceId, availability, userId } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -153,7 +150,7 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
 
   try {
     const staff = await staffService.updateStaff(id, ownerId, {
-      serviceIds,
+      serviceId,
       availability,
       userId,
     });
@@ -178,10 +175,7 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
         res.status(400).json({ message: error.message });
         return;
       }
-      if (
-        error.message.includes('services not found') ||
-        error.message.includes('do not belong to this salon')
-      ) {
+      if (error.message.includes('Service not found or does not belong to this salon')) {
         res.status(400).json({ message: error.message });
         return;
       }

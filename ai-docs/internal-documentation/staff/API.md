@@ -17,7 +17,7 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 ```json
 {
   "salonId": "clv1234567890abcdefgh",
-  "serviceIds": ["clv1111111111abcdefgh", "clv2222222222abcdefgh"],
+  "serviceId": "clv1111111111abcdefgh",
   "availability": {
     "monday": {
       "isAvailable": true,
@@ -54,7 +54,7 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 **Request Parameters:**
 
 - `salonId` (string, required) — CUID format salon ID
-- `serviceIds` (array of strings, required) — Array of service IDs that this staff member can perform. Must contain at least one service ID. All services must belong to the specified salon.
+- `serviceId` (string, required) — CUID format service ID that this staff member can perform. Service must belong to the specified salon.
 - `availability` (object, optional) — Weekly availability object with keys for each day (`monday`–`sunday`), each containing:
   - `isAvailable` (boolean, required)
   - `slots` (array, optional) — List of time slots with `start` and `end` in `HH:mm` format
@@ -154,16 +154,7 @@ curl -X POST http://localhost:5000/api/v1/staff \
   -H "Content-Type: application/json" \
   -d '{
     "salonId": "cmiplyw1n0002li2gbggmr85q",
-    "services": [
-      {
-        "id": "clv1111111111abcdefgh",
-        "service": {
-          "id": "clv1111111111abcdefgh",
-          "title": "Haircut",
-          "price": 500
-        }
-      }
-    ],
+    "serviceId": "clv1111111111abcdefgh",
     "availability": {
       "monday":   { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
       "tuesday":  { "isAvailable": true,  "slots": [ { "start": "09:00", "end": "18:00" } ] },
@@ -555,7 +546,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 
 ```json
 {
-  "serviceIds": ["clv1111111111abcdefgh", "clv3333333333abcdefgh"],
+  "serviceId": "clv1111111111abcdefgh",
   "availability": {
     "monday": {
       "isAvailable": true,
@@ -591,7 +582,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 
 **Request Parameters:**
 
-- `serviceIds` (array of strings, optional) — Array of service IDs that this staff member can perform. Must contain at least one service ID if provided. All services must belong to the staff member's salon.
+- `serviceId` (string, optional) — CUID format service ID that this staff member can perform. Service must belong to the staff member's salon.
 - `availability` (object, optional) — Weekly availability object with keys for each day (`monday`–`sunday`), same structure as in Create Staff
 - `userId` (string, optional) — New user ID to associate with staff member
 
@@ -610,14 +601,6 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
           "id": "clv1111111111abcdefgh",
           "title": "Haircut",
           "price": 500
-        }
-      },
-      {
-        "id": "clv3333333333abcdefgh",
-        "service": {
-          "id": "clv3333333333abcdefgh",
-          "title": "Senior Hair Styling",
-          "price": 1200
         }
       }
     ],
@@ -687,7 +670,7 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "serviceIds": ["clv1111111111abcdefgh", "clv3333333333abcdefgh"],
+    "serviceId": "clv1111111111abcdefgh",
     "availability": {
       "monday": {
         "isAvailable": true,
@@ -783,7 +766,7 @@ curl -X DELETE http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 ## Validation Rules
 
 - **salonId**: Must be a valid CUID format, supplied in the request body
-- **serviceIds**: Array of service IDs (CUID format). Must contain at least one service ID. All services must belong to the specified salon.
+- **serviceId**: Must be a valid CUID format. Service must belong to the specified salon.
 - **availability**: Weekly availability object with:
   - Keys for each day of the week: `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`
   - For each day:
