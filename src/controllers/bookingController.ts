@@ -19,7 +19,7 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     userId,
     salonId,
     serviceId,
-    staffId,
+    staffId: staffId || undefined,
     startTime,
   });
 
@@ -109,6 +109,8 @@ export async function getBookings(req: Request, res: Response): Promise<void> {
     }
 
     filters.staffId = staffProfile.id;
+    // Staff can also see bookings without staff assigned (if any)
+    // This is handled by the service layer
   } else {
     // Regular users can only see their own bookings
     filters.userId = userId;
@@ -133,15 +135,15 @@ export async function getBookings(req: Request, res: Response): Promise<void> {
 export async function getAvailableSlots(req: Request, res: Response): Promise<void> {
   const { salonId, serviceId, staffId, date } = req.query;
 
-  if (!salonId || !serviceId || !staffId || !date) {
-    res.status(400).json({ message: 'salonId, serviceId, staffId, and date are required' });
+  if (!salonId || !serviceId || !date) {
+    res.status(400).json({ message: 'salonId, serviceId, and date are required' });
     return;
   }
 
   const slots = await bookingService.getAvailableSlots({
     salonId: salonId as string,
     serviceId: serviceId as string,
-    staffId: staffId as string,
+    staffId: staffId ? (staffId as string) : undefined,
     date: date as string,
   });
 
@@ -190,6 +192,10 @@ export async function getBooking(req: Request, res: Response): Promise<void> {
     }
   } else if (userRole === 'staff') {
     // Verify this booking is assigned to the staff member
+    if (!booking.staffId) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
     const { prisma } = await import('@/configs/db');
     const staffProfile = await prisma.staff.findFirst({
       where: {
