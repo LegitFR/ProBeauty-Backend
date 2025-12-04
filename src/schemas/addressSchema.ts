@@ -1,6 +1,12 @@
 import { z, type AnyZodObject } from 'zod';
 
 /**
+ * Allowed address types
+ */
+export const addressTypes = ['Home', 'Work', 'Office', 'Other'] as const;
+export type AddressType = (typeof addressTypes)[number];
+
+/**
  * Schema for creating a new address
  */
 export const createAddressSchema: AnyZodObject = z.object({
@@ -35,6 +41,13 @@ export const createAddressSchema: AnyZodObject = z.object({
     .string()
     .min(2, 'Country must be at least 2 characters')
     .max(100, 'Country must not exceed 100 characters'),
+  addressType: z
+    .enum(addressTypes, {
+      errorMap: () => ({
+        message: `Address type must be one of: ${addressTypes.join(', ')}`,
+      }),
+    })
+    .optional(),
   isDefault: z.boolean().optional(),
 });
 
@@ -84,6 +97,13 @@ export const updateAddressSchema: AnyZodObject = z.object({
     .string()
     .min(2, 'Country must be at least 2 characters')
     .max(100, 'Country must not exceed 100 characters')
+    .optional(),
+  addressType: z
+    .enum(addressTypes, {
+      errorMap: () => ({
+        message: `Address type must be one of: ${addressTypes.join(', ')}`,
+      }),
+    })
     .optional(),
 });
 

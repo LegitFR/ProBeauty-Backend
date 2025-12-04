@@ -23,6 +23,7 @@ Address management endpoints for storing and managing user shipping/billing addr
   "state": "NY",
   "postalCode": "10001",
   "country": "USA",
+  "addressType": "Home",
   "isDefault": false
 }
 ```
@@ -36,6 +37,7 @@ Address management endpoints for storing and managing user shipping/billing addr
 - `state`: 2-100 characters
 - `postalCode`: 3-10 characters, alphanumeric
 - `country`: 2-100 characters
+- `addressType`: One of: 'Home', 'Work', 'Office', 'Other' (optional, defaults to 'Home')
 - `isDefault`: boolean (optional, defaults to false)
 
 **Success Response (201 Created):**
@@ -53,6 +55,7 @@ Address management endpoints for storing and managing user shipping/billing addr
     "state": "NY",
     "postalCode": "10001",
     "country": "USA",
+    "addressType": "Home",
     "isDefault": true,
     "createdAt": "2025-11-02T10:30:00.000Z",
     "updatedAt": "2025-11-02T10:30:00.000Z"
@@ -74,6 +77,7 @@ curl -X POST http://localhost:5000/api/v1/addresses \
     "state": "NY",
     "postalCode": "10001",
     "country": "USA",
+    "addressType": "Home",
     "isDefault": false
   }'
 ```
@@ -104,6 +108,7 @@ curl -X POST http://localhost:5000/api/v1/addresses \
       "state": "NY",
       "postalCode": "10001",
       "country": "USA",
+      "addressType": "Home",
       "isDefault": true,
       "createdAt": "2025-11-02T10:30:00.000Z",
       "updatedAt": "2025-11-02T10:30:00.000Z"
@@ -119,6 +124,7 @@ curl -X POST http://localhost:5000/api/v1/addresses \
       "state": "NY",
       "postalCode": "11201",
       "country": "USA",
+      "addressType": "Work",
       "isDefault": false,
       "createdAt": "2025-11-01T14:20:00.000Z",
       "updatedAt": "2025-11-01T14:20:00.000Z"
@@ -162,6 +168,7 @@ curl -X GET http://localhost:5000/api/v1/addresses \
     "state": "NY",
     "postalCode": "10001",
     "country": "USA",
+    "addressType": "Home",
     "isDefault": true,
     "createdAt": "2025-11-02T10:30:00.000Z",
     "updatedAt": "2025-11-02T10:30:00.000Z"
@@ -199,7 +206,8 @@ curl -X GET http://localhost:5000/api/v1/addresses/clx1a2b3c4d5e6f7g8h9i0j1 \
   "fullName": "John Smith",
   "phone": "+1-555-9999",
   "addressLine1": "789 New Street",
-  "city": "Manhattan"
+  "city": "Manhattan",
+  "addressType": "Office"
 }
 ```
 
@@ -218,6 +226,7 @@ curl -X GET http://localhost:5000/api/v1/addresses/clx1a2b3c4d5e6f7g8h9i0j1 \
     "state": "NY",
     "postalCode": "10001",
     "country": "USA",
+    "addressType": "Office",
     "isDefault": true,
     "createdAt": "2025-11-02T10:30:00.000Z",
     "updatedAt": "2025-11-02T11:45:00.000Z"
@@ -234,7 +243,8 @@ curl -X PATCH http://localhost:5000/api/v1/addresses/clx1a2b3c4d5e6f7g8h9i0j1 \
     "fullName": "John Smith",
     "phone": "+1-555-9999",
     "addressLine1": "789 New Street",
-    "city": "Manhattan"
+    "city": "Manhattan",
+    "addressType": "Office"
   }'
 ```
 
@@ -293,6 +303,7 @@ curl -X DELETE http://localhost:5000/api/v1/addresses/clx1a2b3c4d5e6f7g8h9i0j1 \
     "state": "NY",
     "postalCode": "10001",
     "country": "USA",
+    "addressType": "Home",
     "isDefault": true,
     "createdAt": "2025-11-02T10:30:00.000Z",
     "updatedAt": "2025-11-02T12:00:00.000Z"

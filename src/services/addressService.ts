@@ -14,6 +14,7 @@ interface CreateAddressData {
   state: string;
   postalCode: string;
   country: string;
+  addressType?: string;
   isDefault?: boolean;
 }
 
@@ -29,6 +30,7 @@ interface UpdateAddressData {
   state?: string;
   postalCode?: string;
   country?: string;
+  addressType?: string;
 }
 
 /**
@@ -63,6 +65,7 @@ export async function createAddress(userId: string, data: CreateAddressData): Pr
       state: data.state,
       postalCode: data.postalCode,
       country: data.country,
+      addressType: data.addressType,
       isDefault: shouldBeDefault,
     },
   });
@@ -121,6 +124,7 @@ export async function updateAddress(
       state: data.state,
       postalCode: data.postalCode,
       country: data.country,
+      addressType: data.addressType,
     },
   });
 }

@@ -24,6 +24,7 @@ export async function createAddress(req: Request, res: Response): Promise<void> 
       state,
       postalCode,
       country,
+      addressType,
       isDefault,
     } = req.body;
 
@@ -36,6 +37,7 @@ export async function createAddress(req: Request, res: Response): Promise<void> 
       state,
       postalCode,
       country,
+      addressType,
       isDefault,
     });
 
@@ -140,8 +142,17 @@ export async function updateAddress(req: Request, res: Response): Promise<void> 
   }
 
   try {
-    const { fullName, phone, addressLine1, addressLine2, city, state, postalCode, country } =
-      req.body;
+    const {
+      fullName,
+      phone,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      postalCode,
+      country,
+      addressType,
+    } = req.body;
 
     const address = await addressService.updateAddress(id, userId, {
       fullName,
@@ -152,6 +163,7 @@ export async function updateAddress(req: Request, res: Response): Promise<void> 
       state,
       postalCode,
       country,
+      addressType,
     });
 
     res.status(200).json({
