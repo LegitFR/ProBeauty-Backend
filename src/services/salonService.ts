@@ -238,7 +238,11 @@ type SalonWithRelations = Prisma.SalonGetPayload<{
         staff: {
           include: {
             staff: {
-              include: {
+              select: {
+                id: true;
+                salonId: true;
+                userId: true;
+                availability: true;
                 user: {
                   select: {
                     id: true;
@@ -664,7 +668,11 @@ export async function searchSalonsWithServices(
               staff: {
                 include: {
                   staff: {
-                    include: {
+                    select: {
+                      id: true,
+                      salonId: true,
+                      userId: true,
+                      availability: true,
                       user: {
                         select: {
                           id: true,
@@ -683,7 +691,11 @@ export async function searchSalonsWithServices(
               staff: {
                 include: {
                   staff: {
-                    include: {
+                    select: {
+                      id: true,
+                      salonId: true,
+                      userId: true,
+                      availability: true,
                       user: {
                         select: {
                           id: true,

@@ -16,10 +16,22 @@ interface GeneratedSlot {
  */
 export function parseStaffAvailability(availability: unknown): StaffAvailability | null {
   try {
-    if (!availability || typeof availability !== 'object') {
+    if (!availability) {
       return null;
     }
-    return availability as StaffAvailability;
+
+    // If it's a string, parse it first
+    if (typeof availability === 'string') {
+      const parsed = JSON.parse(availability);
+      return parsed as StaffAvailability;
+    }
+
+    // If it's already an object, return it
+    if (typeof availability === 'object') {
+      return availability as StaffAvailability;
+    }
+
+    return null;
   } catch {
     return null;
   }
