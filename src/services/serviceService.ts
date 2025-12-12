@@ -3,12 +3,14 @@ import { prisma } from '@/configs/db';
 interface CreateServiceData {
   salonId: string;
   title: string;
+  category: string;
   durationMinutes: number;
   price: number;
 }
 
 interface UpdateServiceData {
   title?: string;
+  category?: string;
   durationMinutes?: number;
   price?: number;
 }
@@ -17,7 +19,7 @@ interface UpdateServiceData {
  * Create a new service for a salon
  */
 export async function createService(data: CreateServiceData) {
-  const { salonId, title, durationMinutes, price } = data;
+  const { salonId, title, category, durationMinutes, price } = data;
 
   // Verify salon exists
   const salon = await prisma.salon.findUnique({
@@ -33,6 +35,7 @@ export async function createService(data: CreateServiceData) {
     data: {
       salonId,
       title,
+      category,
       durationMinutes,
       price,
     },

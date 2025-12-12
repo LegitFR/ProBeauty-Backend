@@ -8,7 +8,7 @@ import * as serviceService from '@/services/serviceService';
  * POST /api/v1/services
  */
 export async function createService(req: Request, res: Response): Promise<void> {
-  const { salonId, title, durationMinutes, price } = req.body;
+  const { salonId, title, category, durationMinutes, price } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
@@ -29,6 +29,7 @@ export async function createService(req: Request, res: Response): Promise<void> 
   const service = await serviceService.createService({
     salonId,
     title,
+    category,
     durationMinutes,
     price,
   });
@@ -98,7 +99,7 @@ export async function getAllServices(req: Request, res: Response): Promise<void>
  */
 export async function updateService(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { title, durationMinutes, price } = req.body;
+  const { title, category, durationMinutes, price } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
@@ -116,6 +117,7 @@ export async function updateService(req: Request, res: Response): Promise<void> 
 
   const service = await serviceService.updateService(id, {
     title,
+    category,
     durationMinutes,
     price,
   });

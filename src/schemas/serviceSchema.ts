@@ -7,6 +7,11 @@ export const createServiceSchema: AnyZodObject = z.object({
     .string()
     .min(2, 'Title must be at least 2 characters')
     .max(100, 'Title must not exceed 100 characters'),
+  category: z
+    .string()
+    .min(2, 'Category must be at least 2 characters')
+    .max(50, 'Category must not exceed 50 characters')
+    .trim(),
   durationMinutes: z.number().int().positive('Duration must be a positive integer'),
   price: z
     .number()
@@ -26,6 +31,12 @@ export const updateServiceSchema: AnyZodObject = z.object({
     .string()
     .min(2, 'Title must be at least 2 characters')
     .max(100, 'Title must not exceed 100 characters')
+    .optional(),
+  category: z
+    .string()
+    .min(2, 'Category must be at least 2 characters')
+    .max(50, 'Category must not exceed 50 characters')
+    .trim()
     .optional(),
   durationMinutes: z.number().int().positive('Duration must be a positive integer').optional(),
   price: z
