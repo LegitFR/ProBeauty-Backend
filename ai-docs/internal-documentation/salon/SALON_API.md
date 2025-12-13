@@ -41,7 +41,31 @@ Tip: Replace `http://localhost:5000` with your server URL in examples below.
     "saturday": { "open": "10:00", "close": "16:00" },
     "sunday": { "open": "10:00", "close": "16:00" }
   },
-  "staff": [],
+  "staff": [
+    {
+      "id": "staff_456",
+      "salonId": "clxxx123456789",
+      "userId": "usr_789",
+      "availability": {
+        "monday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "tuesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "sunday": {
+          "isAvailable": false
+        }
+      },
+      "user": {
+        "id": "usr_789",
+        "name": "Sarah Johnson",
+        "email": "sarah@example.com"
+      }
+    }
+  ],
   "services": [],
   "products": [],
   "createdAt": "2025-01-15T10:30:00.000Z",
@@ -406,8 +430,42 @@ Sample success response (200):
     "staff": [
       {
         "id": "staff_456",
-        "name": "Sarah Johnson",
-        "role": "stylist"
+        "salonId": "clxxx123456789",
+        "userId": "usr_789",
+        "availability": {
+          "monday": {
+            "isAvailable": true,
+            "slots": [{ "start": "09:00", "end": "18:00" }]
+          },
+          "tuesday": {
+            "isAvailable": true,
+            "slots": [{ "start": "09:00", "end": "18:00" }]
+          },
+          "wednesday": {
+            "isAvailable": true,
+            "slots": [{ "start": "09:00", "end": "18:00" }]
+          },
+          "thursday": {
+            "isAvailable": true,
+            "slots": [{ "start": "09:00", "end": "18:00" }]
+          },
+          "friday": {
+            "isAvailable": true,
+            "slots": [{ "start": "09:00", "end": "18:00" }]
+          },
+          "saturday": {
+            "isAvailable": true,
+            "slots": [{ "start": "10:00", "end": "16:00" }]
+          },
+          "sunday": {
+            "isAvailable": false
+          }
+        },
+        "user": {
+          "id": "usr_789",
+          "name": "Sarah Johnson",
+          "email": "sarah@example.com"
+        }
       }
     ],
     "services": [
@@ -695,19 +753,48 @@ The following fields are stored as JSON strings in the database but automaticall
 
 - `geo`: Geographic coordinates
 - `hours`: Business hours
+- `staff[].availability`: Staff availability schedule (parsed from JSON string to object)
 
 The API handles serialization/deserialization automatically - always send and receive these as proper JSON objects.
+
+#### Staff Availability Format
+
+Staff availability is returned as a JSON object with the following structure:
+
+```json
+{
+  "monday": {
+    "isAvailable": true,
+    "slots": [{ "start": "09:00", "end": "18:00" }]
+  },
+  "tuesday": {
+    "isAvailable": true,
+    "slots": [{ "start": "09:00", "end": "18:00" }]
+  },
+  // ... other days
+  "sunday": {
+    "isAvailable": false
+  }
+}
+```
+
+Each day can have:
+
+- `isAvailable`: Boolean indicating if staff works on that day
+- `slots`: Array of time slots (only present if `isAvailable` is true)
+  - Each slot has `start` and `end` times in "HH:mm" format
 
 ### Relationships
 
 Each salon includes related data:
 
 - `staff[]`: Array of staff members working at the salon
+  - Each staff object includes: `id`, `salonId`, `userId` (nullable), `availability` (parsed JSON object), and `user` (if linked to a user account)
 - `services[]`: Array of services offered by the salon
 - `products[]`: Array of products available at the salon
 - `owner`: Owner information (only in "Get All Salons" endpoint)
 
-These relationships are automatically populated by the API.
+These relationships are automatically populated by the API. Staff `availability` is automatically parsed from JSON string to a proper JSON object in all responses.
 
 ---
 

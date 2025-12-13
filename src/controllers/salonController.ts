@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import { uploadToCloudinary, uploadMultipleToCloudinary } from '@/services/fileUploadService';
 import * as salonService from '@/services/salonService';
+import { parseStaffAvailability } from '@/utils/availabilityUtils';
 
 const parseJsonField = (field: unknown) => {
   if (!field) return null;
@@ -15,6 +16,20 @@ const parseJsonField = (field: unknown) => {
   }
   // Already an object/array or some other non-string value – return as is
   return field;
+};
+
+const parseStaffData = (staff: unknown) => {
+  if (!staff || typeof staff !== 'object') {
+    return staff;
+  }
+  const staffObj = staff as Record<string, unknown>;
+  if ('availability' in staffObj) {
+    return {
+      ...staffObj,
+      availability: parseStaffAvailability(staffObj.availability),
+    };
+  }
+  return staffObj;
 };
 
 export async function createSalon(req: Request, res: Response): Promise<void> {
@@ -59,6 +74,7 @@ export async function createSalon(req: Request, res: Response): Promise<void> {
       geo: parseJsonField(salon.geo),
       hours: parseJsonField(salon.hours),
       images: salon.images || [],
+      staff: salon.staff ? salon.staff.map(parseStaffData) : [],
     };
 
     res.status(201).json({
@@ -90,6 +106,7 @@ export async function getSalon(req: Request, res: Response): Promise<void> {
       geo: parseJsonField(salon.geo),
       hours: parseJsonField(salon.hours),
       images: salon.images || [],
+      staff: salon.staff ? salon.staff.map(parseStaffData) : [],
     };
 
     res.status(200).json({
@@ -128,6 +145,7 @@ export async function getSalonsByOwner(req: Request, res: Response): Promise<voi
       geo: parseJsonField(salon.geo),
       hours: parseJsonField(salon.hours),
       images: salon.images || [],
+      staff: salon.staff ? salon.staff.map(parseStaffData) : [],
     }));
 
     res.status(200).json({
@@ -192,6 +210,7 @@ export async function updateSalon(req: Request, res: Response): Promise<void> {
       geo: parseJsonField(salon.geo),
       hours: parseJsonField(salon.hours),
       images: salon.images || [],
+      staff: salon.staff ? salon.staff.map(parseStaffData) : [],
     };
 
     res.status(200).json({
@@ -252,6 +271,7 @@ export async function getAllSalons(req: Request, res: Response): Promise<void> {
       geo: parseJsonField(salon.geo),
       hours: parseJsonField(salon.hours),
       images: salon.images || [],
+      staff: salon.staff ? salon.staff.map(parseStaffData) : [],
     }));
 
     res.status(200).json({
