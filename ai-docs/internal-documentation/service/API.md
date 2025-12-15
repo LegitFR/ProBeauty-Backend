@@ -125,15 +125,15 @@ curl -X GET http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
 
 ## Get Services by Salon
 
-**Description:** Retrieve all services offered by a specific salon.
+**Description:** Retrieve all services offered by a specific salon. This uses the same endpoint as "Get All Services" with an optional query parameter.
 
-**Endpoint:** `GET /api/v1/services/salon/:salonId`
+**Endpoint:** `GET /api/v1/services?salonId=xxx`
 
 **Authentication:** Not required
 
-**URL Parameters:**
+**Query Parameters:**
 
-- `salonId` (string, required) — Salon ID in CUID format
+- `salonId` (string, optional) — Salon ID in CUID format. If provided, returns only services for that salon. If omitted, returns all services.
 
 **Success Response (200 OK):**
 
@@ -164,7 +164,7 @@ curl -X GET http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
 **cURL Command:**
 
 ```bash
-curl -X GET http://localhost:5000/api/v1/services/salon/clv1234567890abcdefgh \
+curl -X GET "http://localhost:5000/api/v1/services?salonId=clv1234567890abcdefgh" \
   -H "Content-Type: application/json"
 ```
 
@@ -172,11 +172,15 @@ curl -X GET http://localhost:5000/api/v1/services/salon/clv1234567890abcdefgh \
 
 ## Get All Services
 
-**Description:** Retrieve all services across all salons.
+**Description:** Retrieve all services across all salons. Optionally filter by salon using the `salonId` query parameter.
 
 **Endpoint:** `GET /api/v1/services`
 
 **Authentication:** Not required
+
+**Query Parameters:**
+
+- `salonId` (string, optional) — Salon ID in CUID format. If provided, returns only services for that salon. If omitted, returns all services across all salons.
 
 **Success Response (200 OK):**
 

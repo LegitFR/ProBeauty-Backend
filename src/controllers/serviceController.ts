@@ -61,30 +61,25 @@ export async function getService(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * Get all services for a specific salon
+ * Get all services (optionally filtered by salonId query parameter)
+ * GET /api/v1/services
  * GET /api/v1/services?salonId=xxx
  */
-export async function getServicesBySalon(req: Request, res: Response): Promise<void> {
+export async function getAllServices(req: Request, res: Response): Promise<void> {
   const { salonId } = req.query;
 
-  if (!salonId || typeof salonId !== 'string') {
-    res.status(400).json({ message: 'Salon ID is required' });
+  // If salonId is provided, filter services by salon
+  if (salonId && typeof salonId === 'string') {
+    const services = await serviceService.getServicesBySalonId(salonId);
+
+    res.status(200).json({
+      message: 'Services retrieved successfully',
+      data: services,
+    });
     return;
   }
 
-  const services = await serviceService.getServicesBySalonId(salonId);
-
-  res.status(200).json({
-    message: 'Services retrieved successfully',
-    data: services,
-  });
-}
-
-/**
- * Get all services
- * GET /api/v1/services
- */
-export async function getAllServices(req: Request, res: Response): Promise<void> {
+  // Otherwise, return all services
   const services = await serviceService.getAllServices();
 
   res.status(200).json({

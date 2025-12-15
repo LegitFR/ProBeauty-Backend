@@ -3,7 +3,6 @@ import { Router } from 'express';
 import {
   createService,
   getService,
-  getServicesBySalon,
   getAllServices,
   updateService,
   deleteService,
@@ -26,25 +25,18 @@ const router = Router();
 router.post('/', authenticate, validateRequest({ body: createServiceSchema }), createService);
 
 /**
+ * @route   GET /api/v1/services
+ * @desc    Get all services (optionally filtered by salonId query parameter)
+ * @access  Public
+ */
+router.get('/', getAllServices);
+
+/**
  * @route   GET /api/v1/services/:id
  * @desc    Get a single service by ID
  * @access  Public
  */
 router.get('/:id', validateRequest({ params: serviceIdParamsSchema }), getService);
-
-/**
- * @route   GET /api/v1/services/salon/:salonId
- * @desc    Get all services for a specific salon
- * @access  Public
- */
-router.get('/salon/:salonId', getServicesBySalon);
-
-/**
- * @route   GET /api/v1/services
- * @desc    Get all services
- * @access  Public
- */
-router.get('/', getAllServices);
 
 /**
  * @route   PUT /api/v1/services/:id
