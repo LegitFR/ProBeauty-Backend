@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import * as staffService from '@/services/staffService';
 
 export async function createStaff(req: Request, res: Response): Promise<void> {
-  const { salonId, serviceId, availability, userId } = req.body;
+  const { name, salonId, serviceId, availability, userId } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -13,6 +13,7 @@ export async function createStaff(req: Request, res: Response): Promise<void> {
 
   try {
     const staff = await staffService.createStaff(ownerId, {
+      name,
       salonId,
       serviceId,
       availability,
@@ -140,7 +141,7 @@ export async function getStaffBySalon(req: Request, res: Response): Promise<void
 
 export async function updateStaff(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
-  const { serviceId, availability, userId } = req.body;
+  const { name, serviceId, availability, userId } = req.body;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -150,6 +151,7 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
 
   try {
     const staff = await staffService.updateStaff(id, ownerId, {
+      name,
       serviceId,
       availability,
       userId,

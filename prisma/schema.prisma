@@ -61,6 +61,7 @@ model Salon {
 
 model Staff {
   id           String         @id @default(cuid())
+  name         String
   salonId      String         @map("salon_id")
   userId       String?        @map("user_id")
   availability Json?

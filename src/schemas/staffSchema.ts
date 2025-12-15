@@ -28,6 +28,7 @@ export type TimeSlot = z.infer<typeof timeSlotSchema>;
 export type DayAvailability = z.infer<typeof dayAvailabilitySchema>;
 
 export const createStaffSchema: AnyZodObject = z.object({
+  name: z.string().min(1, 'Name is required'),
   salonId: z.string().cuid('Invalid salon ID format'),
   serviceId: z.string().cuid('Invalid service ID format'),
   availability: staffAvailabilitySchema.optional(),
@@ -35,6 +36,7 @@ export const createStaffSchema: AnyZodObject = z.object({
 });
 
 export const updateStaffSchema: AnyZodObject = z.object({
+  name: z.string().min(1, 'Name cannot be empty').optional(),
   serviceId: z.string().cuid('Invalid service ID format').optional(),
   availability: staffAvailabilitySchema.optional(),
   userId: z.string().cuid('Invalid user ID format').optional(),

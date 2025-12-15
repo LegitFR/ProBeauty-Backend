@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/configs/db';
 
 interface CreateStaffData {
+  name: string;
   salonId: string;
   serviceId: string;
   availability?: Record<string, unknown> | null;
@@ -10,6 +11,7 @@ interface CreateStaffData {
 }
 
 interface UpdateStaffData {
+  name?: string;
   serviceId?: string;
   availability?: Record<string, unknown> | null;
   userId?: string;
@@ -55,6 +57,7 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
 
   return prisma.staff.create({
     data: {
+      name: data.name,
       salonId: data.salonId,
       availability: data.availability
         ? (JSON.stringify(data.availability) as Prisma.InputJsonValue)
@@ -251,6 +254,7 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
   return prisma.staff.update({
     where: { id },
     data: {
+      name: data.name !== undefined ? data.name : undefined,
       availability:
         data.availability !== undefined
           ? (JSON.stringify(data.availability) as Prisma.InputJsonValue)
