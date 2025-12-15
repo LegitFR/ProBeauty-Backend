@@ -236,7 +236,27 @@ Notes:
 
 Registers a new salon. Requires authentication. The authenticated user becomes the salon owner.
 
-Sample request body:
+**Content-Type:** `multipart/form-data` (for file uploads) or `application/json` (without files)
+
+**Request Body:**
+
+The request can be sent as JSON or multipart/form-data. If uploading images, use `multipart/form-data`.
+
+**JSON Fields (can be sent as form fields or JSON):**
+
+- `name` (required): String, minimum 2 characters
+- `address` (required): String, minimum 5 characters
+- `phone` (optional): String, must match Indian phone format (10 digits starting with 6-9)
+- `venueType` (optional): `"male" | "female" | "everyone"` (defaults to `"everyone"`)
+- `geo` (optional): JSON string or object with `latitude` and `longitude` (both numbers)
+- `hours` (optional): JSON string or object with day names as keys (monday-sunday), each containing `open` and `close` time strings
+
+**File Upload Fields (multipart/form-data only):**
+
+- `thumbnail` (optional): Single image file for salon thumbnail
+- `images` (optional): Multiple image files for salon gallery
+
+**Sample JSON Request:**
 
 ```json
 {
@@ -260,19 +280,7 @@ Sample request body:
 }
 ```
 
-Required fields:
-
-- `name`: String, minimum 2 characters
-- `address`: String, minimum 5 characters
-
-Optional fields:
-
-- `phone`: String, must match Indian phone format (10 digits starting with 6-9)
-- `venueType`: `"male" | "female" | "everyone"` (defaults to `"everyone"`)
-- `geo`: Object with `latitude` and `longitude` (both numbers)
-- `hours`: Object with day names as keys (monday-sunday), each containing `open` and `close` time strings
-
-Sample success response (201):
+**Sample success response (201):**
 
 ```json
 {
@@ -285,17 +293,28 @@ Sample success response (201):
     "phone": "9876543210",
     "ownerId": "usr_123",
     "verified": false,
-    "geo": "{\"latitude\":19.076,\"longitude\":72.8777}",
-    "hours": "{\"monday\":{\"open\":\"09:00\",\"close\":\"18:00\"}}",
-    "createdAt": "2025-01-15T10:30:00.000Z",
-    "updatedAt": "2025-01-15T10:30:00.000Z"
+    "geo": {
+      "latitude": 19.076,
+      "longitude": 72.8777
+    },
+    "hours": {
+      "monday": { "open": "09:00", "close": "18:00" },
+      "tuesday": { "open": "09:00", "close": "18:00" }
+    },
+    "thumbnail": "https://cloudinary.com/...",
+    "images": ["https://cloudinary.com/...", "https://cloudinary.com/..."],
+    "staff": [],
+    "services": [],
+    "products": [],
+    "createdAt": "2025-01-15T10:30:00.000Z"
   }
 }
 ```
 
-curl:
+**cURL Examples:**
 
 ```bash
+# Create salon without images (JSON)
 curl -X POST "http://localhost:5000/api/v1/salons" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your-access-token>" \
@@ -303,27 +322,37 @@ curl -X POST "http://localhost:5000/api/v1/salons" \
     "name": "Glamour Studio",
     "address": "123 Fashion Street, Mumbai, Maharashtra 400001",
     "phone": "9876543210",
+    "venueType": "female",
     "geo": {
       "latitude": 19.0760,
       "longitude": 72.8777
     },
     "hours": {
       "monday": { "open": "09:00", "close": "18:00" },
-      "tuesday": { "open": "09:00", "close": "18:00" },
-      "wednesday": { "open": "09:00", "close": "18:00" },
-      "thursday": { "open": "09:00", "close": "18:00" },
-      "friday": { "open": "09:00", "close": "18:00" },
-      "saturday": { "open": "10:00", "close": "16:00" },
-      "sunday": { "open": "10:00", "close": "16:00" }
+      "tuesday": { "open": "09:00", "close": "18:00" }
     }
   }'
+
+# Create salon with images (multipart/form-data)
+curl -X POST "http://localhost:5000/api/v1/salons" \
+  -H "Authorization: Bearer <your-access-token>" \
+  -F "name=Glamour Studio" \
+  -F "address=123 Fashion Street, Mumbai, Maharashtra 400001" \
+  -F "phone=9876543210" \
+  -F "venueType=female" \
+  -F 'geo={"latitude":19.076,"longitude":72.8777}' \
+  -F 'hours={"monday":{"open":"09:00","close":"18:00"}}' \
+  -F "thumbnail=@/path/to/thumbnail.jpg" \
+  -F "images=@/path/to/image1.jpg" \
+  -F "images=@/path/to/image2.jpg"
 ```
 
 Errors:
 
-- 401 (not authenticated)
-- 400 (validation error)
-- 500 (server error)
+- **401**: Not authenticated
+- **400**: Validation error (invalid request body or missing required fields)
+- **413**: Request entity too large (file upload size limit exceeded)
+- **500**: Internal server error
 
 ---
 
@@ -501,11 +530,31 @@ Errors:
 
 Updates an existing salon. Only the salon owner can update their salon.
 
-URL parameters:
+**Content-Type:** `multipart/form-data` (for file uploads) or `application/json` (without files)
+
+**URL parameters:**
 
 - `id`: Salon ID in CUID format
 
-Sample request body (all fields optional):
+**Request Body (all fields optional):**
+
+Can be sent as JSON or multipart/form-data. If uploading new images, use `multipart/form-data`.
+
+**JSON Fields:**
+
+- `name`: String, minimum 2 characters
+- `address`: String, minimum 5 characters
+- `phone`: String, must match Indian phone format
+- `venueType`: `"male" | "female" | "everyone"`
+- `geo`: Object with `latitude` and `longitude`
+- `hours`: Object with day names and time ranges
+
+**File Upload Fields (multipart/form-data only):**
+
+- `thumbnail` (optional): Single image file to update salon thumbnail
+- `images` (optional): Multiple image files to update salon gallery
+
+**Sample JSON Request:**
 
 ```json
 {
@@ -524,15 +573,7 @@ Sample request body (all fields optional):
 }
 ```
 
-All fields are optional:
-
-- `name`: String, minimum 2 characters
-- `address`: String, minimum 5 characters
-- `phone`: String, must match Indian phone format
-- `geo`: Object with `latitude` and `longitude`
-- `hours`: Object with day names and time ranges
-
-Sample success response (200):
+**Sample success response (200):**
 
 ```json
 {
@@ -553,18 +594,20 @@ Sample success response (200):
       "monday": { "open": "08:00", "close": "20:00" },
       "tuesday": { "open": "08:00", "close": "20:00" }
     },
+    "thumbnail": "https://cloudinary.com/...",
+    "images": ["https://cloudinary.com/..."],
     "staff": [],
     "services": [],
     "products": [],
-    "createdAt": "2025-01-15T10:30:00.000Z",
-    "updatedAt": "2025-01-15T12:45:00.000Z"
+    "createdAt": "2025-01-15T10:30:00.000Z"
   }
 }
 ```
 
-curl:
+**cURL Examples:**
 
 ```bash
+# Update salon without images (JSON)
 curl -X PATCH "http://localhost:5000/api/v1/salons/clxxx123456789" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <your-access-token>" \
@@ -575,15 +618,24 @@ curl -X PATCH "http://localhost:5000/api/v1/salons/clxxx123456789" \
       "monday": { "open": "08:00", "close": "20:00" }
     }
   }'
+
+# Update salon with new images (multipart/form-data)
+curl -X PATCH "http://localhost:5000/api/v1/salons/clxxx123456789" \
+  -H "Authorization: Bearer <your-access-token>" \
+  -F "name=Glamour Studio Deluxe" \
+  -F "phone=9123456789" \
+  -F "thumbnail=@/path/to/new-thumbnail.jpg" \
+  -F "images=@/path/to/new-image1.jpg"
 ```
 
 Errors:
 
-- 401 (not authenticated)
-- 403 (unauthorized - not the salon owner)
-- 404 (salon not found)
-- 400 (validation error or invalid ID format)
-- 500 (server error)
+- **401**: Not authenticated
+- **403**: Unauthorized - not the salon owner
+- **404**: Salon not found
+- **400**: Validation error or invalid ID format
+- **413**: Request entity too large (file upload size limit exceeded)
+- **500**: Internal server error
 
 ---
 
@@ -658,7 +710,18 @@ Errors:
 - Object with day names: "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
 - Each day is optional
 - Each day object must contain "open" and "close" strings
-- Time format is flexible (e.g., "09:00", "9:00 AM", etc.)
+- Time format: "HH:mm" (24-hour format, e.g., "09:00", "18:00")
+- Can be sent as JSON object or JSON string in multipart/form-data
+
+### File Uploads
+
+- **Content-Type**: Use `multipart/form-data` when uploading files
+- **Fields**:
+  - `thumbnail`: Single image file (optional)
+  - `images`: Multiple image files (optional, can be sent multiple times)
+- **File Size**: Check server configuration for size limits
+- **Supported Formats**: JPEG, PNG, WebP (check server configuration)
+- Files are uploaded to Cloudinary and URLs are returned in the response
 
 ---
 
@@ -804,7 +867,11 @@ These relationships are automatically populated by the API. Staff `availability`
 - **Controllers**: `src/controllers/salonController.ts`
 - **Services**: `src/services/salonService.ts`
 - **Schemas**: `src/schemas/salonSchema.ts`
-- **Middleware**: `src/middlewares/auth/authenticate.ts`, `src/middlewares/validateRequest.ts`
+- **Middleware**:
+  - `src/middlewares/auth/authenticate.ts` - Authentication
+  - `src/middlewares/validateRequest.ts` - Request validation
+  - `src/middlewares/uploadMiddleware.ts` - File upload handling (`uploadSalonImages`, `handleMulterError`)
+- **File Upload Service**: `src/services/fileUploadService.ts` - Cloudinary integration
 - **Database Model**: `prisma/schema.prisma` (Salon model)
 
 ---
@@ -817,13 +884,17 @@ These relationships are automatically populated by the API. Staff `availability`
 2. Include phone number for customer contact
 3. Add geo coordinates for location-based features
 4. Set business hours for customer convenience
-5. Verify all information before submission
+5. Upload high-quality images (thumbnail and gallery) for better presentation
+6. Use `multipart/form-data` when uploading images, `application/json` otherwise
+7. Verify all information before submission
 
 ### Updating Salons
 
 1. Only update fields that need to change (all fields are optional)
 2. Partial updates are supported - unchanged fields remain the same
-3. Re-validate all information after updates
+3. Use `multipart/form-data` when updating images, `application/json` for text-only updates
+4. Uploading new images will replace existing ones
+5. Re-validate all information after updates
 
 ### Querying Salons
 
@@ -857,7 +928,7 @@ LOGIN_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/v1/auth/login" \
 
 ACCESS_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.accessToken')
 
-# 2. Create a new salon
+# 2. Create a new salon (without images - JSON)
 SALON_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/v1/salons" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -865,6 +936,7 @@ SALON_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/v1/salons" \
     "name": "Beauty Paradise",
     "address": "789 Main Street, Delhi 110001",
     "phone": "9876543210",
+    "venueType": "everyone",
     "geo": {
       "latitude": 28.6139,
       "longitude": 77.2090
@@ -881,6 +953,19 @@ SALON_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/v1/salons" \
 SALON_ID=$(echo $SALON_RESPONSE | jq -r '.data.id')
 echo "Created salon with ID: $SALON_ID"
 
+# 2b. Alternative: Create salon with images (multipart/form-data)
+# curl -X POST "http://localhost:5000/api/v1/salons" \
+#   -H "Authorization: Bearer $ACCESS_TOKEN" \
+#   -F "name=Beauty Paradise" \
+#   -F "address=789 Main Street, Delhi 110001" \
+#   -F "phone=9876543210" \
+#   -F "venueType=everyone" \
+#   -F 'geo={"latitude":28.6139,"longitude":77.2090}' \
+#   -F 'hours={"monday":{"open":"09:00","close":"18:00"}}' \
+#   -F "thumbnail=@/path/to/thumbnail.jpg" \
+#   -F "images=@/path/to/image1.jpg" \
+#   -F "images=@/path/to/image2.jpg"
+
 # 3. Get the salon details
 curl -X GET "http://localhost:5000/api/v1/salons/$SALON_ID" \
   -H "Content-Type: application/json"
@@ -890,7 +975,11 @@ curl -X GET "http://localhost:5000/api/v1/salons/my-salons" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 
-# 5. Update salon hours
+# 5. Search salons
+curl -X GET "http://localhost:5000/api/v1/salons/search?service=haircut&location=Delhi&maxPrice=1500" \
+  -H "Content-Type: application/json"
+
+# 6. Update salon hours (JSON)
 curl -X PATCH "http://localhost:5000/api/v1/salons/$SALON_ID" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
@@ -901,7 +990,14 @@ curl -X PATCH "http://localhost:5000/api/v1/salons/$SALON_ID" \
     }
   }'
 
-# 6. Get all public salons with filtering
+# 7. Update salon with new images (multipart/form-data)
+# curl -X PATCH "http://localhost:5000/api/v1/salons/$SALON_ID" \
+#   -H "Authorization: Bearer $ACCESS_TOKEN" \
+#   -F "name=Beauty Paradise Premium" \
+#   -F "thumbnail=@/path/to/new-thumbnail.jpg" \
+#   -F "images=@/path/to/new-image.jpg"
+
+# 8. Get all public salons with filtering
 curl -X GET "http://localhost:5000/api/v1/salons?verified=true&page=1&limit=20" \
   -H "Content-Type: application/json"
 ```
