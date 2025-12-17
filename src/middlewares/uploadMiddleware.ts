@@ -72,3 +72,37 @@ export const handleMulterError = (err: Error, req: Request, res: Response, next:
 
   next();
 };
+
+/**
+ * Middleware to parse JSON strings in multipart/form-data requests
+ * This is needed because multipart/form-data sends complex objects as JSON strings
+ * and Zod validation expects actual objects
+ */
+export const parseMultipartJsonFields = (req: Request, res: Response, next: NextFunction): void => {
+  const parseJsonField = (field: unknown): unknown => {
+    if (!field) return field;
+    if (typeof field === 'string') {
+      try {
+        return JSON.parse(field);
+      } catch {
+        // If parsing fails, return the original value
+        // Validation will catch invalid formats
+        return field;
+      }
+    }
+    // Already an object/array or some other non-string value – return as is
+    return field;
+  };
+
+  // Parse geo and hours fields if they exist
+  if (req.body) {
+    if ('geo' in req.body) {
+      req.body.geo = parseJsonField(req.body.geo);
+    }
+    if ('hours' in req.body) {
+      req.body.hours = parseJsonField(req.body.hours);
+    }
+  }
+
+  next();
+};

@@ -31,8 +31,10 @@ Endpoints for managing salon services. Salon owners can create, update, and dele
 - `salonId` (string, required) — CUID format salon ID
 - `title` (string, required) — Service name, 2-100 characters
 - `category` (string, required) — Service category (e.g., "Haircut", "Manicure", "Facial"), 2-50 characters
-- `durationMinutes` (number, required) — Duration in minutes, must be positive integer
-- `price` (number, required) — Price in dollars, max 2 decimal places, must be non-negative
+- `durationMinutes` (number or string, required) — Duration in minutes, must be positive integer
+  - **Note:** When using `multipart/form-data`, can be sent as string (e.g., `"30"`). The schema automatically converts it to a number.
+- `price` (number or string, required) — Price in dollars, max 2 decimal places, must be non-negative
+  - **Note:** When using `multipart/form-data`, can be sent as string (e.g., `"25.99"`). The schema automatically converts it to a number.
 - `image` (file, optional) — Single image file for service (multipart/form-data only). Supported formats: JPEG, PNG, WebP, GIF. Max size: 5MB
 
 **Success Response (201 Created):**
@@ -119,6 +121,7 @@ curl -X POST http://localhost:5000/api/v1/services \
 - Field name for image **must be** `image` (singular, not `images`)
 - The `@` symbol is crucial - it tells curl to read the file from disk
 - Do NOT include `Content-Type: application/json` header when using `-F` flags (curl sets the correct boundary automatically)
+- **Numeric Fields:** `durationMinutes` and `price` can be sent as strings in multipart/form-data (e.g., `"30"`, `"25.99"`). The schema automatically converts them to numbers before validation.
 
 ---
 
@@ -310,8 +313,10 @@ curl -X GET http://localhost:5000/api/v1/services \
 
 - `title` (string, optional) — New service name, 2-100 characters
 - `category` (string, optional) — Service category (e.g., "Haircut", "Manicure", "Facial"), 2-50 characters
-- `durationMinutes` (number, optional) — New duration in minutes, must be positive integer
-- `price` (number, optional) — New price, max 2 decimal places, must be non-negative
+- `durationMinutes` (number or string, optional) — New duration in minutes, must be positive integer
+  - **Note:** When using `multipart/form-data`, can be sent as string. The schema automatically converts it to a number.
+- `price` (number or string, optional) — New price, max 2 decimal places, must be non-negative
+  - **Note:** When using `multipart/form-data`, can be sent as string. The schema automatically converts it to a number.
 - `image` (file, optional) — Single image file for service (multipart/form-data only). Supported formats: JPEG, PNG, WebP, GIF. Max size: 5MB. When provided, replaces existing image.
 
 **Success Response (200 OK):**
@@ -429,7 +434,9 @@ curl -X DELETE http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
 - **title**: Minimum 2 characters, maximum 100 characters
 - **category**: Minimum 2 characters, maximum 50 characters (required for creation, optional for updates)
 - **durationMinutes**: Must be a positive integer
+  - **Automatic Conversion:** When sent as string in multipart/form-data, automatically converted to number before validation
 - **price**: Must be non-negative with maximum 2 decimal places
+  - **Automatic Conversion:** When sent as string in multipart/form-data, automatically converted to number before validation
 - **id (in URL)**: Must be a valid CUID format
 - **image**: Optional file upload. Supported formats: JPEG, PNG, WebP, GIF. Maximum file size: 5MB per file
 
@@ -461,4 +468,5 @@ curl -X DELETE http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
 
 - Use `application/json` for requests without file uploads
 - Use `multipart/form-data` for requests with image uploads
-- Do not use `Content-Type: application/json` when sending files - let the browser/client set the boundary parameter
+- Do not use `Content-Type: application/json` header when sending files - let the browser/client set the boundary parameter
+- **Automatic Type Conversion:** When using `multipart/form-data`, numeric fields (`durationMinutes`, `price`) can be sent as strings and are automatically converted to numbers by the validation schema

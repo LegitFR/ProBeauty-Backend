@@ -249,7 +249,9 @@ The request can be sent as JSON or multipart/form-data. If uploading images, use
 - `phone` (optional): String, must match Indian phone format (10 digits starting with 6-9)
 - `venueType` (optional): `"male" | "female" | "everyone"` (defaults to `"everyone"`)
 - `geo` (optional): JSON string or object with `latitude` and `longitude` (both numbers)
+  - **Note:** When using `multipart/form-data`, send as JSON string (e.g., `'{"latitude":19.076,"longitude":72.8777}'`). The middleware automatically parses it to an object before validation.
 - `hours` (optional): JSON string or object with day names as keys (monday-sunday), each containing `open` and `close` time strings
+  - **Note:** When using `multipart/form-data`, send as JSON string (e.g., `'{"monday":{"open":"09:00","close":"18:00"}}'`). The middleware automatically parses it to an object before validation.
 
 **File Upload Fields (multipart/form-data only):**
 
@@ -547,7 +549,9 @@ Can be sent as JSON or multipart/form-data. If uploading new images, use `multip
 - `phone`: String, must match Indian phone format
 - `venueType`: `"male" | "female" | "everyone"`
 - `geo`: Object with `latitude` and `longitude`
+  - **Note:** When using `multipart/form-data`, send as JSON string. The middleware automatically parses it to an object before validation.
 - `hours`: Object with day names and time ranges
+  - **Note:** When using `multipart/form-data`, send as JSON string. The middleware automatically parses it to an object before validation.
 
 **File Upload Fields (multipart/form-data only):**
 
@@ -704,6 +708,8 @@ Errors:
 - `latitude`: Number (typically between -90 and 90)
 - `longitude`: Number (typically between -180 and 180)
 - Both fields required if `geo` is provided
+- Can be sent as JSON object (in `application/json` requests) or JSON string (in `multipart/form-data` requests)
+- **Automatic Parsing:** When sent as JSON string in multipart/form-data, the `parseMultipartJsonFields` middleware automatically converts it to an object before validation
 
 ### Hours Format
 
@@ -711,7 +717,8 @@ Errors:
 - Each day is optional
 - Each day object must contain "open" and "close" strings
 - Time format: "HH:mm" (24-hour format, e.g., "09:00", "18:00")
-- Can be sent as JSON object or JSON string in multipart/form-data
+- Can be sent as JSON object (in `application/json` requests) or JSON string (in `multipart/form-data` requests)
+- **Automatic Parsing:** When sent as JSON string in multipart/form-data, the `parseMultipartJsonFields` middleware automatically converts it to an object before validation
 
 ### File Uploads
 
@@ -870,7 +877,8 @@ These relationships are automatically populated by the API. Staff `availability`
 - **Middleware**:
   - `src/middlewares/auth/authenticate.ts` - Authentication
   - `src/middlewares/validateRequest.ts` - Request validation
-  - `src/middlewares/uploadMiddleware.ts` - File upload handling (`uploadSalonImages`, `handleMulterError`)
+  - `src/middlewares/uploadMiddleware.ts` - File upload handling (`uploadSalonImages`, `handleMulterError`, `parseMultipartJsonFields`)
+    - `parseMultipartJsonFields`: Automatically parses JSON strings for `geo` and `hours` fields in multipart/form-data requests before validation
 - **File Upload Service**: `src/services/fileUploadService.ts` - Cloudinary integration
 - **Database Model**: `prisma/schema.prisma` (Salon model)
 

@@ -12,16 +12,24 @@ export const createServiceSchema: AnyZodObject = z.object({
     .min(2, 'Category must be at least 2 characters')
     .max(50, 'Category must not exceed 50 characters')
     .trim(),
-  durationMinutes: z.number().int().positive('Duration must be a positive integer'),
+  durationMinutes: z
+    .union([z.number(), z.string()])
+    .transform((val) => (typeof val === 'string' ? parseInt(val, 10) : val))
+    .pipe(z.number().int().positive('Duration must be a positive integer')),
   price: z
-    .number()
-    .nonnegative('Price must be non-negative')
-    .refine(
-      (val) => {
-        // Ensure price has at most 2 decimal places
-        return Number.isInteger(val * 100);
-      },
-      { message: 'Price can have at most 2 decimal places' }
+    .union([z.number(), z.string()])
+    .transform((val) => (typeof val === 'string' ? parseFloat(val) : val))
+    .pipe(
+      z
+        .number()
+        .nonnegative('Price must be non-negative')
+        .refine(
+          (val) => {
+            // Ensure price has at most 2 decimal places
+            return Number.isInteger(val * 100);
+          },
+          { message: 'Price can have at most 2 decimal places' }
+        )
     ),
 });
 
@@ -38,16 +46,25 @@ export const updateServiceSchema: AnyZodObject = z.object({
     .max(50, 'Category must not exceed 50 characters')
     .trim()
     .optional(),
-  durationMinutes: z.number().int().positive('Duration must be a positive integer').optional(),
+  durationMinutes: z
+    .union([z.number(), z.string()])
+    .transform((val) => (typeof val === 'string' ? parseInt(val, 10) : val))
+    .pipe(z.number().int().positive('Duration must be a positive integer'))
+    .optional(),
   price: z
-    .number()
-    .nonnegative('Price must be non-negative')
-    .refine(
-      (val) => {
-        // Ensure price has at most 2 decimal places
-        return Number.isInteger(val * 100);
-      },
-      { message: 'Price can have at most 2 decimal places' }
+    .union([z.number(), z.string()])
+    .transform((val) => (typeof val === 'string' ? parseFloat(val) : val))
+    .pipe(
+      z
+        .number()
+        .nonnegative('Price must be non-negative')
+        .refine(
+          (val) => {
+            // Ensure price has at most 2 decimal places
+            return Number.isInteger(val * 100);
+          },
+          { message: 'Price can have at most 2 decimal places' }
+        )
     )
     .optional(),
 });
