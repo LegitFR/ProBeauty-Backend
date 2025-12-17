@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 
+import { uploadToCloudinary } from '@/services/fileUploadService';
 import * as salonService from '@/services/salonService';
 import * as serviceService from '@/services/serviceService';
 
@@ -9,6 +10,7 @@ import * as serviceService from '@/services/serviceService';
  */
 export async function createService(req: Request, res: Response): Promise<void> {
   const { salonId, title, category, durationMinutes, price } = req.body;
+  const file = req.file as Express.Multer.File | undefined;
   const userId = req.user?.id;
 
   if (!userId) {
@@ -26,12 +28,21 @@ export async function createService(req: Request, res: Response): Promise<void> 
     return;
   }
 
+  let imageUrl: string | undefined;
+
+  // Handle image upload
+  if (file) {
+    const uploadResult = await uploadToCloudinary(file.buffer, 'probeauty/services');
+    imageUrl = uploadResult.url;
+  }
+
   const service = await serviceService.createService({
     salonId,
     title,
     category,
     durationMinutes,
     price,
+    image: imageUrl,
   });
 
   res.status(201).json({
@@ -95,6 +106,7 @@ export async function getAllServices(req: Request, res: Response): Promise<void>
 export async function updateService(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   const { title, category, durationMinutes, price } = req.body;
+  const file = req.file as Express.Multer.File | undefined;
   const userId = req.user?.id;
 
   if (!userId) {
@@ -110,11 +122,20 @@ export async function updateService(req: Request, res: Response): Promise<void> 
     return;
   }
 
+  let imageUrl: string | undefined;
+
+  // Handle image upload
+  if (file) {
+    const uploadResult = await uploadToCloudinary(file.buffer, 'probeauty/services');
+    imageUrl = uploadResult.url;
+  }
+
   const service = await serviceService.updateService(id, {
     title,
     category,
     durationMinutes,
     price,
+    image: imageUrl,
   });
 
   res.status(200).json({

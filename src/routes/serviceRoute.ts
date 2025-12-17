@@ -8,6 +8,7 @@ import {
   deleteService,
 } from '@/controllers/serviceController';
 import { authenticate } from '@/middlewares/auth/authenticate';
+import { uploadServiceImage, handleMulterError } from '@/middlewares/uploadMiddleware';
 import { validateRequest } from '@/middlewares/validateRequest';
 import {
   createServiceSchema,
@@ -22,7 +23,14 @@ const router = Router();
  * @desc    Create a new service (salon owner only)
  * @access  Private
  */
-router.post('/', authenticate, validateRequest({ body: createServiceSchema }), createService);
+router.post(
+  '/',
+  authenticate,
+  uploadServiceImage,
+  handleMulterError,
+  validateRequest({ body: createServiceSchema }),
+  createService
+);
 
 /**
  * @route   GET /api/v1/services
@@ -46,6 +54,8 @@ router.get('/:id', validateRequest({ params: serviceIdParamsSchema }), getServic
 router.put(
   '/:id',
   authenticate,
+  uploadServiceImage,
+  handleMulterError,
   validateRequest({
     params: serviceIdParamsSchema,
     body: updateServiceSchema,

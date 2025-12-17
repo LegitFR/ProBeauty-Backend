@@ -37,6 +37,8 @@ export const uploadSalonImages = upload.fields([
   { name: 'images', maxCount: 10 },
 ]);
 
+export const uploadServiceImage = upload.single('image');
+
 export const handleMulterError = (err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {

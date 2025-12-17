@@ -6,13 +6,15 @@ Endpoints for managing salon services. Salon owners can create, update, and dele
 
 ## Create Service
 
-**Description:** Create a new service for a salon. Only the salon owner can create services for their salon.
+**Description:** Create a new service for a salon. Only the salon owner can create services for their salon. Supports optional image upload.
 
 **Endpoint:** `POST /api/v1/services`
 
 **Authentication:** Required (Bearer token)
 
-**Request Body:**
+**Content-Type:** `multipart/form-data` (for file uploads) or `application/json` (without files)
+
+**Request Body (Form Data or JSON):**
 
 ```json
 {
@@ -31,6 +33,7 @@ Endpoints for managing salon services. Salon owners can create, update, and dele
 - `category` (string, required) — Service category (e.g., "Haircut", "Manicure", "Facial"), 2-50 characters
 - `durationMinutes` (number, required) — Duration in minutes, must be positive integer
 - `price` (number, required) — Price in dollars, max 2 decimal places, must be non-negative
+- `image` (file, optional) — Single image file for service (multipart/form-data only). Supported formats: JPEG, PNG, WebP, GIF. Max size: 5MB
 
 **Success Response (201 Created):**
 
@@ -42,6 +45,7 @@ Endpoints for managing salon services. Salon owners can create, update, and dele
     "salonId": "clv1234567890abcdefgh",
     "title": "Men's Haircut",
     "category": "Haircut",
+    "image": "https://cloudinary.com/...",
     "durationMinutes": 30,
     "price": "25.99"
   }
@@ -56,7 +60,9 @@ Endpoints for managing salon services. Salon owners can create, update, and dele
 }
 ```
 
-**cURL Command:**
+**cURL Commands:**
+
+Without image (JSON):
 
 ```bash
 curl -X POST http://localhost:5000/api/v1/services \
@@ -70,6 +76,49 @@ curl -X POST http://localhost:5000/api/v1/services \
     "price": 25.99
   }'
 ```
+
+With image (multipart/form-data):
+
+```bash
+curl -X POST http://localhost:5000/api/v1/services \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "salonId=clv1234567890abcdefgh" \
+  -F "title=Men's Haircut" \
+  -F "category=Haircut" \
+  -F "durationMinutes=30" \
+  -F "price=25.99" \
+  -F "image=@/path/to/service-image.jpg"
+```
+
+### How to Add Image in Multipart Form-Data
+
+When using `multipart/form-data` to upload an image:
+
+1. **Use the `-F` flag** instead of `-d` (this tells curl to use multipart encoding)
+2. **For text fields**: Use `-F "fieldName=value"` (without @ symbol)
+3. **For image/file fields**: Use `-F "fieldName=@/path/to/file"` (with @ symbol pointing to file path)
+
+**Example breakdown:**
+
+```bash
+curl -X POST http://localhost:5000/api/v1/services \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "salonId=clv1234567890abcdefgh" \           # Text field
+  -F "title=Men's Haircut" \                      # Text field
+  -F "category=Haircut" \                         # Text field
+  -F "durationMinutes=30" \                       # Numeric field (as text)
+  -F "price=25.99" \                              # Numeric field (as text)
+  -F "image=@/Users/username/Pictures/salon.jpg" # Image file with @ symbol
+```
+
+**Key Points:**
+
+- Replace `/Users/username/Pictures/salon.jpg` with your actual image file path
+- Supported image formats: JPEG, PNG, WebP, GIF
+- Maximum file size: 5MB
+- Field name for image **must be** `image` (singular, not `images`)
+- The `@` symbol is crucial - it tells curl to read the file from disk
+- Do NOT include `Content-Type: application/json` header when using `-F` flags (curl sets the correct boundary automatically)
 
 ---
 
@@ -95,6 +144,7 @@ curl -X POST http://localhost:5000/api/v1/services \
     "salonId": "clv1234567890abcdefgh",
     "title": "Men's Haircut",
     "category": "Haircut",
+    "image": "https://cloudinary.com/...",
     "durationMinutes": 30,
     "price": "25.99",
     "salon": {
@@ -146,6 +196,7 @@ curl -X GET http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
       "salonId": "clv1234567890abcdefgh",
       "title": "Men's Haircut",
       "category": "Haircut",
+      "image": "https://cloudinary.com/...",
       "durationMinutes": 30,
       "price": "25.99"
     },
@@ -154,6 +205,7 @@ curl -X GET http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
       "salonId": "clv1234567890abcdefgh",
       "title": "Women's Haircut",
       "category": "Haircut",
+      "image": null,
       "durationMinutes": 60,
       "price": "45.50"
     }
@@ -193,6 +245,7 @@ curl -X GET "http://localhost:5000/api/v1/services?salonId=clv1234567890abcdefgh
       "salonId": "clv1234567890abcdefgh",
       "title": "Men's Haircut",
       "category": "Haircut",
+      "image": "https://cloudinary.com/...",
       "durationMinutes": 30,
       "price": "25.99",
       "salon": {
@@ -206,6 +259,7 @@ curl -X GET "http://localhost:5000/api/v1/services?salonId=clv1234567890abcdefgh
       "salonId": "clv1111111111abcdefgh",
       "title": "Classic Manicure",
       "category": "Manicure",
+      "image": null,
       "durationMinutes": 45,
       "price": "35.00",
       "salon": {
@@ -229,11 +283,13 @@ curl -X GET http://localhost:5000/api/v1/services \
 
 ## Update Service
 
-**Description:** Update service details. Only the salon owner can update their salon's services.
+**Description:** Update service details. Only the salon owner can update their salon's services. Supports optional image upload.
 
 **Endpoint:** `PUT /api/v1/services/:id`
 
 **Authentication:** Required (Bearer token)
+
+**Content-Type:** `multipart/form-data` (for file uploads) or `application/json` (without files)
 
 **URL Parameters:**
 
@@ -256,6 +312,7 @@ curl -X GET http://localhost:5000/api/v1/services \
 - `category` (string, optional) — Service category (e.g., "Haircut", "Manicure", "Facial"), 2-50 characters
 - `durationMinutes` (number, optional) — New duration in minutes, must be positive integer
 - `price` (number, optional) — New price, max 2 decimal places, must be non-negative
+- `image` (file, optional) — Single image file for service (multipart/form-data only). Supported formats: JPEG, PNG, WebP, GIF. Max size: 5MB. When provided, replaces existing image.
 
 **Success Response (200 OK):**
 
@@ -267,6 +324,7 @@ curl -X GET http://localhost:5000/api/v1/services \
     "salonId": "clv1234567890abcdefgh",
     "title": "Premium Hair Cutting",
     "category": "Haircut",
+    "image": "https://cloudinary.com/...",
     "durationMinutes": 45,
     "price": "35.99"
   }
@@ -289,7 +347,9 @@ curl -X GET http://localhost:5000/api/v1/services \
 }
 ```
 
-**cURL Command:**
+**cURL Commands:**
+
+Without image (JSON):
 
 ```bash
 curl -X PUT http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
@@ -301,6 +361,18 @@ curl -X PUT http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
     "durationMinutes": 45,
     "price": 35.99
   }'
+```
+
+With image (multipart/form-data):
+
+```bash
+curl -X PUT http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "title=Premium Hair Cutting" \
+  -F "category=Haircut" \
+  -F "durationMinutes=45" \
+  -F "price=35.99" \
+  -F "image=@/path/to/new-service-image.jpg"
 ```
 
 ---
@@ -359,6 +431,24 @@ curl -X DELETE http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
 - **durationMinutes**: Must be a positive integer
 - **price**: Must be non-negative with maximum 2 decimal places
 - **id (in URL)**: Must be a valid CUID format
+- **image**: Optional file upload. Supported formats: JPEG, PNG, WebP, GIF. Maximum file size: 5MB per file
+
+## File Upload
+
+### Image Requirements
+
+- **Supported Formats**: JPEG (.jpg, .jpeg), PNG (.png), WebP (.webp), GIF (.gif)
+- **Maximum Size**: 5MB per file
+- **Content-Type**: Use `multipart/form-data` when uploading images
+- **Upload Service**: Images are automatically uploaded to Cloudinary and stored as URLs
+- **Field Name**: Use `image` as the form field name for single image
+
+### Image Handling
+
+- When creating a service without an image, the `image` field will be `null`
+- When updating a service with a new image, it replaces the existing image
+- When updating a service without providing an image, the existing image is preserved
+- Images are automatically optimized by Cloudinary for web delivery
 
 ## Authentication Notes
 
@@ -366,3 +456,9 @@ curl -X DELETE http://localhost:5000/api/v1/services/clv9876543210zyxwvuts \
 - Include token in `Authorization: Bearer <TOKEN>` header
 - Token claims must include user ID for ownership verification
 - Only salon owners can create, update, or delete services for their salons
+
+## Content-Type Notes
+
+- Use `application/json` for requests without file uploads
+- Use `multipart/form-data` for requests with image uploads
+- Do not use `Content-Type: application/json` when sending files - let the browser/client set the boundary parameter

@@ -6,6 +6,7 @@ interface CreateServiceData {
   category: string;
   durationMinutes: number;
   price: number;
+  image?: string;
 }
 
 interface UpdateServiceData {
@@ -13,13 +14,14 @@ interface UpdateServiceData {
   category?: string;
   durationMinutes?: number;
   price?: number;
+  image?: string;
 }
 
 /**
  * Create a new service for a salon
  */
 export async function createService(data: CreateServiceData) {
-  const { salonId, title, category, durationMinutes, price } = data;
+  const { salonId, title, category, durationMinutes, price, image } = data;
 
   // Verify salon exists
   const salon = await prisma.salon.findUnique({
@@ -38,6 +40,7 @@ export async function createService(data: CreateServiceData) {
       category,
       durationMinutes,
       price,
+      image,
     },
   });
 }

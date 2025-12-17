@@ -9,8 +9,10 @@ import address from '@/routes/addressRoute';
 import auth from '@/routes/authRoute';
 import booking from '@/routes/bookingRoute';
 import cart from '@/routes/cartRoute';
+import favourite from '@/routes/favouriteRoute';
 import order from '@/routes/orderRoute';
 import product from '@/routes/productRoute';
+import review from '@/routes/reviewRoute';
 import salon from '@/routes/salonRoute';
 import service from '@/routes/serviceRoute';
 import staff from '@/routes/staffRoute';
@@ -55,6 +57,8 @@ const initializeApp = async () => {
     app.use('/api/v1/cart', cart);
     app.use('/api/v1/orders', order);
     app.use('/api/v1/bookings', booking);
+    app.use('/api/v1/reviews', review);
+    app.use('/api/v1/favourites', favourite);
 
     // Error handlers must be last
     app.use(notFound);
