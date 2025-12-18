@@ -801,3 +801,131 @@ export async function searchSalonsWithServices(
     },
   };
 }
+
+interface AvailableStaffMember {
+  id: string;
+  name: string;
+  userId: string | null;
+  user: { id: string; name: string; email: string } | null;
+  availability: StaffAvailability | null;
+}
+
+export async function getAvailableStaffForService(
+  salonId: string,
+  serviceId: string,
+  startTime: string
+): Promise<AvailableStaffMember[]> {
+  // Validate salon exists
+  const salon = await prisma.salon.findUnique({ where: { id: salonId } });
+  if (!salon) {
+    throw new Error('Salon not found');
+  }
+
+  // Validate service exists and belongs to salon
+  const service = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!service) {
+    throw new Error('Service not found');
+  }
+
+  if (service.salonId !== salonId) {
+    throw new Error('Service does not belong to the specified salon');
+  }
+
+  // Parse and validate startTime
+  const bookingStartTime = new Date(startTime);
+  if (Number.isNaN(bookingStartTime.getTime())) {
+    throw new Error('Invalid start time format');
+  }
+
+  // Check if booking time is in the past
+  if (bookingStartTime < new Date()) {
+    throw new Error('Cannot check availability for past dates');
+  }
+
+  // Calculate end time based on service duration
+  const bookingEndTime = new Date(bookingStartTime.getTime() + service.durationMinutes * 60000);
+
+  // Get all staff assigned to this service
+  const staffServices = await prisma.staffService.findMany({
+    where: {
+      serviceId,
+      staff: {
+        salonId,
+      },
+    },
+    include: {
+      staff: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Get the date range for booking queries
+  const dayStart = new Date(bookingStartTime);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(bookingStartTime);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  // Check availability for each staff member
+  const availabilityChecks = await Promise.all(
+    staffServices.map(async (staffService) => {
+      const staff = staffService.staff;
+      if (!staff) {
+        return null;
+      }
+
+      // Parse staff availability
+      const staffAvailability = parseStaffAvailability(staff.availability);
+
+      // Get existing bookings for this staff on the requested date
+      const existingBookings = await prisma.booking.findMany({
+        where: {
+          staffId: staff.id,
+          startTime: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+          status: {
+            notIn: ['CANCELLED', 'NO_SHOW'],
+          },
+        },
+        select: {
+          startTime: true,
+          endTime: true,
+        },
+      });
+
+      // Check if slot is available
+      const available = isSlotAvailable(
+        bookingStartTime,
+        bookingEndTime,
+        staffAvailability,
+        existingBookings
+      );
+
+      if (!available) {
+        return null;
+      }
+
+      // Return available staff with details
+      return {
+        id: staff.id,
+        name: staff.name,
+        userId: staff.userId,
+        user: staff.user,
+        availability: staffAvailability,
+      };
+    })
+  );
+
+  // Filter out null values (unavailable staff)
+  return availabilityChecks.filter((staff): staff is AvailableStaffMember => staff !== null);
+}

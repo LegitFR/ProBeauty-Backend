@@ -335,3 +335,55 @@ export async function searchSalons(req: Request, res: Response): Promise<void> {
     });
   }
 }
+
+export async function getAvailableStaff(req: Request, res: Response): Promise<void> {
+  const { salonId, serviceId } = req.params;
+  const { startTime } = req.query;
+
+  if (!startTime || typeof startTime !== 'string') {
+    res.status(400).json({
+      message: 'startTime query parameter is required and must be a valid ISO datetime string',
+    });
+    return;
+  }
+
+  try {
+    const availableStaff = await salonService.getAvailableStaffForService(
+      salonId,
+      serviceId,
+      startTime
+    );
+
+    res.status(200).json({
+      message: 'Available staff retrieved successfully',
+      data: availableStaff,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (
+        error.message === 'Salon not found' ||
+        error.message === 'Service not found' ||
+        error.message === 'Service does not belong to the specified salon'
+      ) {
+        res.status(404).json({
+          message: error.message,
+        });
+        return;
+      }
+      if (
+        error.message === 'Invalid start time format' ||
+        error.message === 'Cannot check availability for past dates'
+      ) {
+        res.status(400).json({
+          message: error.message,
+        });
+        return;
+      }
+    }
+
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}

@@ -8,6 +8,7 @@ import {
   deleteSalon,
   getAllSalons,
   searchSalons,
+  getAvailableStaff,
 } from '@/controllers/salonController';
 import { authenticate } from '@/middlewares/auth/authenticate';
 import {
@@ -22,6 +23,8 @@ import {
   getSalonParamsSchema,
   getSalonQuerySchema,
   salonSearchQuerySchema,
+  availableStaffParamsSchema,
+  availableStaffQuerySchema,
 } from '@/schemas/salonSchema';
 
 const router = Router();
@@ -49,6 +52,16 @@ router.get(
   authenticate,
   validateRequest({ query: getSalonQuerySchema }),
   getSalonsByOwner
+);
+
+// Public route to get available staff for a specific salon and service
+router.get(
+  '/:salonId/services/:serviceId/available-staff',
+  validateRequest({
+    params: availableStaffParamsSchema,
+    query: availableStaffQuerySchema,
+  }),
+  getAvailableStaff
 );
 
 // Public route to get a specific salon by ID

@@ -232,7 +232,143 @@ Notes:
 
 ---
 
-### 3) Create Salon (Protected) — POST `/api/v1/salons`
+### 3) Get Available Staff (Public) — GET `/api/v1/salons/:salonId/services/:serviceId/available-staff`
+
+Retrieves a list of staff members who are available for booking at a specific datetime for a given salon and service. This endpoint filters out staff members who are already booked or unavailable at the requested time.
+
+**URL Parameters:**
+
+- `salonId`: Salon ID in CUID format
+- `serviceId`: Service ID in CUID format
+
+**Query Parameters:**
+
+- `startTime` (required): ISO 8601 datetime string (e.g., `2025-12-06T11:30:00.000Z`). Must be a valid future datetime.
+
+**Example Request:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/salons/cmiplyw1n0002li2gbggmr85q/services/cmipsoyhd0001lihr22df6hb9/available-staff?startTime=2025-12-25T11:30:00.000Z" \
+  -H "Content-Type: application/json"
+```
+
+**Sample Success Response (200):**
+
+```json
+{
+  "message": "Available staff retrieved successfully",
+  "data": [
+    {
+      "id": "cmirpcq8v0001ligvjy8cpdcd",
+      "name": "John Doe",
+      "userId": null,
+      "user": null,
+      "availability": {
+        "monday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "tuesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "wednesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "thursday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "friday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "saturday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "16:00" }]
+        },
+        "sunday": {
+          "isAvailable": false
+        }
+      }
+    },
+    {
+      "id": "cmirpe1x60009ligvjn15zr93",
+      "name": "Jane Smith",
+      "userId": "usr_789",
+      "user": {
+        "id": "usr_789",
+        "name": "Jane Smith",
+        "email": "jane@example.com"
+      },
+      "availability": {
+        "monday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "tuesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "wednesday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "thursday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "friday": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        },
+        "saturday": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "16:00" }]
+        },
+        "sunday": {
+          "isAvailable": false
+        }
+      }
+    }
+  ]
+}
+```
+
+**Response Fields:**
+
+- `id`: Staff member ID
+- `name`: Staff member name (from Staff model)
+- `userId`: Associated user ID if the staff member is linked to a User account (can be `null`)
+- `user`: User details (id, name, email) if `userId` exists, otherwise `null`
+- `availability`: Parsed availability schedule showing working hours for each day of the week
+
+**Notes:**
+
+- Only staff members who are available at the requested `startTime` are returned
+- Availability is checked against:
+  - Staff member's availability schedule (working hours)
+  - Existing bookings (excluding CANCELLED and NO_SHOW statuses)
+  - Service duration (ensures the full service can be completed within available time)
+- If no staff members are available, an empty array is returned
+- The `startTime` must be a valid ISO 8601 datetime string and cannot be in the past
+
+**Errors:**
+
+- **400**: Bad Request
+  - Invalid `startTime` format
+  - `startTime` is in the past
+  - Missing `startTime` query parameter
+- **404**: Not Found
+  - Salon not found
+  - Service not found
+  - Service does not belong to the specified salon
+- **500**: Internal server error
+
+---
+
+### 4) Create Salon (Protected) — POST `/api/v1/salons`
 
 Registers a new salon. Requires authentication. The authenticated user becomes the salon owner.
 
@@ -358,7 +494,7 @@ Errors:
 
 ---
 
-### 4) Get My Salons (Protected) — GET `/api/v1/salons/my-salons`
+### 5) Get My Salons (Protected) — GET `/api/v1/salons/my-salons`
 
 Retrieves all salons owned by the authenticated user with optional pagination and filtering.
 
@@ -430,7 +566,7 @@ Errors:
 
 ---
 
-### 5) Get Salon by ID (Public) — GET `/api/v1/salons/:id`
+### 6) Get Salon by ID (Public) — GET `/api/v1/salons/:id`
 
 Retrieves a specific salon by its ID. Public endpoint with full salon details including staff, services, and products.
 
@@ -528,7 +664,7 @@ Errors:
 
 ---
 
-### 6) Update Salon (Protected) — PATCH `/api/v1/salons/:id`
+### 7) Update Salon (Protected) — PATCH `/api/v1/salons/:id`
 
 Updates an existing salon. Only the salon owner can update their salon.
 
@@ -643,7 +779,7 @@ Errors:
 
 ---
 
-### 7) Delete Salon (Protected) — DELETE `/api/v1/salons/:id`
+### 8) Delete Salon (Protected) — DELETE `/api/v1/salons/:id`
 
 Deletes a salon. Only the salon owner can delete their salon. This is a destructive operation.
 

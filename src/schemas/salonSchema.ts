@@ -97,3 +97,18 @@ export const salonSearchQuerySchema: AnyZodObject = z.object({
     .refine((val) => !Number.isNaN(val), 'longitude must be a number')
     .optional(),
 });
+
+export const availableStaffParamsSchema: AnyZodObject = z.object({
+  salonId: z.string().cuid('Invalid salon ID format'),
+  serviceId: z.string().cuid('Invalid service ID format'),
+});
+
+export const availableStaffQuerySchema: AnyZodObject = z.object({
+  startTime: z
+    .string()
+    .datetime('Invalid start time format. Must be ISO 8601 datetime string')
+    .refine((value) => {
+      const date = new Date(value);
+      return !Number.isNaN(date.getTime()) && date >= new Date();
+    }, 'Start time must be a valid future datetime'),
+});
