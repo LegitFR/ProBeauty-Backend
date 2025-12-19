@@ -810,18 +810,33 @@ interface AvailableStaffMember {
   availability: StaffAvailability | null;
 }
 
+/**
+ * Get available staff members for a specific service at a given time
+ *
+ * This function implements a 3-step availability check for each staff member:
+ * Step 1: Check Weekly Availability (Rule Check) - Verify staff has availability rules for the day
+ * Step 2: Calculate Exact Time Window - Calculate the exact booking time window (start + duration)
+ * Step 3: Check for OVERLAPPING BOOKINGS - Verify no existing bookings overlap with the requested time
+ *
+ * @param salonId - The salon ID
+ * @param serviceId - The service ID
+ * @param startTime - ISO datetime string for the requested booking start time
+ * @returns Array of available staff members
+ * @throws Error if salon/service not found, invalid time format, or time is in the past
+ */
 export async function getAvailableStaffForService(
   salonId: string,
   serviceId: string,
   startTime: string
 ): Promise<AvailableStaffMember[]> {
-  // Validate salon exists
+  // ============================================================================
+  // VALIDATION: Verify salon and service exist and are valid
+  // ============================================================================
   const salon = await prisma.salon.findUnique({ where: { id: salonId } });
   if (!salon) {
     throw new Error('Salon not found');
   }
 
-  // Validate service exists and belongs to salon
   const service = await prisma.service.findUnique({ where: { id: serviceId } });
   if (!service) {
     throw new Error('Service not found');
@@ -831,21 +846,28 @@ export async function getAvailableStaffForService(
     throw new Error('Service does not belong to the specified salon');
   }
 
-  // Parse and validate startTime
+  // ============================================================================
+  // STEP 2: Calculate Exact Time Window
+  // ============================================================================
+  // Parse and validate the requested start time
   const bookingStartTime = new Date(startTime);
   if (Number.isNaN(bookingStartTime.getTime())) {
     throw new Error('Invalid start time format');
   }
 
-  // Check if booking time is in the past
-  if (bookingStartTime < new Date()) {
+  // Ensure booking time is not in the past
+  const now = new Date();
+  if (bookingStartTime < now) {
     throw new Error('Cannot check availability for past dates');
   }
 
-  // Calculate end time based on service duration
+  // Calculate the exact end time based on service duration
+  // Convert duration from minutes to milliseconds: durationMinutes * 60 * 1000
   const bookingEndTime = new Date(bookingStartTime.getTime() + service.durationMinutes * 60000);
 
-  // Get all staff assigned to this service
+  // ============================================================================
+  // PREPARE: Get all staff assigned to this service
+  // ============================================================================
   const staffServices = await prisma.staffService.findMany({
     where: {
       serviceId,
@@ -868,13 +890,15 @@ export async function getAvailableStaffForService(
     },
   });
 
-  // Get the date range for booking queries
+  // Calculate the date range for querying bookings (entire day)
   const dayStart = new Date(bookingStartTime);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(bookingStartTime);
   dayEnd.setHours(23, 59, 59, 999);
 
-  // Check availability for each staff member
+  // ============================================================================
+  // AVAILABILITY CHECK: For each staff member, perform 3-step check
+  // ============================================================================
   const availabilityChecks = await Promise.all(
     staffServices.map(async (staffService) => {
       const staff = staffService.staff;
@@ -882,10 +906,12 @@ export async function getAvailableStaffForService(
         return null;
       }
 
-      // Parse staff availability
+      // Parse staff availability rules (weekly schedule)
       const staffAvailability = parseStaffAvailability(staff.availability);
 
-      // Get existing bookings for this staff on the requested date
+      // STEP 3: Check for OVERLAPPING BOOKINGS (Most Important)
+      // Query all active bookings for this staff on the requested date
+      // Exclude CANCELLED and NO_SHOW bookings as they don't block availability
       const existingBookings = await prisma.booking.findMany({
         where: {
           staffId: staff.id,
@@ -903,7 +929,11 @@ export async function getAvailableStaffForService(
         },
       });
 
-      // Check if slot is available
+      // Perform comprehensive availability check
+      // This internally performs:
+      // - Step 1: Check Weekly Availability (Rule Check) - via isSlotAvailable
+      // - Step 2: Time window is already calculated (bookingStartTime to bookingEndTime)
+      // - Step 3: Check for OVERLAPPING BOOKINGS - via isSlotAvailable
       const available = isSlotAvailable(
         bookingStartTime,
         bookingEndTime,
@@ -911,11 +941,12 @@ export async function getAvailableStaffForService(
         existingBookings
       );
 
+      // If staff is not available, exclude them from results
       if (!available) {
         return null;
       }
 
-      // Return available staff with details
+      // Return available staff with complete details
       return {
         id: staff.id,
         name: staff.name,
@@ -926,6 +957,6 @@ export async function getAvailableStaffForService(
     })
   );
 
-  // Filter out null values (unavailable staff)
+  // Filter out null values (unavailable staff) and return only available staff
   return availabilityChecks.filter((staff): staff is AvailableStaffMember => staff !== null);
 }
