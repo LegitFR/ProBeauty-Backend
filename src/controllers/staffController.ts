@@ -216,3 +216,59 @@ export async function deleteStaff(req: Request, res: Response): Promise<void> {
     });
   }
 }
+
+export async function getAvailableStaffByDate(req: Request, res: Response): Promise<void> {
+  const { salonId, serviceId, date } = req.query;
+
+  try {
+    const result = await staffService.getAvailableStaffByDate({
+      salonId: salonId as string,
+      serviceId: serviceId as string | undefined,
+      date: date as string,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Available staff retrieved successfully',
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+export async function getStaffAvailabilityForDate(req: Request, res: Response): Promise<void> {
+  const { staffId } = req.params;
+  const { date } = req.query;
+
+  try {
+    const result = await staffService.getStaffAvailabilityWithBookings({
+      staffId,
+      date: date as string,
+    });
+
+    if (!result) {
+      res.status(404).json({
+        success: false,
+        message: 'Staff member not found',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Staff availability retrieved successfully',
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}

@@ -763,6 +763,188 @@ curl -X DELETE http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 
 ---
 
+## Get Available Staff by Date
+
+**Description:** Get all staff members available on a specific date for a salon. Useful for the first step of booking flow to show users which staff are available on their desired date.
+
+**Endpoint:** `GET /api/v1/staff/available-on-date`
+
+**Authentication:** Not required
+
+**Query Parameters:**
+
+- `salonId` (string, required) — Salon ID in CUID format
+- `serviceId` (string, optional) — Filter by service ID (only show staff who can perform this service)
+- `date` (string, required) — Date in ISO format (e.g., `2024-12-22`)
+
+**Success Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Available staff retrieved successfully",
+  "data": {
+    "date": "2024-12-22",
+    "dayOfWeek": "sunday",
+    "staff": [
+      {
+        "id": "clv9876543210zyxwvuts",
+        "name": "John Doe",
+        "user": {
+          "id": "clv0987654321zyxwvuts",
+          "name": "John Doe",
+          "email": "john@example.com"
+        },
+        "services": [
+          {
+            "id": "clv1111111111abcdefgh",
+            "title": "Haircut",
+            "price": 500,
+            "durationMinutes": 30
+          }
+        ],
+        "availability": {
+          "isAvailable": true,
+          "slots": [{ "start": "09:00", "end": "18:00" }]
+        }
+      },
+      {
+        "id": "clv9876543210zyxwvuta",
+        "name": "Jane Smith",
+        "user": {
+          "id": "clv0987654321zyxwvuta",
+          "name": "Jane Smith",
+          "email": "jane@example.com"
+        },
+        "services": [
+          {
+            "id": "clv1111111111abcdefgh",
+            "title": "Haircut",
+            "price": 500,
+            "durationMinutes": 30
+          }
+        ],
+        "availability": {
+          "isAvailable": true,
+          "slots": [{ "start": "10:00", "end": "17:00" }]
+        }
+      }
+    ]
+  }
+}
+```
+
+**Response Notes:**
+
+- Returns only staff members whose weekly availability shows `isAvailable: true` for the day of the week corresponding to the requested date
+- The `availability` field in the response contains only the day-specific availability (not the full week)
+- If `serviceId` is provided, only staff who can perform that service are returned
+
+**cURL Command:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/staff/available-on-date?salonId=clv1234567890abcdefgh&date=2025-12-22" \
+  -H "Content-Type: application/json"
+```
+
+**cURL Command with Service Filter:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/staff/available-on-date?salonId=cmiqyjrxl00025e07y9cwa5gs&serviceId=cmitr1up800018107wgproh82&date=2025-12-22" \
+  -H "Content-Type: application/json"
+```
+
+---
+
+## Get Staff Availability for Date
+
+**Description:** Get a specific staff member's availability for a date along with their existing bookings. Useful for the second step of booking flow after a user selects a staff member.
+
+**Endpoint:** `GET /api/v1/staff/:staffId/availability-for-date`
+
+**Authentication:** Not required
+
+**URL Parameters:**
+
+- `staffId` (string, required) — Staff ID in CUID format
+
+**Query Parameters:**
+
+- `date` (string, required) — Date in ISO format (e.g., `2024-12-22`)
+
+**Success Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Staff availability retrieved successfully",
+  "data": {
+    "staff": {
+      "id": "clv9876543210zyxwvuts",
+      "name": "John Doe",
+      "user": {
+        "id": "clv0987654321zyxwvuts",
+        "name": "John Doe",
+        "email": "john@example.com"
+      },
+      "services": [
+        {
+          "id": "clv1111111111abcdefgh",
+          "title": "Haircut",
+          "price": 500,
+          "durationMinutes": 30
+        }
+      ]
+    },
+    "date": "2024-12-22",
+    "dayOfWeek": "sunday",
+    "availability": {
+      "isAvailable": true,
+      "slots": [{ "start": "09:00", "end": "18:00" }]
+    },
+    "bookings": [
+      {
+        "id": "clvbooking1111111111",
+        "start": "09:00",
+        "end": "10:00",
+        "status": "CONFIRMED"
+      },
+      {
+        "id": "clvbooking2222222222",
+        "start": "14:00",
+        "end": "15:00",
+        "status": "CONFIRMED"
+      }
+    ]
+  }
+}
+```
+
+**Response Notes:**
+
+- `availability` contains the staff's working hours for that day of the week
+- `bookings` contains all existing bookings for that staff on the requested date (excludes CANCELLED and NO_SHOW bookings)
+- Booking times are in `HH:mm` format for easy comparison with availability slots
+- Use this information to show available time slots to the user by subtracting booked times from availability slots
+
+**Error Response (404 Not Found):**
+
+```json
+{
+  "success": false,
+  "message": "Staff member not found"
+}
+```
+
+**cURL Command:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/staff/cmj8pklqi00019w0716gmlnrp/availability-for-date?date=2025-12-22" \
+  -H "Content-Type: application/json"
+```
+
+---
+
 ## Validation Rules
 
 - **salonId**: Must be a valid CUID format, supplied in the request body

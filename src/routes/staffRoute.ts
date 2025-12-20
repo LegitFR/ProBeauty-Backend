@@ -7,6 +7,8 @@ import {
   getStaffBySalon,
   updateStaff,
   deleteStaff,
+  getAvailableStaffByDate,
+  getStaffAvailabilityForDate,
 } from '@/controllers/staffController';
 import { authenticate } from '@/middlewares/auth/authenticate';
 import { validateRequest } from '@/middlewares/validateRequest';
@@ -16,6 +18,9 @@ import {
   getStaffParamsSchema,
   getStaffQuerySchema,
   getSalonStaffParamsSchema,
+  getAvailableStaffByDateQuerySchema,
+  getStaffAvailabilityForDateParamsSchema,
+  getStaffAvailabilityForDateQuerySchema,
 } from '@/schemas/staffSchema';
 
 const router = Router();
@@ -28,6 +33,17 @@ const router = Router();
 router.get('/', validateRequest({ query: getStaffQuerySchema }), getAllStaff);
 
 /**
+ * @route   GET /api/v1/staff/available-on-date
+ * @desc    Get all staff members available on a specific date for a salon
+ * @access  Public
+ */
+router.get(
+  '/available-on-date',
+  validateRequest({ query: getAvailableStaffByDateQuerySchema }),
+  getAvailableStaffByDate
+);
+
+/**
  * @route   GET /api/v1/staff/salon/:salonId
  * @desc    Get all staff members for a specific salon
  * @access  Public
@@ -36,6 +52,20 @@ router.get(
   '/salon/:salonId',
   validateRequest({ params: getSalonStaffParamsSchema, query: getStaffQuerySchema }),
   getStaffBySalon
+);
+
+/**
+ * @route   GET /api/v1/staff/:staffId/availability-for-date
+ * @desc    Get a specific staff member's availability with bookings for a date
+ * @access  Public
+ */
+router.get(
+  '/:staffId/availability-for-date',
+  validateRequest({
+    params: getStaffAvailabilityForDateParamsSchema,
+    query: getStaffAvailabilityForDateQuerySchema,
+  }),
+  getStaffAvailabilityForDate
 );
 
 /**

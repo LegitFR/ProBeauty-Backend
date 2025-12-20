@@ -55,3 +55,21 @@ export const getStaffQuerySchema: AnyZodObject = z.object({
 export const getSalonStaffParamsSchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID format'),
 });
+
+export const getAvailableStaffByDateQuerySchema: AnyZodObject = z.object({
+  salonId: z.string().cuid('Invalid salon ID format'),
+  serviceId: z.string().cuid('Invalid service ID format').optional(),
+  date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid date format. Use ISO format (e.g., 2024-12-22)',
+  }),
+});
+
+export const getStaffAvailabilityForDateParamsSchema: AnyZodObject = z.object({
+  staffId: z.string().cuid('Invalid staff ID format'),
+});
+
+export const getStaffAvailabilityForDateQuerySchema: AnyZodObject = z.object({
+  date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid date format. Use ISO format (e.g., 2024-12-22)',
+  }),
+});

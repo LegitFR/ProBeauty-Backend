@@ -301,3 +301,228 @@ export async function deleteStaff(id: string, ownerId: string) {
     where: { id },
   });
 }
+
+/**
+ * Get day name from date
+ */
+function getDayName(
+  date: Date
+): 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' {
+  const days = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ] as const;
+  return days[date.getDay()];
+}
+
+interface AvailabilitySlot {
+  start: string;
+  end: string;
+}
+
+interface DayAvailability {
+  isAvailable: boolean;
+  slots?: AvailabilitySlot[];
+}
+
+interface StaffAvailability {
+  monday?: DayAvailability;
+  tuesday?: DayAvailability;
+  wednesday?: DayAvailability;
+  thursday?: DayAvailability;
+  friday?: DayAvailability;
+  saturday?: DayAvailability;
+  sunday?: DayAvailability;
+}
+
+/**
+ * Parse staff availability JSON safely
+ */
+function parseAvailability(availability: unknown): StaffAvailability | null {
+  try {
+    if (!availability) return null;
+    if (typeof availability === 'string') {
+      return JSON.parse(availability) as StaffAvailability;
+    }
+    if (typeof availability === 'object') {
+      return availability as StaffAvailability;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+interface GetAvailableStaffByDateParams {
+  salonId: string;
+  serviceId?: string;
+  date: string;
+}
+
+/**
+ * Get all staff members available on a specific date for a salon
+ * Optionally filter by service
+ */
+export async function getAvailableStaffByDate(params: GetAvailableStaffByDateParams) {
+  const { salonId, serviceId, date } = params;
+
+  // Parse the date and get day of week
+  const requestedDate = new Date(date);
+  const dayOfWeek = getDayName(requestedDate);
+
+  // Build where clause
+  const where: { salonId: string; services?: { some: { serviceId: string } } } = {
+    salonId,
+  };
+
+  // If serviceId provided, filter by service
+  if (serviceId) {
+    where.services = {
+      some: {
+        serviceId,
+      },
+    };
+  }
+
+  // Get all staff for the salon (optionally filtered by service)
+  const allStaff = await prisma.staff.findMany({
+    where,
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+      services: {
+        include: {
+          service: {
+            select: { id: true, title: true, price: true, durationMinutes: true },
+          },
+        },
+      },
+    },
+  });
+
+  // Filter staff who are available on the requested day of the week
+  const availableStaff = allStaff.filter((staff) => {
+    const availability = parseAvailability(staff.availability);
+    if (!availability) return false;
+
+    const dayAvailability = availability[dayOfWeek];
+    return dayAvailability?.isAvailable === true;
+  });
+
+  // Map to response format with day-specific availability
+  const staffWithDayAvailability = availableStaff.map((staff) => {
+    const availability = parseAvailability(staff.availability);
+    const dayAvailability = availability?.[dayOfWeek] || { isAvailable: false };
+
+    return {
+      id: staff.id,
+      name: staff.name,
+      user: staff.user,
+      services: staff.services.map((s) => s.service),
+      availability: dayAvailability,
+    };
+  });
+
+  return {
+    date,
+    dayOfWeek,
+    staff: staffWithDayAvailability,
+  };
+}
+
+interface GetStaffAvailabilityWithBookingsParams {
+  staffId: string;
+  date: string;
+}
+
+/**
+ * Get a specific staff member's availability for a date along with their existing bookings
+ */
+export async function getStaffAvailabilityWithBookings(
+  params: GetStaffAvailabilityWithBookingsParams
+) {
+  const { staffId, date } = params;
+
+  // Get staff with details
+  const staff = await prisma.staff.findUnique({
+    where: { id: staffId },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+      services: {
+        include: {
+          service: {
+            select: { id: true, title: true, price: true, durationMinutes: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!staff) {
+    return null;
+  }
+
+  // Parse the date and get day of week
+  const requestedDate = new Date(date);
+  const dayOfWeek = getDayName(requestedDate);
+
+  // Parse availability
+  const availability = parseAvailability(staff.availability);
+  const dayAvailability = availability?.[dayOfWeek] || { isAvailable: false };
+
+  // Get start and end of the requested day
+  const dayStart = new Date(requestedDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(requestedDate);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  // Get existing bookings for this staff on the requested date
+  const existingBookings = await prisma.booking.findMany({
+    where: {
+      staffId,
+      startTime: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        notIn: ['CANCELLED', 'NO_SHOW'],
+      },
+    },
+    select: {
+      id: true,
+      startTime: true,
+      endTime: true,
+      status: true,
+    },
+    orderBy: { startTime: 'asc' },
+  });
+
+  // Format bookings for response (convert to HH:mm format)
+  const formattedBookings = existingBookings.map((booking) => ({
+    id: booking.id,
+    start: `${booking.startTime.getHours().toString().padStart(2, '0')}:${booking.startTime.getMinutes().toString().padStart(2, '0')}`,
+    end: `${booking.endTime.getHours().toString().padStart(2, '0')}:${booking.endTime.getMinutes().toString().padStart(2, '0')}`,
+    status: booking.status,
+  }));
+
+  return {
+    staff: {
+      id: staff.id,
+      name: staff.name,
+      user: staff.user,
+      services: staff.services.map((s) => s.service),
+    },
+    date,
+    dayOfWeek,
+    availability: dayAvailability,
+    bookings: formattedBookings,
+  };
+}
