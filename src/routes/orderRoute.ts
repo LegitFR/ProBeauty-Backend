@@ -3,11 +3,12 @@ import { Router } from 'express';
 import {
   createOrder,
   getOrders,
+  getAllOrdersForAdmin,
   getOrder,
   updateOrderStatus,
   cancelOrder,
 } from '@/controllers/orderController';
-import { authenticate } from '@/middlewares/auth/authenticate';
+import { authenticate, authorize } from '@/middlewares/auth/authenticate';
 import { validateRequest } from '@/middlewares/validateRequest';
 import {
   createOrderSchema,
@@ -32,6 +33,17 @@ router.post('/', validateRequest({ body: createOrderSchema }), createOrder);
  * Get all orders for the authenticated user with pagination and filters
  */
 router.get('/', validateRequest({ query: getOrdersQuerySchema }), getOrders);
+
+/**
+ * GET /api/v1/orders/admin
+ * Get all orders (admin only)
+ */
+router.get(
+  '/admin',
+  authorize(['admin', 'ADMIN']),
+  validateRequest({ query: getOrdersQuerySchema }),
+  getAllOrdersForAdmin
+);
 
 /**
  * GET /api/v1/orders/:id

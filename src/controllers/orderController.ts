@@ -92,6 +92,45 @@ export async function getOrders(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * Get all orders (admin only)
+ * GET /api/v1/orders/admin
+ */
+export async function getAllOrdersForAdmin(req: Request, res: Response): Promise<void> {
+  const userRole = req.user?.role;
+
+  if (!userRole || (userRole !== 'admin' && userRole !== 'ADMIN')) {
+    res.status(403).json({ message: 'Access denied. Admin role required.' });
+    return;
+  }
+
+  try {
+    const { page, limit, status, salonId } = req.query;
+
+    const result = await orderService.getAllOrders({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      status: status as OrderStatus | undefined,
+      salonId: salonId as string | undefined,
+    });
+
+    res.status(200).json({
+      message: 'Orders retrieved successfully',
+      data: result.orders,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({
+        message: 'Failed to retrieve orders',
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+}
+
+/**
  * Get a single order by ID
  * GET /api/v1/orders/:id
  */

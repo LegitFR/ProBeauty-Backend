@@ -269,6 +269,53 @@ export async function updateOrderStatus(
 }
 
 /**
+ * Get all orders with pagination and filters (admin only)
+ */
+export async function getAllOrders(filters: OrderQueryFilters = {}): Promise<PaginatedOrders> {
+  const page = filters.page || 1;
+  const limit = filters.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.OrderWhereInput = {};
+
+  if (filters.status) {
+    where.status = filters.status;
+  }
+
+  if (filters.salonId) {
+    where.salonId = filters.salonId;
+  }
+
+  const total = await prisma.order.count({ where });
+
+  const orders = await prisma.order.findMany({
+    where,
+    include: {
+      orderItems: {
+        include: {
+          product: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    skip,
+    take: limit,
+  });
+
+  return {
+    orders,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+/**
  * Cancel an order
  * User can cancel their own order if it's not shipped/delivered
  * Restores product quantities
