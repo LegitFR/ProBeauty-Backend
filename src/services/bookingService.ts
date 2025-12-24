@@ -6,6 +6,7 @@ import {
   isSlotAvailable,
   checkBookingConflicts,
 } from '@/utils/availabilityUtils';
+import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
 
 interface CreateBookingData {
   userId: string;
@@ -178,6 +179,14 @@ export async function createBooking(data: CreateBookingData) {
         },
       },
     },
+  });
+
+  notificationEmitter.emit(NotificationEvents.BOOKING_CREATED, {
+    userId: booking.userId,
+    bookingId: booking.id,
+    salonName: booking.salon.name,
+    serviceName: booking.service.title,
+    startTime: booking.startTime,
   });
 
   return booking;
@@ -437,7 +446,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
   const updateData: {
     startTime?: Date;
     endTime?: Date;
-    staffId?: string;
+    staffId?: string | null;
     status?: BookingStatus;
   } = {};
 
@@ -573,6 +582,15 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
     },
   });
 
+  if (startTime && updateData.startTime) {
+    notificationEmitter.emit(NotificationEvents.BOOKING_RESCHEDULED, {
+      userId: updatedBooking.userId,
+      bookingId: updatedBooking.id,
+      salonName: updatedBooking.salon.name,
+      newStartTime: updateData.startTime,
+    });
+  }
+
   return updatedBooking;
 }
 
@@ -635,11 +653,17 @@ export async function cancelBooking(id: string) {
     },
   });
 
+  notificationEmitter.emit(NotificationEvents.BOOKING_CANCELLED, {
+    userId: updatedBooking.userId,
+    bookingId: updatedBooking.id,
+    salonName: updatedBooking.salon.name,
+  });
+
   return updatedBooking;
 }
 
 /**
- * Confirm a booking
+ * Mark booking as completed
  */
 export async function confirmBooking(id: string) {
   const booking = await prisma.booking.findUnique({ where: { id } });
@@ -699,6 +723,12 @@ export async function confirmBooking(id: string) {
         },
       },
     },
+  });
+
+  notificationEmitter.emit(NotificationEvents.BOOKING_CONFIRMED, {
+    userId: updatedBooking.userId,
+    bookingId: updatedBooking.id,
+    salonName: updatedBooking.salon.name,
   });
 
   return updatedBooking;
@@ -761,6 +791,12 @@ export async function completeBooking(id: string) {
         },
       },
     },
+  });
+
+  notificationEmitter.emit(NotificationEvents.BOOKING_COMPLETED, {
+    userId: updatedBooking.userId,
+    bookingId: updatedBooking.id,
+    salonName: updatedBooking.salon.name,
   });
 
   return updatedBooking;

@@ -3,6 +3,7 @@ import { Prisma, type Order, type OrderItem, type Product } from '@prisma/client
 import { prisma } from '@/configs/db';
 import { ORDER_STATUS, type OrderStatus, isValidStatusTransition } from '@/constants/orderStatus';
 import * as cartService from '@/services/cartService';
+import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
 
 /**
  * Extended Order with items and product details
@@ -132,6 +133,7 @@ export async function createOrderFromCart(
             product: true,
           },
         },
+        salon: true,
       },
     });
   });
@@ -139,6 +141,13 @@ export async function createOrderFromCart(
   if (!order) {
     throw new Error('Failed to create order');
   }
+
+  notificationEmitter.emit(NotificationEvents.ORDER_CREATED, {
+    userId: order.userId,
+    orderId: order.id,
+    total: order.total.toString(),
+    salonName: order.salon.name,
+  });
 
   return order;
 }
@@ -262,10 +271,20 @@ export async function updateOrderStatus(
   }
 
   // Update order status
-  return prisma.order.update({
+  const updatedOrder = await prisma.order.update({
     where: { id: orderId },
     data: { status: newStatus },
+    include: { salon: true },
   });
+
+  notificationEmitter.emit(NotificationEvents.ORDER_STATUS_CHANGED, {
+    userId: updatedOrder.userId,
+    orderId: updatedOrder.id,
+    status: updatedOrder.status,
+    salonName: updatedOrder.salon.name,
+  });
+
+  return updatedOrder;
 }
 
 /**
@@ -353,7 +372,7 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
   }
 
   // Cancel order and restore quantities in transaction
-  return prisma.$transaction(async (tx) => {
+  const cancelledOrder = await prisma.$transaction(async (tx) => {
     // Restore product quantities
     for (const item of order.orderItems) {
       await tx.product.update({
@@ -370,6 +389,16 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
     return tx.order.update({
       where: { id: orderId },
       data: { status: ORDER_STATUS.CANCELLED },
+      include: { salon: true },
     });
   });
+
+  // Emit notification after transaction completes successfully
+  notificationEmitter.emit(NotificationEvents.ORDER_CANCELLED, {
+    userId: cancelledOrder.userId,
+    orderId: cancelledOrder.id,
+    salonName: cancelledOrder.salon.name,
+  });
+
+  return cancelledOrder;
 }

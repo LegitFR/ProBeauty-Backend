@@ -10,6 +10,7 @@ import auth from '@/routes/authRoute';
 import booking from '@/routes/bookingRoute';
 import cart from '@/routes/cartRoute';
 import favourite from '@/routes/favouriteRoute';
+import notifications from '@/routes/notificationRoute';
 import order from '@/routes/orderRoute';
 import product from '@/routes/productRoute';
 import review from '@/routes/reviewRoute';
@@ -17,6 +18,7 @@ import salon from '@/routes/salonRoute';
 import service from '@/routes/serviceRoute';
 import staff from '@/routes/staffRoute';
 import user from '@/routes/userRoute';
+import './services/notificationEventListeners';
 
 const app: Express = express();
 
@@ -49,6 +51,7 @@ const initializeApp = async () => {
 
     app.use('/api/v1/auth', auth);
     app.use('/api/v1/user', user);
+    app.use('/api/v1/notifications', notifications);
     app.use('/api/v1/salons', salon);
     app.use('/api/v1/products', product);
     app.use('/api/v1/services', service);
