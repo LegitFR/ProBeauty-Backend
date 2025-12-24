@@ -1,6 +1,5 @@
-import admin from 'firebase-admin';
-
 import { prisma } from '@/configs/db';
+import admin from '@/configs/firebase';
 
 interface SendNotificationData {
   title: string;
