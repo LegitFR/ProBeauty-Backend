@@ -15,3 +15,5 @@ coverage/
 /prisma/migrations
 # output from bundlers
 dist/
+
+/src/probeauty-2025-firebase-adminsdk-fbsvc-09d925aa47.json

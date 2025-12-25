@@ -32,6 +32,7 @@ model User {
   reviews       Review[]
   ownedSalons   Salon[]
   staffProfiles Staff[]
+  deviceTokens  DeviceToken[]
 
   @@map("users")
 }
@@ -286,4 +287,20 @@ model Favourite {
   @@index([userId])
   @@index([productId])
   @@map("favourites")
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  fcmToken  String   @map("fcm_token")
+  platform  String
+  isActive  Boolean  @default(true) @map("is_active")
+  lastSeen  DateTime? @map("last_seen")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([fcmToken])
+  @@index([isActive])
+  @@map("device_tokens")
 }
