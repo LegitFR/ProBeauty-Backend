@@ -167,17 +167,25 @@ model OrderItem {
 }
 
 model Payment {
-  id        String   @id @default(cuid())
-  orderId   String   @map("order_id")
-  provider  String
-  amount    Decimal  @db.Decimal(10, 2)
-  status    String
-  txnId     String   @map("txn_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
+  orderId          String    @map("order_id")
+  provider         String
+  amount           Decimal   @db.Decimal(10, 2)
+  status           String
+  txnId            String    @map("txn_id")
+  stripeEventId    String?   @unique @map("stripe_event_id")
+  stripeCustomerId String?   @map("stripe_customer_id")
+  metadata         Json?
+  failureReason    String?   @map("failure_reason") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime? @updatedAt @map("updated_at")
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([txnId])
+  @@index([stripeEventId])
   @@map("payments")
 }
 
@@ -290,14 +298,14 @@ model Favourite {
 }
 
 model DeviceToken {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  fcmToken  String   @map("fcm_token")
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  fcmToken  String    @map("fcm_token")
   platform  String
-  isActive  Boolean  @default(true) @map("is_active")
+  isActive  Boolean   @default(true) @map("is_active")
   lastSeen  DateTime? @map("last_seen")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([fcmToken])

@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import {
   createOrder,
+  createOrderWithPayment,
+  getOrderPayment,
   getOrders,
   getAllOrdersForAdmin,
   getOrder,
@@ -23,8 +25,14 @@ const router = Router();
 router.use(authenticate);
 
 /**
+ * POST /api/v1/orders/checkout
+ * Create a new order with Stripe payment from the user's cart
+ */
+router.post('/checkout', validateRequest({ body: createOrderSchema }), createOrderWithPayment);
+
+/**
  * POST /api/v1/orders
- * Create a new order from the user's cart
+ * Create a new order from the user's cart (without payment)
  */
 router.post('/', validateRequest({ body: createOrderSchema }), createOrder);
 
@@ -50,6 +58,12 @@ router.get(
  * Get a specific order by ID
  */
 router.get('/:id', validateRequest({ params: getOrderParamsSchema }), getOrder);
+
+/**
+ * GET /api/v1/orders/:id/payment
+ * Get payment details for an order
+ */
+router.get('/:id/payment', validateRequest({ params: getOrderParamsSchema }), getOrderPayment);
 
 /**
  * PATCH /api/v1/orders/:id/status
