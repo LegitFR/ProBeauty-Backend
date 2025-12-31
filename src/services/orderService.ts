@@ -4,7 +4,6 @@ import { prisma } from '@/configs/db';
 import { ORDER_STATUS, type OrderStatus, isValidStatusTransition } from '@/constants/orderStatus';
 import { PAYMENT_STATUS, PAYMENT_PROVIDER } from '@/constants/paymentStatus';
 import * as cartService from '@/services/cartService';
-import * as paymentService from '@/services/paymentService';
 import * as stripeService from '@/services/stripeService';
 import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
 
@@ -136,13 +135,15 @@ export async function createOrderWithPayment(
       });
     }
 
-    // Create payment record
-    await paymentService.createPayment({
-      orderId: newOrder.id,
-      provider: PAYMENT_PROVIDER.STRIPE,
-      amount: total,
-      txnId: paymentIntent.id,
-      status: PAYMENT_STATUS.PENDING,
+    // Create payment record using transaction client
+    await tx.payment.create({
+      data: {
+        orderId: newOrder.id,
+        provider: PAYMENT_PROVIDER.STRIPE,
+        amount: new Prisma.Decimal(total),
+        txnId: paymentIntent.id,
+        status: PAYMENT_STATUS.PENDING,
+      },
     });
 
     // Clear the cart
