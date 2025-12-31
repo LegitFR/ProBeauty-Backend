@@ -2,6 +2,104 @@ import type { Request, Response } from 'express';
 
 import { type OrderStatus } from '@/constants/orderStatus';
 import * as orderService from '@/services/orderService';
+import * as paymentService from '@/services/paymentService';
+
+/**
+ * Create a new order with Stripe payment from the user's cart
+ * POST /api/v1/orders/checkout
+ */
+export async function createOrderWithPayment(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    res.status(401).json({ message: 'User not authenticated' });
+    return;
+  }
+
+  try {
+    const { addressId } = req.body;
+
+    const result = await orderService.createOrderWithPayment(userId, addressId);
+
+    res.status(201).json({
+      message: 'Order created successfully. Complete payment to confirm.',
+      data: {
+        order: result.order,
+        clientSecret: result.clientSecret,
+        paymentIntentId: result.paymentIntentId,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (
+        error.message.includes('Cart validation failed') ||
+        error.message === 'Cart is empty' ||
+        error.message === 'Cart contains items from multiple salons'
+      ) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+      if (error.message === 'Address not found') {
+        res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error.message === 'Unauthorized: You do not own this address') {
+        res.status(403).json({ message: error.message });
+        return;
+      }
+      res.status(500).json({
+        message: 'Failed to create order',
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+}
+
+/**
+ * Get payment details for an order
+ * GET /api/v1/orders/:id/payment
+ */
+export async function getOrderPayment(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  const { id: orderId } = req.params;
+
+  if (!userId) {
+    res.status(401).json({ message: 'User not authenticated' });
+    return;
+  }
+
+  try {
+    // First verify the user has access to this order
+    await orderService.getOrderById(orderId, userId);
+
+    // Get payment details
+    const payments = await paymentService.getPaymentsByOrderId(orderId);
+
+    res.status(200).json({
+      message: 'Payment details retrieved successfully',
+      data: payments,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Order not found') {
+        res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error.message === 'Unauthorized: You do not have access to this order') {
+        res.status(403).json({ message: error.message });
+        return;
+      }
+      res.status(500).json({
+        message: 'Failed to retrieve payment details',
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+}
 
 /**
  * Create a new order from the user's cart
