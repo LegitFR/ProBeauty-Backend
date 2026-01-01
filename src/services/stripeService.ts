@@ -4,21 +4,37 @@ import { stripe, STRIPE_WEBHOOK_SECRET } from '@/configs/stripe';
 
 /**
  * Create a Stripe PaymentIntent
+ * @param amount - Amount in dollars (will be converted to cents)
+ * @param currency - Currency code (default: 'usd')
+ * @param metadata - Additional metadata to attach to the PaymentIntent
+ * @param customerId - Optional Stripe Customer ID to associate with the payment
  */
 export async function createPaymentIntent(
   amount: number,
   currency = 'usd',
-  metadata: Record<string, string> = {}
+  metadata: Record<string, string> = {},
+  customerId?: string
 ): Promise<Stripe.PaymentIntent> {
   try {
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: Math.round(amount * 100), // Convert to cents
       currency,
       metadata,
       automatic_payment_methods: {
         enabled: true,
       },
-    });
+    };
+
+    // Associate the PaymentIntent with a Stripe Customer if provided
+    if (customerId) {
+      paymentIntentParams.customer = customerId;
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+
+    console.info(
+      `[Stripe] PaymentIntent created: ${paymentIntent.id}, amount: ${amount}, customer: ${customerId || 'none'}`
+    );
 
     return paymentIntent;
   } catch (error) {
@@ -132,9 +148,40 @@ export async function createCustomer(
     }
 
     const customer = await stripe.customers.create(customerParams);
+    console.info(`[Stripe] Customer created: ${customer.id}, email: ${email}`);
     return customer;
   } catch (error) {
     console.error('Error creating Stripe customer:', error);
     throw new Error('Failed to create customer');
+  }
+}
+
+/**
+ * Get or create a Stripe Customer by email
+ * First searches for existing customer, creates new one if not found
+ */
+export async function getOrCreateCustomer(
+  email: string,
+  name?: string,
+  metadata?: Record<string, string>
+): Promise<Stripe.Customer> {
+  try {
+    // Search for existing customer by email
+    const existingCustomers = await stripe.customers.list({
+      email,
+      limit: 1,
+    });
+
+    if (existingCustomers.data.length > 0) {
+      const existingCustomer = existingCustomers.data[0];
+      console.info(`[Stripe] Found existing customer: ${existingCustomer.id}, email: ${email}`);
+      return existingCustomer;
+    }
+
+    // Create new customer if not found
+    return createCustomer(email, name, metadata);
+  } catch (error) {
+    console.error('Error getting or creating Stripe customer:', error);
+    throw new Error('Failed to get or create customer');
   }
 }
