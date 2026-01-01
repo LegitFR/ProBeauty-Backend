@@ -80,6 +80,15 @@ export async function createOrderWithPayment(
     throw new Error('Unauthorized: You do not own this address');
   }
 
+  // Get user for Stripe customer creation
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
   // All items must be from the same salon
   const salonIds = new Set(cart.cartItems.map((item) => item.product.salonId));
   if (salonIds.size > 1) {
@@ -95,11 +104,26 @@ export async function createOrderWithPayment(
     total += itemTotal;
   }
 
-  // Create Stripe PaymentIntent first
-  const paymentIntent = await stripeService.createPaymentIntent(total, 'usd', {
-    userId,
-    addressId,
+  // Get or create Stripe customer for the user
+  const stripeCustomer = await stripeService.getOrCreateCustomer(user.email, user.name, {
+    userId: user.id,
   });
+
+  console.info(
+    `[Order] Creating order for user ${userId} with Stripe customer ${stripeCustomer.id}`
+  );
+
+  // Create Stripe PaymentIntent with customer association
+  const paymentIntent = await stripeService.createPaymentIntent(
+    total,
+    'usd',
+    {
+      userId,
+      addressId,
+      salonId,
+    },
+    stripeCustomer.id
+  );
 
   // Create order with items in a transaction
   const order = await prisma.$transaction(async (tx) => {
@@ -135,7 +159,7 @@ export async function createOrderWithPayment(
       });
     }
 
-    // Create payment record using transaction client
+    // Create payment record with Stripe customer ID
     await tx.payment.create({
       data: {
         orderId: newOrder.id,
@@ -143,8 +167,13 @@ export async function createOrderWithPayment(
         amount: new Prisma.Decimal(total),
         txnId: paymentIntent.id,
         status: PAYMENT_STATUS.PENDING,
+        stripeCustomerId: stripeCustomer.id,
       },
     });
+
+    console.info(
+      `[Order] Payment record created for order ${newOrder.id}, txnId: ${paymentIntent.id}, stripeCustomerId: ${stripeCustomer.id}`
+    );
 
     // Clear the cart
     await tx.cartItem.deleteMany({

@@ -11,13 +11,24 @@ export async function handlePaymentIntentSucceeded(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.info(`Payment succeeded: ${paymentIntent.id}`);
+  console.info(`[Webhook Handler] payment_intent.succeeded received`);
+  console.info(`[Webhook Handler] PaymentIntent ID: ${paymentIntent.id}`);
+  console.info(
+    `[Webhook Handler] Amount: ${paymentIntent.amount / 100} ${paymentIntent.currency.toUpperCase()}`
+  );
+  console.info(`[Webhook Handler] Customer: ${paymentIntent.customer || 'none'}`);
+  console.info(`[Webhook Handler] Metadata:`, paymentIntent.metadata);
 
   try {
-    await paymentService.markPaymentSucceeded(paymentIntent.id, event.id);
-    console.info(`Payment ${paymentIntent.id} marked as succeeded`);
+    const payment = await paymentService.markPaymentSucceeded(paymentIntent.id, event.id);
+    console.info(
+      `[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as succeeded, DB record ID: ${payment.id}`
+    );
   } catch (error) {
-    console.error(`Error handling payment_intent.succeeded for ${paymentIntent.id}:`, error);
+    console.error(
+      `[Webhook Handler] ERROR handling payment_intent.succeeded for ${paymentIntent.id}:`,
+      error
+    );
     throw error;
   }
 }
@@ -31,16 +42,29 @@ export async function handlePaymentIntentFailed(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.info(`Payment failed: ${paymentIntent.id}`);
+  console.info(`[Webhook Handler] payment_intent.payment_failed received`);
+  console.info(`[Webhook Handler] PaymentIntent ID: ${paymentIntent.id}`);
+  console.info(
+    `[Webhook Handler] Error: ${paymentIntent.last_payment_error?.message || 'Unknown'}`
+  );
 
   try {
     const failureReason =
       paymentIntent.last_payment_error?.message || 'Payment failed without specific reason';
 
-    await paymentService.markPaymentFailed(paymentIntent.id, event.id, failureReason);
-    console.info(`Payment ${paymentIntent.id} marked as failed`);
+    const payment = await paymentService.markPaymentFailed(
+      paymentIntent.id,
+      event.id,
+      failureReason
+    );
+    console.info(
+      `[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as failed, DB record ID: ${payment.id}`
+    );
   } catch (error) {
-    console.error(`Error handling payment_intent.payment_failed for ${paymentIntent.id}:`, error);
+    console.error(
+      `[Webhook Handler] ERROR handling payment_intent.payment_failed for ${paymentIntent.id}:`,
+      error
+    );
     throw error;
   }
 }
@@ -54,13 +78,19 @@ export async function handlePaymentIntentCanceled(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.info(`Payment canceled: ${paymentIntent.id}`);
+  console.info(`[Webhook Handler] payment_intent.canceled received`);
+  console.info(`[Webhook Handler] PaymentIntent ID: ${paymentIntent.id}`);
 
   try {
-    await paymentService.markPaymentCanceled(paymentIntent.id, event.id);
-    console.info(`Payment ${paymentIntent.id} marked as canceled`);
+    const payment = await paymentService.markPaymentCanceled(paymentIntent.id, event.id);
+    console.info(
+      `[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as canceled, DB record ID: ${payment.id}`
+    );
   } catch (error) {
-    console.error(`Error handling payment_intent.canceled for ${paymentIntent.id}:`, error);
+    console.error(
+      `[Webhook Handler] ERROR handling payment_intent.canceled for ${paymentIntent.id}:`,
+      error
+    );
     throw error;
   }
 }
@@ -72,7 +102,8 @@ export async function handlePaymentIntentCanceled(
 export async function handleChargeRefunded(event: Stripe.ChargeRefundedEvent): Promise<void> {
   const charge = event.data.object;
 
-  console.info(`Charge refunded: ${charge.id}`);
+  console.info(`[Webhook Handler] charge.refunded received`);
+  console.info(`[Webhook Handler] Charge ID: ${charge.id}`);
 
   try {
     // Get the payment intent ID from the charge
@@ -80,14 +111,18 @@ export async function handleChargeRefunded(event: Stripe.ChargeRefundedEvent): P
       typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
 
     if (!paymentIntentId) {
-      console.error('No payment intent ID found for refunded charge');
+      console.error('[Webhook Handler] No payment intent ID found for refunded charge');
       return;
     }
 
-    await paymentService.markPaymentRefunded(paymentIntentId, event.id);
-    console.info(`Payment ${paymentIntentId} marked as refunded`);
+    console.info(`[Webhook Handler] Associated PaymentIntent ID: ${paymentIntentId}`);
+
+    const payment = await paymentService.markPaymentRefunded(paymentIntentId, event.id);
+    console.info(
+      `[Webhook Handler] SUCCESS: Payment ${paymentIntentId} marked as refunded, DB record ID: ${payment.id}`
+    );
   } catch (error) {
-    console.error(`Error handling charge.refunded for ${charge.id}:`, error);
+    console.error(`[Webhook Handler] ERROR handling charge.refunded for ${charge.id}:`, error);
     throw error;
   }
 }
@@ -101,22 +136,29 @@ export async function handlePaymentIntentProcessing(
 ): Promise<void> {
   const paymentIntent = event.data.object;
 
-  console.info(`Payment processing: ${paymentIntent.id}`);
+  console.info(`[Webhook Handler] payment_intent.processing received`);
+  console.info(`[Webhook Handler] PaymentIntent ID: ${paymentIntent.id}`);
 
   try {
     // Get the existing payment
     const payment = await paymentService.getPaymentByTxnId(paymentIntent.id);
 
     if (!payment) {
-      console.error(`Payment not found for payment intent: ${paymentIntent.id}`);
+      console.error(`[Webhook Handler] Payment not found for payment intent: ${paymentIntent.id}`);
+      console.error(
+        `[Webhook Handler] This may indicate the payment record was not created during checkout.`
+      );
       return;
     }
 
     // Update to processing status if needed
     await paymentService.updatePaymentStatus(paymentIntent.id, 'processing', event.id);
-    console.info(`Payment ${paymentIntent.id} marked as processing`);
+    console.info(`[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as processing`);
   } catch (error) {
-    console.error(`Error handling payment_intent.processing for ${paymentIntent.id}:`, error);
+    console.error(
+      `[Webhook Handler] ERROR handling payment_intent.processing for ${paymentIntent.id}:`,
+      error
+    );
     // Don't throw error for processing events as they're informational
   }
 }
@@ -126,7 +168,12 @@ export async function handlePaymentIntentProcessing(
  * Routes events to their respective handlers
  */
 export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
-  console.info(`Received Stripe webhook event: ${event.type}`);
+  console.info(`\n${'='.repeat(60)}`);
+  console.info(`[Webhook Router] Received Stripe event`);
+  console.info(`[Webhook Router] Event Type: ${event.type}`);
+  console.info(`[Webhook Router] Event ID: ${event.id}`);
+  console.info(`[Webhook Router] Created: ${new Date(event.created * 1000).toISOString()}`);
+  console.info(`${'='.repeat(60)}`);
 
   try {
     switch (event.type) {
@@ -150,11 +197,29 @@ export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
         await handleChargeRefunded(event);
         break;
 
+      case 'payment_intent.created':
+        console.info(
+          `[Webhook Router] payment_intent.created received (informational, no action needed)`
+        );
+        break;
+
+      case 'charge.succeeded':
+        console.info(
+          `[Webhook Router] charge.succeeded received (informational, handled via payment_intent.succeeded)`
+        );
+        break;
+
       default:
-        console.info(`Unhandled event type: ${event.type}`);
+        console.info(
+          `[Webhook Router] Unhandled event type: ${event.type} (no handler configured)`
+        );
     }
+
+    console.info(`[Webhook Router] Event ${event.id} processing completed`);
+    console.info(`${'='.repeat(60)}\n`);
   } catch (error) {
-    console.error(`Error handling webhook event ${event.type}:`, error);
+    console.error(`[Webhook Router] ERROR processing event ${event.type}:`, error);
+    console.info(`${'='.repeat(60)}\n`);
     throw error;
   }
 }

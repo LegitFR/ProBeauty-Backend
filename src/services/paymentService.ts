@@ -101,19 +101,45 @@ export async function updatePaymentStatus(
   stripeEventId: string,
   failureReason?: string
 ): Promise<Payment> {
+  console.info(
+    `[Payment] Updating payment status for txnId: ${txnId}, new status: ${status}, eventId: ${stripeEventId}`
+  );
+
   try {
     // Check if this event has already been processed (idempotency)
     const existingPayment = await getPaymentByStripeEventId(stripeEventId);
     if (existingPayment) {
-      console.info(`Event ${stripeEventId} already processed. Skipping.`);
+      console.info(`[Payment] Event ${stripeEventId} already processed. Skipping duplicate.`);
       return existingPayment;
     }
 
+    // First, verify the payment exists before attempting update
+    const existingPaymentByTxn = await getPaymentByTxnId(txnId);
+    if (!existingPaymentByTxn) {
+      console.error(`[Payment] No payment found with txnId: ${txnId}. Cannot update status.`);
+      throw new Error(
+        `Payment with txnId ${txnId} not found. Ensure the payment was created during checkout.`
+      );
+    }
+
+    console.info(
+      `[Payment] Found payment record: id=${existingPaymentByTxn.id}, orderId=${existingPaymentByTxn.orderId}, currentStatus=${existingPaymentByTxn.status}`
+    );
+
     // Update payment and order in a transaction
     const payment = await prisma.$transaction(async (tx) => {
-      // Update payment
-      const updatedPayment = await tx.payment.updateMany({
+      // Update payment using findFirst + update pattern to handle unique constraint properly
+      const paymentToUpdate = await tx.payment.findFirst({
         where: { txnId },
+      });
+
+      if (!paymentToUpdate) {
+        throw new Error(`Payment with txnId ${txnId} not found in transaction`);
+      }
+
+      // Update the specific payment record by ID
+      const updatedPayment = await tx.payment.update({
+        where: { id: paymentToUpdate.id },
         data: {
           status,
           stripeEventId,
@@ -122,18 +148,9 @@ export async function updatePaymentStatus(
         },
       });
 
-      if (updatedPayment.count === 0) {
-        throw new Error(`Payment with txnId ${txnId} not found`);
-      }
-
-      // Get the updated payment to access orderId
-      const payment = await tx.payment.findFirst({
-        where: { txnId },
-      });
-
-      if (!payment) {
-        throw new Error(`Payment with txnId ${txnId} not found`);
-      }
+      console.info(
+        `[Payment] Payment ${updatedPayment.id} updated: status=${status}, stripeEventId=${stripeEventId}`
+      );
 
       // Update order status based on payment status
       let orderStatus: string | undefined;
@@ -147,18 +164,20 @@ export async function updatePaymentStatus(
       }
 
       if (orderStatus) {
-        await tx.order.update({
-          where: { id: payment.orderId },
+        const updatedOrder = await tx.order.update({
+          where: { id: updatedPayment.orderId },
           data: { status: orderStatus },
         });
+        console.info(`[Payment] Order ${updatedOrder.id} status updated to: ${orderStatus}`);
       }
 
-      return payment;
+      return updatedPayment;
     });
 
+    console.info(`[Payment] Successfully processed payment update for txnId: ${txnId}`);
     return payment;
   } catch (error) {
-    console.error('Error updating payment status:', error);
+    console.error(`[Payment] Error updating payment status for txnId ${txnId}:`, error);
     throw error;
   }
 }
