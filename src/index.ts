@@ -6,6 +6,7 @@ import { errorHandler } from '@/middlewares/errorHandler';
 import { applyMiddleware } from '@/middlewares/index';
 import { notFound } from '@/middlewares/notFound';
 import address from '@/routes/addressRoute';
+import analytics from '@/routes/analyticsRoute';
 import auth from '@/routes/authRoute';
 import booking from '@/routes/bookingRoute';
 import cart from '@/routes/cartRoute';
@@ -58,6 +59,7 @@ const initializeApp = async () => {
     app.use('/api/v1/user', user);
     app.use('/api/v1/notifications', notifications);
     app.use('/api/v1/salons', salon);
+    app.use('/api/v1/salons', analytics);
     app.use('/api/v1/products', product);
     app.use('/api/v1/services', service);
     app.use('/api/v1/staff', staff);
