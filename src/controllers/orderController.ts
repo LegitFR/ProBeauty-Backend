@@ -31,11 +31,7 @@ export async function createOrderWithPayment(req: Request, res: Response): Promi
     });
   } catch (error) {
     if (error instanceof Error) {
-      if (
-        error.message.includes('Cart validation failed') ||
-        error.message === 'Cart is empty' ||
-        error.message === 'Cart contains items from multiple salons'
-      ) {
+      if (error.message.includes('Cart validation failed') || error.message === 'Cart is empty') {
         res.status(400).json({ message: error.message });
         return;
       }
@@ -124,11 +120,7 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     if (error instanceof Error) {
-      if (
-        error.message.includes('Cart validation failed') ||
-        error.message === 'Cart is empty' ||
-        error.message === 'Cart contains items from multiple salons'
-      ) {
+      if (error.message.includes('Cart validation failed') || error.message === 'Cart is empty') {
         res.status(400).json({ message: error.message });
         return;
       }

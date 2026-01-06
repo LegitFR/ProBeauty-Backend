@@ -89,13 +89,9 @@ export async function createOrderWithPayment(
     throw new Error('User not found');
   }
 
-  // All items must be from the same salon
+  // Determine salonId: set if all items from one salon, null if multiple salons
   const salonIds = new Set(cart.cartItems.map((item) => item.product.salonId));
-  if (salonIds.size > 1) {
-    throw new Error('Cart contains items from multiple salons');
-  }
-
-  const salonId = cart.cartItems[0].product.salonId;
+  const salonId = salonIds.size === 1 ? cart.cartItems[0].product.salonId : null;
 
   // Calculate total
   let total = 0;
@@ -114,13 +110,15 @@ export async function createOrderWithPayment(
   );
 
   // Create Stripe PaymentIntent with customer association
+  // Include salonIds array in metadata for multi-salon orders
+  const salonIdsArray = Array.from(salonIds);
   const paymentIntent = await stripeService.createPaymentIntent(
     total,
     'usd',
     {
       userId,
       addressId,
-      salonId,
+      ...(salonId ? { salonId } : { salonIds: salonIdsArray.join(',') }),
     },
     stripeCustomer.id
   );
@@ -186,7 +184,11 @@ export async function createOrderWithPayment(
       include: {
         orderItems: {
           include: {
-            product: true,
+            product: {
+              include: {
+                salon: true,
+              },
+            },
           },
         },
         salon: true,
@@ -198,11 +200,26 @@ export async function createOrderWithPayment(
     throw new Error('Failed to create order');
   }
 
+  // Get salon names for notification (handle multiple salons)
+  const uniqueSalons = new Set(
+    order.orderItems.map((item) => item.product.salonId).filter((id): id is string => id !== null)
+  );
+  const salonNames = await Promise.all(
+    Array.from(uniqueSalons).map(async (salonId) => {
+      const salon = await prisma.salon.findUnique({
+        where: { id: salonId },
+        select: { name: true },
+      });
+      return salon?.name || 'Unknown Salon';
+    })
+  );
+  const salonNameDisplay = salonNames.length === 1 ? salonNames[0] : `${salonNames.length} salons`;
+
   notificationEmitter.emit(NotificationEvents.ORDER_CREATED, {
     userId: order.userId,
     orderId: order.id,
     total: order.total.toString(),
-    salonName: order.salon.name,
+    salonName: salonNameDisplay,
   });
 
   if (!paymentIntent.client_secret) {
@@ -250,13 +267,9 @@ export async function createOrderFromCart(
     throw new Error('Unauthorized: You do not own this address');
   }
 
-  // All items must be from the same salon
+  // Determine salonId: set if all items from one salon, null if multiple salons
   const salonIds = new Set(cart.cartItems.map((item) => item.product.salonId));
-  if (salonIds.size > 1) {
-    throw new Error('Cart contains items from multiple salons');
-  }
-
-  const salonId = cart.cartItems[0].product.salonId;
+  const salonId = salonIds.size === 1 ? cart.cartItems[0].product.salonId : null;
 
   // Calculate total
   let total = 0;
@@ -311,7 +324,11 @@ export async function createOrderFromCart(
       include: {
         orderItems: {
           include: {
-            product: true,
+            product: {
+              include: {
+                salon: true,
+              },
+            },
           },
         },
         salon: true,
@@ -323,11 +340,26 @@ export async function createOrderFromCart(
     throw new Error('Failed to create order');
   }
 
+  // Get salon names for notification (handle multiple salons)
+  const uniqueSalons = new Set(
+    order.orderItems.map((item) => item.product.salonId).filter((id): id is string => id !== null)
+  );
+  const salonNames = await Promise.all(
+    Array.from(uniqueSalons).map(async (salonId) => {
+      const salon = await prisma.salon.findUnique({
+        where: { id: salonId },
+        select: { name: true },
+      });
+      return salon?.name || 'Unknown Salon';
+    })
+  );
+  const salonNameDisplay = salonNames.length === 1 ? salonNames[0] : `${salonNames.length} salons`;
+
   notificationEmitter.emit(NotificationEvents.ORDER_CREATED, {
     userId: order.userId,
     orderId: order.id,
     total: order.total.toString(),
-    salonName: order.salon.name,
+    salonName: salonNameDisplay,
   });
 
   return order;
@@ -335,7 +367,7 @@ export async function createOrderFromCart(
 
 /**
  * Get a single order by ID
- * Only the order owner or salon owner can view the order
+ * Only the order owner or salon owner (of any product in order) can view the order
  */
 export async function getOrderById(orderId: string, userId: string): Promise<OrderWithItems> {
   const order = await prisma.order.findUnique({
@@ -343,7 +375,11 @@ export async function getOrderById(orderId: string, userId: string): Promise<Ord
     include: {
       orderItems: {
         include: {
-          product: true,
+          product: {
+            include: {
+              salon: true,
+            },
+          },
         },
       },
       salon: true,
@@ -354,9 +390,25 @@ export async function getOrderById(orderId: string, userId: string): Promise<Ord
     throw new Error('Order not found');
   }
 
-  // Check authorization: user must be order owner or salon owner
+  // Check authorization: user must be order owner or owner of any salon with products in order
   const isOrderOwner = order.userId === userId;
-  const isSalonOwner = order.salon.ownerId === userId;
+
+  // Check if user owns any salon that has products in this order
+  const salonIdsInOrder = new Set(
+    order.orderItems.map((item) => item.product.salonId).filter((id): id is string => id !== null)
+  );
+
+  let isSalonOwner = false;
+  if (salonIdsInOrder.size > 0) {
+    const salons = await prisma.salon.findMany({
+      where: {
+        id: { in: Array.from(salonIdsInOrder) },
+        ownerId: userId,
+      },
+      select: { id: true },
+    });
+    isSalonOwner = salons.length > 0;
+  }
 
   if (!isOrderOwner && !isSalonOwner) {
     throw new Error('Unauthorized: You do not have access to this order');
@@ -385,8 +437,15 @@ export async function getOrdersByUser(
     where.status = filters.status;
   }
 
+  // Filter by salonId through orderItems -> product -> salonId
   if (filters.salonId) {
-    where.salonId = filters.salonId;
+    where.orderItems = {
+      some: {
+        product: {
+          salonId: filters.salonId,
+        },
+      },
+    };
   }
 
   // Get total count
@@ -422,7 +481,7 @@ export async function getOrdersByUser(
 
 /**
  * Update order status
- * Only salon owner can update order status
+ * Only salon owner (of any product in order) can update order status
  * Validates status transitions
  */
 export async function updateOrderStatus(
@@ -430,18 +489,45 @@ export async function updateOrderStatus(
   userId: string,
   newStatus: OrderStatus
 ): Promise<Order> {
-  // Get order
+  // Get order with items and products
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { salon: true },
+    include: {
+      orderItems: {
+        include: {
+          product: {
+            include: {
+              salon: true,
+            },
+          },
+        },
+      },
+      salon: true,
+    },
   });
 
   if (!order) {
     throw new Error('Order not found');
   }
 
-  // Check if user is salon owner
-  if (order.salon.ownerId !== userId) {
+  // Check if user owns any salon that has products in this order
+  const salonIdsInOrder = new Set(
+    order.orderItems.map((item) => item.product.salonId).filter((id): id is string => id !== null)
+  );
+
+  let isSalonOwner = false;
+  if (salonIdsInOrder.size > 0) {
+    const salons = await prisma.salon.findMany({
+      where: {
+        id: { in: Array.from(salonIdsInOrder) },
+        ownerId: userId,
+      },
+      select: { id: true },
+    });
+    isSalonOwner = salons.length > 0;
+  }
+
+  if (!isSalonOwner) {
     throw new Error('Unauthorized: Only salon owner can update order status');
   }
 
@@ -455,14 +541,42 @@ export async function updateOrderStatus(
   const updatedOrder = await prisma.order.update({
     where: { id: orderId },
     data: { status: newStatus },
-    include: { salon: true },
+    include: {
+      orderItems: {
+        include: {
+          product: {
+            include: {
+              salon: true,
+            },
+          },
+        },
+      },
+      salon: true,
+    },
   });
+
+  // Get salon names for notification (handle multiple salons)
+  const uniqueSalons = new Set(
+    updatedOrder.orderItems
+      .map((item) => item.product.salonId)
+      .filter((id): id is string => id !== null)
+  );
+  const salonNames = await Promise.all(
+    Array.from(uniqueSalons).map(async (salonId) => {
+      const salon = await prisma.salon.findUnique({
+        where: { id: salonId },
+        select: { name: true },
+      });
+      return salon?.name || 'Unknown Salon';
+    })
+  );
+  const salonNameDisplay = salonNames.length === 1 ? salonNames[0] : `${salonNames.length} salons`;
 
   notificationEmitter.emit(NotificationEvents.ORDER_STATUS_CHANGED, {
     userId: updatedOrder.userId,
     orderId: updatedOrder.id,
     status: updatedOrder.status,
-    salonName: updatedOrder.salon.name,
+    salonName: salonNameDisplay,
   });
 
   return updatedOrder;
@@ -482,8 +596,15 @@ export async function getAllOrders(filters: OrderQueryFilters = {}): Promise<Pag
     where.status = filters.status;
   }
 
+  // Filter by salonId through orderItems -> product -> salonId
   if (filters.salonId) {
-    where.salonId = filters.salonId;
+    where.orderItems = {
+      some: {
+        product: {
+          salonId: filters.salonId,
+        },
+      },
+    };
   }
 
   const total = await prisma.order.count({ where });
@@ -518,14 +639,23 @@ export async function getAllOrders(filters: OrderQueryFilters = {}): Promise<Pag
 /**
  * Cancel an order
  * User can cancel their own order if it's not shipped/delivered
+ * Salon owner (of any product in order) can also cancel
  * Restores product quantities
  */
 export async function cancelOrder(orderId: string, userId: string): Promise<Order> {
-  // Get order
+  // Get order with items and products
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      orderItems: true,
+      orderItems: {
+        include: {
+          product: {
+            include: {
+              salon: true,
+            },
+          },
+        },
+      },
       salon: true,
     },
   });
@@ -536,7 +666,23 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
 
   // Check authorization
   const isOrderOwner = order.userId === userId;
-  const isSalonOwner = order.salon.ownerId === userId;
+
+  // Check if user owns any salon that has products in this order
+  const salonIdsInOrder = new Set(
+    order.orderItems.map((item) => item.product.salonId).filter((id): id is string => id !== null)
+  );
+
+  let isSalonOwner = false;
+  if (salonIdsInOrder.size > 0) {
+    const salons = await prisma.salon.findMany({
+      where: {
+        id: { in: Array.from(salonIdsInOrder) },
+        ownerId: userId,
+      },
+      select: { id: true },
+    });
+    isSalonOwner = salons.length > 0;
+  }
 
   if (!isOrderOwner && !isSalonOwner) {
     throw new Error('Unauthorized: You cannot cancel this order');
@@ -570,15 +716,43 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
     return tx.order.update({
       where: { id: orderId },
       data: { status: ORDER_STATUS.CANCELLED },
-      include: { salon: true },
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              include: {
+                salon: true,
+              },
+            },
+          },
+        },
+        salon: true,
+      },
     });
   });
+
+  // Get salon names for notification (handle multiple salons)
+  const uniqueSalons = new Set(
+    cancelledOrder.orderItems
+      .map((item) => item.product.salonId)
+      .filter((id): id is string => id !== null)
+  );
+  const salonNames = await Promise.all(
+    Array.from(uniqueSalons).map(async (salonId) => {
+      const salon = await prisma.salon.findUnique({
+        where: { id: salonId },
+        select: { name: true },
+      });
+      return salon?.name || 'Unknown Salon';
+    })
+  );
+  const salonNameDisplay = salonNames.length === 1 ? salonNames[0] : `${salonNames.length} salons`;
 
   // Emit notification after transaction completes successfully
   notificationEmitter.emit(NotificationEvents.ORDER_CANCELLED, {
     userId: cancelledOrder.userId,
     orderId: cancelledOrder.id,
-    salonName: cancelledOrder.salon.name,
+    salonName: salonNameDisplay,
   });
 
   return cancelledOrder;
