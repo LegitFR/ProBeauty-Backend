@@ -161,6 +161,7 @@ export async function createOrderWithPayment(
     await tx.payment.create({
       data: {
         orderId: newOrder.id,
+        bookingId: null,
         provider: PAYMENT_PROVIDER.STRIPE,
         amount: new Prisma.Decimal(total),
         txnId: paymentIntent.id,

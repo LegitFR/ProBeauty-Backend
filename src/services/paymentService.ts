@@ -1,14 +1,17 @@
 import { Prisma, type Payment } from '@prisma/client';
 
 import { prisma } from '@/configs/db';
+import { BOOKING_STATUS } from '@/constants/bookingStatus';
 import { ORDER_STATUS } from '@/constants/orderStatus';
 import { PAYMENT_STATUS, PAYMENT_PROVIDER, type PaymentStatus } from '@/constants/paymentStatus';
 
 /**
  * Create a payment record in the database
+ * At least one of orderId or bookingId must be provided
  */
 export async function createPayment(data: {
-  orderId: string;
+  orderId?: string;
+  bookingId?: string;
   provider: string;
   amount: number;
   txnId: string;
@@ -16,10 +19,20 @@ export async function createPayment(data: {
   stripeCustomerId?: string;
   metadata?: Record<string, unknown>;
 }): Promise<Payment> {
+  // Validate that at least one of orderId or bookingId is provided
+  if (!data.orderId && !data.bookingId) {
+    throw new Error('Either orderId or bookingId must be provided');
+  }
+
+  if (data.orderId && data.bookingId) {
+    throw new Error('Payment cannot be associated with both order and booking');
+  }
+
   try {
     const payment = await prisma.payment.create({
       data: {
         orderId: data.orderId,
+        bookingId: data.bookingId,
         provider: data.provider,
         amount: new Prisma.Decimal(data.amount),
         txnId: data.txnId,
@@ -45,6 +58,7 @@ export async function getPaymentByTxnId(txnId: string): Promise<Payment | null> 
       where: { txnId },
       include: {
         order: true,
+        booking: true,
       },
     });
 
@@ -64,6 +78,7 @@ export async function getPaymentByStripeEventId(stripeEventId: string): Promise<
       where: { stripeEventId },
       include: {
         order: true,
+        booking: true,
       },
     });
 
@@ -87,6 +102,23 @@ export async function getPaymentsByOrderId(orderId: string): Promise<Payment[]> 
     return payments;
   } catch (error) {
     console.error('Error fetching payments for order:', error);
+    throw new Error('Failed to fetch payments');
+  }
+}
+
+/**
+ * Get all payments for a booking
+ */
+export async function getPaymentsByBookingId(bookingId: string): Promise<Payment[]> {
+  try {
+    const payments = await prisma.payment.findMany({
+      where: { bookingId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return payments;
+  } catch (error) {
+    console.error('Error fetching payments for booking:', error);
     throw new Error('Failed to fetch payments');
   }
 }
@@ -123,10 +155,10 @@ export async function updatePaymentStatus(
     }
 
     console.info(
-      `[Payment] Found payment record: id=${existingPaymentByTxn.id}, orderId=${existingPaymentByTxn.orderId}, currentStatus=${existingPaymentByTxn.status}`
+      `[Payment] Found payment record: id=${existingPaymentByTxn.id}, orderId=${existingPaymentByTxn.orderId}, bookingId=${existingPaymentByTxn.bookingId}, currentStatus=${existingPaymentByTxn.status}`
     );
 
-    // Update payment and order in a transaction
+    // Update payment and related entity (order or booking) in a transaction
     const payment = await prisma.$transaction(async (tx) => {
       // Update payment using findFirst + update pattern to handle unique constraint properly
       const paymentToUpdate = await tx.payment.findFirst({
@@ -152,23 +184,47 @@ export async function updatePaymentStatus(
         `[Payment] Payment ${updatedPayment.id} updated: status=${status}, stripeEventId=${stripeEventId}`
       );
 
-      // Update order status based on payment status
-      let orderStatus: string | undefined;
+      // Update order or booking status based on payment status
+      if (updatedPayment.orderId) {
+        // Handle order status update
+        let orderStatus: string | undefined;
 
-      if (status === PAYMENT_STATUS.SUCCEEDED) {
-        orderStatus = ORDER_STATUS.CONFIRMED;
-      } else if (status === PAYMENT_STATUS.FAILED) {
-        orderStatus = ORDER_STATUS.PAYMENT_FAILED;
-      } else if (status === PAYMENT_STATUS.CANCELED) {
-        orderStatus = ORDER_STATUS.CANCELLED;
-      }
+        if (status === PAYMENT_STATUS.SUCCEEDED) {
+          orderStatus = ORDER_STATUS.CONFIRMED;
+        } else if (status === PAYMENT_STATUS.FAILED) {
+          orderStatus = ORDER_STATUS.PAYMENT_FAILED;
+        } else if (status === PAYMENT_STATUS.CANCELED) {
+          orderStatus = ORDER_STATUS.CANCELLED;
+        }
 
-      if (orderStatus) {
-        const updatedOrder = await tx.order.update({
-          where: { id: updatedPayment.orderId },
-          data: { status: orderStatus },
-        });
-        console.info(`[Payment] Order ${updatedOrder.id} status updated to: ${orderStatus}`);
+        if (orderStatus) {
+          const updatedOrder = await tx.order.update({
+            where: { id: updatedPayment.orderId },
+            data: { status: orderStatus },
+          });
+          console.info(`[Payment] Order ${updatedOrder.id} status updated to: ${orderStatus}`);
+        }
+      } else if (updatedPayment.bookingId) {
+        // Handle booking status update
+        let bookingStatus: string | undefined;
+
+        if (status === PAYMENT_STATUS.SUCCEEDED) {
+          bookingStatus = BOOKING_STATUS.CONFIRMED;
+        } else if (status === PAYMENT_STATUS.FAILED) {
+          bookingStatus = BOOKING_STATUS.PAYMENT_FAILED;
+        } else if (status === PAYMENT_STATUS.CANCELED) {
+          bookingStatus = BOOKING_STATUS.CANCELLED;
+        }
+
+        if (bookingStatus) {
+          const updatedBooking = await tx.booking.update({
+            where: { id: updatedPayment.bookingId },
+            data: { status: bookingStatus },
+          });
+          console.info(
+            `[Payment] Booking ${updatedBooking.id} status updated to: ${bookingStatus}`
+          );
+        }
       }
 
       return updatedPayment;
