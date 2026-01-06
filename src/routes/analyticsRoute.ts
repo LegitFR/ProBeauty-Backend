@@ -2,14 +2,19 @@
  * Analytics Routes
  *
  * API endpoints for salon revenue analytics
+ * Base path: /api/v1/analytics
  */
 
 import { Router } from 'express';
 
-import { getSalonAnalytics } from '@/controllers/analyticsController';
-import { authenticate } from '@/middlewares/auth/authenticate';
+import { getAdminAnalytics, getSalonAnalytics } from '@/controllers/analyticsController';
+import { authenticate, authorize } from '@/middlewares/auth/authenticate';
 import { validateRequest } from '@/middlewares/validateRequest';
-import { analyticsParamsSchema, analyticsQuerySchema } from '@/schemas/analyticsSchema';
+import {
+  adminAnalyticsQuerySchema,
+  analyticsParamsSchema,
+  analyticsQuerySchema,
+} from '@/schemas/analyticsSchema';
 
 const router = Router();
 
@@ -17,7 +22,35 @@ const router = Router();
 router.use(authenticate);
 
 /**
- * GET /api/v1/salons/:salonId/analytics
+ * GET /api/v1/analytics/admin
+ * Get platform-wide analytics for admin dashboard
+ *
+ * Access Control:
+ * - Admin only
+ *
+ * Query Parameters:
+ * - startDate (optional): ISO 8601 datetime string for start of date range
+ * - endDate (optional): ISO 8601 datetime string for end of date range
+ * - period (optional): 'daily' | 'weekly' | 'monthly' (default: 'monthly')
+ * - topServicesLimit (optional): Number of top services to return (default: 10, max: 50)
+ *
+ * Response:
+ * - 200: Admin analytics data retrieved successfully
+ * - 401: User not authenticated
+ * - 403: User is not an admin
+ * - 400: Invalid query parameters
+ */
+router.get(
+  '/admin',
+  authorize(['admin', 'ADMIN']),
+  validateRequest({
+    query: adminAnalyticsQuerySchema,
+  }),
+  getAdminAnalytics
+);
+
+/**
+ * GET /api/v1/analytics/salons/:salonId
  * Get revenue analytics for a specific salon
  *
  * Access Control:
@@ -36,7 +69,7 @@ router.use(authenticate);
  * - 400: Invalid query parameters
  */
 router.get(
-  '/:salonId/analytics',
+  '/salons/:salonId',
   validateRequest({
     params: analyticsParamsSchema,
     query: analyticsQuerySchema,

@@ -40,3 +40,37 @@ export const analyticsQuerySchema: AnyZodObject = z
       message: 'startDate must be before or equal to endDate',
     }
   );
+
+/**
+ * Schema for validating admin analytics query parameters
+ * Supports date range, period granularity, and top services limit
+ */
+export const adminAnalyticsQuerySchema: AnyZodObject = z
+  .object({
+    startDate: z
+      .string()
+      .datetime('Invalid start date format. Must be ISO 8601 datetime string')
+      .optional(),
+    endDate: z
+      .string()
+      .datetime('Invalid end date format. Must be ISO 8601 datetime string')
+      .optional(),
+    period: z.enum(['daily', 'weekly', 'monthly']).default('monthly').optional(),
+    topServicesLimit: z
+      .string()
+      .transform((val) => parseInt(val, 10))
+      .pipe(z.number().int().positive().max(50))
+      .optional()
+      .default('10'),
+  })
+  .refine(
+    (data) => {
+      if (data.startDate && data.endDate) {
+        return new Date(data.startDate) <= new Date(data.endDate);
+      }
+      return true;
+    },
+    {
+      message: 'startDate must be before or equal to endDate',
+    }
+  );

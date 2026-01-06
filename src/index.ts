@@ -58,8 +58,8 @@ const initializeApp = async () => {
     app.use('/api/v1/auth', auth);
     app.use('/api/v1/user', user);
     app.use('/api/v1/notifications', notifications);
+    app.use('/api/v1/analytics', analytics);
     app.use('/api/v1/salons', salon);
-    app.use('/api/v1/salons', analytics);
     app.use('/api/v1/products', product);
     app.use('/api/v1/services', service);
     app.use('/api/v1/staff', staff);

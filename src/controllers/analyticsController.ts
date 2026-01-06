@@ -13,7 +13,7 @@ import * as analyticsService from '@/services/analyticsService';
  * Get revenue analytics for a specific salon
  * Authorization: Salon owners can view their own salon, admins can view any salon
  *
- * @route GET /api/v1/salons/:salonId/analytics
+ * @route GET /api/v1/analytics/salons/:salonId
  * @param req - Express request object with salonId param and optional date query params
  * @param res - Express response object
  */
@@ -74,6 +74,35 @@ export async function getSalonAnalytics(req: Request, res: Response): Promise<vo
     console.error('Error fetching salon analytics:', error);
     res.status(500).json({
       message: 'Failed to retrieve analytics',
+    });
+  }
+}
+
+/**
+ * Get platform-wide analytics for admin dashboard
+ * Authorization: Admin only (enforced by route middleware)
+ *
+ * @route GET /api/v1/analytics/admin
+ * @param req - Express request object with optional query params
+ * @param res - Express response object
+ */
+export async function getAdminAnalytics(req: Request, res: Response): Promise<void> {
+  try {
+    const analytics = await analyticsService.getAdminAnalytics({
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
+      period: req.query.period as 'daily' | 'weekly' | 'monthly' | undefined,
+      topServicesLimit: req.query.topServicesLimit ? Number(req.query.topServicesLimit) : undefined,
+    });
+
+    res.status(200).json({
+      message: 'Admin analytics retrieved successfully',
+      data: analytics,
+    });
+  } catch (error) {
+    console.error('Error fetching admin analytics:', error);
+    res.status(500).json({
+      message: 'Failed to retrieve admin analytics',
     });
   }
 }

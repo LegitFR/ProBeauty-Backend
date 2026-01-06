@@ -52,3 +52,71 @@ export interface SalonAnalytics {
     endDate: string | null;
   };
 }
+
+/**
+ * Admin analytics query filters
+ */
+export interface AdminAnalyticsFilters {
+  startDate?: string;
+  endDate?: string;
+  period?: 'daily' | 'weekly' | 'monthly';
+  topServicesLimit?: number;
+}
+
+/**
+ * Admin revenue summary metrics (platform-wide)
+ */
+export interface AdminRevenueSummary {
+  totalRevenue: string;
+  productRevenue: string;
+  serviceRevenue: string;
+  totalTransactions: number;
+  adminProfit: string; // 2% of total revenue
+  uniqueCustomers: number;
+  totalSalons: number;
+  averageRevenuePerSalon: string;
+}
+
+/**
+ * Single trend data point
+ */
+export interface RevenueTrendData {
+  period: string;
+  revenue: string;
+  productRevenue: string;
+  serviceRevenue: string;
+  transactions: number;
+}
+
+/**
+ * Revenue trends container
+ */
+export interface RevenueTrends {
+  period: 'daily' | 'weekly' | 'monthly';
+  data: RevenueTrendData[];
+}
+
+/**
+ * Top service by revenue
+ */
+export interface TopService {
+  serviceId: string;
+  serviceName: string;
+  category: string | null;
+  totalRevenue: string;
+  bookingCount: number;
+  averagePrice: string;
+}
+
+/**
+ * Complete admin analytics response
+ */
+export interface AdminAnalytics {
+  summary: AdminRevenueSummary;
+  trends: RevenueTrends;
+  topServices: TopService[];
+  timeRange: {
+    startDate: string | null;
+    endDate: string | null;
+  };
+}
