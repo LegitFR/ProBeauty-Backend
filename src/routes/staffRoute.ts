@@ -11,6 +11,7 @@ import {
   getStaffAvailabilityForDate,
 } from '@/controllers/staffController';
 import { authenticate } from '@/middlewares/auth/authenticate';
+import { handleMulterError, uploadStaffImage } from '@/middlewares/uploadMiddleware';
 import { validateRequest } from '@/middlewares/validateRequest';
 import {
   createStaffSchema,
@@ -80,7 +81,14 @@ router.get('/:id', validateRequest({ params: getStaffParamsSchema }), getStaff);
  * @desc    Create a new staff member (salon owner only)
  * @access  Private
  */
-router.post('/', authenticate, validateRequest({ body: createStaffSchema }), createStaff);
+router.post(
+  '/',
+  authenticate,
+  uploadStaffImage,
+  handleMulterError,
+  validateRequest({ body: createStaffSchema }),
+  createStaff
+);
 
 /**
  * @route   PATCH /api/v1/staff/:id
@@ -90,6 +98,8 @@ router.post('/', authenticate, validateRequest({ body: createStaffSchema }), cre
 router.patch(
   '/:id',
   authenticate,
+  uploadStaffImage,
+  handleMulterError,
   validateRequest({ params: getStaffParamsSchema, body: updateStaffSchema }),
   updateStaff
 );

@@ -14,6 +14,20 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
 
 **Request Body:**
 
+Use `multipart/form-data` for requests with image uploads.
+
+Form fields:
+
+- `salonId` (string, required) — CUID format salon ID
+- `serviceId` (string, required) — CUID format service ID that this staff member can perform. Service must belong to the specified salon.
+- `availability` (string, optional) — Weekly availability object (JSON string) with keys for each day (`monday`–`sunday`), each containing:
+  - `isAvailable` (boolean, required)
+  - `slots` (array, optional) — List of time slots with `start` and `end` in `HH:mm` format
+- `userId` (string, optional) — CUID format user ID to associate with staff member
+- `image` (file, optional) — Staff profile image (JPEG, JPG, PNG, WebP, or GIF; max 5MB)
+
+**Request Parameters (JSON fields):**
+
 ```json
 {
   "salonId": "clv1234567890abcdefgh",
@@ -68,6 +82,8 @@ Endpoints for managing salon staff members. Salon owners can add, update, and de
   "data": {
     "id": "clv9876543210zyxwvuts",
     "salonId": "clv1234567890abcdefgh",
+    "name": "John Doe",
+    "image": "https://res.cloudinary.com/demo/image/upload/v1/staff.jpg",
     "services": [
       {
         "id": "clv1111111111abcdefgh",
@@ -189,6 +205,8 @@ curl -X POST http://localhost:5000/api/v1/staff \
   "data": {
     "id": "clv9876543210zyxwvuts",
     "salonId": "clv1234567890abcdefgh",
+    "name": "John Doe",
+    "image": "https://res.cloudinary.com/demo/image/upload/v1/staff.jpg",
     "services": [
       {
         "id": "clv1111111111abcdefgh",
@@ -303,6 +321,8 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
     {
       "id": "clv9876543210zyxwvuts",
       "salonId": "clv1234567890abcdefgh",
+      "name": "John Doe",
+      "image": "https://res.cloudinary.com/demo/image/upload/v1/staff.jpg",
       "services": [
         {
           "id": "clv1111111111abcdefgh",
@@ -356,6 +376,8 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
     {
       "id": "clv9876543210zyxwvuta",
       "salonId": "clv1234567890abcdefgh",
+      "name": "Jane Smith",
+      "image": null,
       "services": [
         {
           "id": "clv4444444444abcdefgh",
@@ -454,6 +476,8 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
     {
       "id": "clv9876543210zyxwvuts",
       "salonId": "clv1234567890abcdefgh",
+      "name": "John Doe",
+      "image": "https://res.cloudinary.com/demo/image/upload/v1/staff.jpg",
       "services": [
         {
           "id": "clv1111111111abcdefgh",
@@ -544,6 +568,17 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 
 **Request Body (all fields optional):**
 
+Use `multipart/form-data` for requests with image uploads, or `application/json` for field updates only.
+
+Form fields:
+
+- `serviceId` (string, optional) — CUID format service ID that this staff member can perform. Service must belong to the staff member's salon.
+- `availability` (string, optional) — Weekly availability object (JSON string) with keys for each day (`monday`–`sunday`), same structure as in Create Staff
+- `userId` (string, optional) — New user ID to associate with staff member
+- `image` (file, optional) — Staff profile image (JPEG, JPG, PNG, WebP, or GIF; max 5MB)
+
+**Request Parameters (JSON fields):**
+
 ```json
 {
   "serviceId": "clv1111111111abcdefgh",
@@ -580,12 +615,6 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 }
 ```
 
-**Request Parameters:**
-
-- `serviceId` (string, optional) — CUID format service ID that this staff member can perform. Service must belong to the staff member's salon.
-- `availability` (object, optional) — Weekly availability object with keys for each day (`monday`–`sunday`), same structure as in Create Staff
-- `userId` (string, optional) — New user ID to associate with staff member
-
 **Success Response (200 OK):**
 
 ```json
@@ -594,6 +623,8 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
   "data": {
     "id": "clv9876543210zyxwvuts",
     "salonId": "clv1234567890abcdefgh",
+    "name": "John Doe",
+    "image": "https://res.cloudinary.com/demo/image/upload/v1/staff.jpg",
     "services": [
       {
         "id": "clv1111111111abcdefgh",
@@ -663,7 +694,7 @@ curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv12345
 }
 ```
 
-**cURL Command:**
+**cURL Command (update fields only):**
 
 ```bash
 curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
@@ -713,6 +744,15 @@ curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
       }
     }
   }'
+```
+
+**cURL Command (update with image):**
+
+```bash
+curl -X PATCH http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: multipart/form-data" \
+  -F "image=@/path/to/new-staff-photo.jpg"
 ```
 
 ---
@@ -790,6 +830,7 @@ curl -X DELETE http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
       {
         "id": "clv9876543210zyxwvuts",
         "name": "John Doe",
+        "image": "https://res.cloudinary.com/demo/image/upload/v1/staff.jpg",
         "user": {
           "id": "clv0987654321zyxwvuts",
           "name": "John Doe",
@@ -811,6 +852,7 @@ curl -X DELETE http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
       {
         "id": "clv9876543210zyxwvuta",
         "name": "Jane Smith",
+        "image": null,
         "user": {
           "id": "clv0987654321zyxwvuta",
           "name": "Jane Smith",
@@ -882,6 +924,7 @@ curl -X GET "http://localhost:5000/api/v1/staff/available-on-date?salonId=cmiqyj
     "staff": {
       "id": "clv9876543210zyxwvuts",
       "name": "John Doe",
+      "image": "https://res.cloudinary.com/demo/image/upload/v1/staff.jpg",
       "user": {
         "id": "clv0987654321zyxwvuts",
         "name": "John Doe",
@@ -955,6 +998,10 @@ curl -X GET "http://localhost:5000/api/v1/staff/cmj8pklqi00019w0716gmlnrp/availa
     - `isAvailable`: boolean (required)
     - `slots`: optional array of `{ "start": "HH:mm", "end": "HH:mm" }` objects
 - **userId**: Optional; when provided, must be a valid CUID format and reference an existing user
+- **image**: Optional file upload for staff profile photo
+  - Allowed file types: JPEG, JPG, PNG, WebP, GIF
+  - Maximum file size: 5MB
+  - Uploaded to Cloudinary and stored as URL
 - **id (in URL)**: Must be a valid CUID format
 
 ## Authentication Notes

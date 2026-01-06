@@ -67,6 +67,7 @@ model Staff {
   salonId      String         @map("salon_id")
   userId       String?        @map("user_id")
   availability Json?
+  image        String?
   bookings     Booking[]
   salon        Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
   user         User?          @relation(fields: [userId], references: [id])
