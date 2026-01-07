@@ -30,6 +30,7 @@ export async function createOrderWithPayment(req: Request, res: Response): Promi
       },
     });
   } catch (error) {
+    console.error('[Order Controller] Error creating order with payment:', error);
     if (error instanceof Error) {
       if (error.message.includes('Cart validation failed') || error.message === 'Cart is empty') {
         res.status(400).json({ message: error.message });
