@@ -3,6 +3,8 @@ import { z, type AnyZodObject } from 'zod';
 // Booking status enum
 export const bookingStatusEnum = z.enum([
   'PENDING',
+  'PAYMENT_PENDING',
+  'PAYMENT_FAILED',
   'CONFIRMED',
   'COMPLETED',
   'CANCELLED',

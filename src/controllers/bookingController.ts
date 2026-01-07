@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import type { BookingStatus } from '@/schemas/bookingSchema';
 import * as bookingService from '@/services/bookingService';
+import * as paymentService from '@/services/paymentService';
 
 /**
  * Create a new booking
@@ -445,4 +446,122 @@ export async function completeBooking(req: Request, res: Response): Promise<void
     message: 'Booking marked as completed',
     data: completedBooking,
   });
+}
+
+/**
+ * Create a new booking with Stripe payment
+ * POST /api/v1/bookings/checkout
+ */
+export async function createBookingWithPayment(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    res.status(401).json({ message: 'User not authenticated' });
+    return;
+  }
+
+  try {
+    const { salonId, serviceId, staffId, startTime } = req.body;
+
+    const result = await bookingService.createBookingWithPayment(
+      userId,
+      salonId,
+      serviceId,
+      staffId,
+      startTime
+    );
+
+    res.status(201).json({
+      message: 'Booking created successfully. Complete payment to confirm.',
+      data: {
+        booking: result.booking,
+        clientSecret: result.clientSecret,
+        paymentIntentId: result.paymentIntentId,
+      },
+    });
+  } catch (error) {
+    console.error('[Booking Controller] Error creating booking with payment:', error);
+    if (error instanceof Error) {
+      if (
+        error.message.includes('not found') ||
+        error.message.includes('does not belong') ||
+        error.message.includes('does not work') ||
+        error.message.includes('cannot perform')
+      ) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+      if (error.message.includes('past') || error.message.includes('conflicts')) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+      if (error.message.includes('migration not applied') || error.message.includes('column')) {
+        res.status(500).json({
+          message: 'Database configuration error',
+          error: error.message,
+        });
+        return;
+      }
+      if (error.message.includes('client_secret is missing')) {
+        res.status(500).json({
+          message: 'Payment processing error',
+          error: 'Failed to initialize payment. Please try again.',
+        });
+        return;
+      }
+      res.status(500).json({
+        message: 'Failed to create booking',
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+}
+
+/**
+ * Get payment details for a booking
+ * GET /api/v1/bookings/:id/payment
+ */
+export async function getBookingPayment(req: Request, res: Response): Promise<void> {
+  const userId = req.user?.id;
+  const { id } = req.params;
+
+  if (!userId) {
+    res.status(401).json({ message: 'User not authenticated' });
+    return;
+  }
+
+  try {
+    // Verify booking exists and user has access
+    const booking = await bookingService.getBookingById(id);
+
+    if (!booking) {
+      res.status(404).json({ message: 'Booking not found' });
+      return;
+    }
+
+    // Check if user owns the booking
+    if (booking.userId !== userId) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    // Get payments for this booking
+    const payments = await paymentService.getPaymentsByBookingId(id);
+
+    res.status(200).json({
+      message: 'Payment details retrieved successfully',
+      data: payments,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(500).json({
+        message: 'Failed to retrieve payment details',
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
 }

@@ -1,5 +1,10 @@
+import { Prisma } from '@prisma/client';
+
 import { prisma } from '@/configs/db';
+import { BOOKING_STATUS } from '@/constants/bookingStatus';
+import { PAYMENT_PROVIDER, PAYMENT_STATUS } from '@/constants/paymentStatus';
 import type { BookingStatus } from '@/schemas/bookingSchema';
+import * as stripeService from '@/services/stripeService';
 import {
   parseStaffAvailability,
   generateTimeSlots,
@@ -447,6 +452,269 @@ export async function createBooking(data: CreateBookingData) {
   });
 
   return booking;
+}
+
+interface BookingWithPayment {
+  booking: Awaited<ReturnType<typeof prisma.booking.findUnique>>;
+  clientSecret: string;
+  paymentIntentId: string;
+}
+
+/**
+ * Create a booking with Stripe payment
+ * Validates booking data, creates booking with PAYMENT_PENDING status, and initiates Stripe payment
+ */
+export async function createBookingWithPayment(
+  userId: string,
+  salonId: string,
+  serviceId: string,
+  staffId: string | undefined,
+  startTime: string
+): Promise<BookingWithPayment> {
+  // Verify user exists
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Verify salon exists
+  const salon = await prisma.salon.findUnique({ where: { id: salonId } });
+  if (!salon) {
+    throw new Error('Salon not found');
+  }
+
+  // Verify service exists and get duration and price
+  const service = await prisma.service.findUnique({ where: { id: serviceId } });
+  if (!service) {
+    throw new Error('Service not found');
+  }
+
+  if (service.salonId !== salonId) {
+    throw new Error('Service does not belong to the specified salon');
+  }
+
+  // Parse dates
+  const bookingStartTime = new Date(startTime);
+  const bookingEndTime = new Date(bookingStartTime.getTime() + service.durationMinutes * 60000);
+
+  // Check if booking time is in the past
+  if (bookingStartTime < new Date()) {
+    throw new Error('Cannot book appointments in the past');
+  }
+
+  // Determine the staff to assign
+  let assignedStaffId: string | null = null;
+
+  if (staffId) {
+    // If staffId is provided, verify staff and check availability
+    const staff = await prisma.staff.findUnique({ where: { id: staffId } });
+    if (!staff) {
+      throw new Error('Staff not found');
+    }
+
+    if (staff.salonId !== salonId) {
+      throw new Error('Staff does not work at the specified salon');
+    }
+
+    // Verify staff can perform this service
+    const canPerformService = await prisma.staffService.findUnique({
+      where: {
+        staffId_serviceId: {
+          staffId,
+          serviceId,
+        },
+      },
+    });
+
+    if (!canPerformService) {
+      throw new Error('Staff cannot perform this service');
+    }
+
+    // Parse staff availability
+    const staffAvailability = parseStaffAvailability(staff.availability);
+
+    // Get existing bookings for this staff on the same day
+    const dayStart = new Date(bookingStartTime);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(bookingStartTime);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const existingBookings = await prisma.booking.findMany({
+      where: {
+        staffId,
+        startTime: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+        status: {
+          notIn: ['CANCELLED', 'NO_SHOW'],
+        },
+      },
+      select: {
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    // Check if slot is available
+    const available = isSlotAvailable(
+      bookingStartTime,
+      bookingEndTime,
+      staffAvailability,
+      existingBookings
+    );
+
+    if (!available) {
+      const conflict = checkBookingConflicts(bookingStartTime, bookingEndTime, existingBookings);
+      if (conflict) {
+        throw new Error(
+          `Time slot conflicts with existing booking (${conflict.startTime.toISOString()} - ${conflict.endTime.toISOString()})`
+        );
+      }
+      throw new Error('Staff is not available at the requested time');
+    }
+
+    assignedStaffId = staffId;
+  } else {
+    // If no staffId provided, find available staff and randomly assign one
+    const availableStaffIds = await findAvailableStaffForService(
+      salonId,
+      serviceId,
+      bookingStartTime,
+      bookingEndTime
+    );
+
+    // Randomly select one available staff member
+    assignedStaffId = selectRandomStaff(availableStaffIds);
+  }
+
+  // Get service price
+  const servicePrice = parseFloat(service.price.toString());
+
+  // Get or create Stripe customer for the user
+  const stripeCustomer = await stripeService.getOrCreateCustomer(user.email, user.name, {
+    userId: user.id,
+  });
+
+  console.info(
+    `[Booking] Creating booking for user ${userId} with Stripe customer ${stripeCustomer.id}`
+  );
+
+  // Create Stripe PaymentIntent with customer association
+  const paymentIntent = await stripeService.createPaymentIntent(
+    servicePrice,
+    'usd',
+    {
+      userId,
+      salonId,
+      serviceId,
+      ...(assignedStaffId ? { staffId: assignedStaffId } : {}),
+    },
+    stripeCustomer.id
+  );
+
+  // Create booking with PAYMENT_PENDING status in a transaction
+  const booking = await prisma.$transaction(async (tx) => {
+    // Create booking with PAYMENT_PENDING status
+    const newBooking = await tx.booking.create({
+      data: {
+        userId,
+        salonId,
+        serviceId,
+        staffId: assignedStaffId,
+        startTime: bookingStartTime,
+        endTime: bookingEndTime,
+        status: BOOKING_STATUS.PAYMENT_PENDING,
+      },
+    });
+
+    // Create payment record with Stripe customer ID
+    try {
+      await tx.payment.create({
+        data: {
+          orderId: null,
+          bookingId: newBooking.id,
+          provider: PAYMENT_PROVIDER.STRIPE,
+          amount: new Prisma.Decimal(servicePrice),
+          txnId: paymentIntent.id,
+          status: PAYMENT_STATUS.PENDING,
+          stripeCustomerId: stripeCustomer.id,
+        },
+      });
+    } catch (error) {
+      console.error('[Booking] Error creating payment record:', error);
+      // Check if it's a database schema issue
+      if (
+        error instanceof Error &&
+        error.message.includes('column') &&
+        error.message.includes('booking_id')
+      ) {
+        throw new Error(
+          'Database migration not applied. Please run: bun run prisma migrate deploy'
+        );
+      }
+      throw error;
+    }
+
+    console.info(
+      `[Booking] Payment record created for booking ${newBooking.id}, txnId: ${paymentIntent.id}, stripeCustomerId: ${stripeCustomer.id}`
+    );
+
+    // Return booking with relations
+    return tx.booking.findUnique({
+      where: { id: newBooking.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        salon: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            title: true,
+            durationMinutes: true,
+            price: true,
+          },
+        },
+        staff: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  if (!booking) {
+    throw new Error('Failed to create booking');
+  }
+
+  if (!paymentIntent.client_secret) {
+    throw new Error('PaymentIntent client_secret is missing');
+  }
+
+  return {
+    booking,
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
+  };
 }
 
 /**

@@ -2,9 +2,11 @@ import { Router } from 'express';
 
 import {
   createBooking,
+  createBookingWithPayment,
   getBookings,
   getAvailableSlots,
   getBooking,
+  getBookingPayment,
   updateBooking,
   cancelBooking,
   confirmBooking,
@@ -25,6 +27,14 @@ const router = Router();
 // Create a new booking (authenticated users)
 router.post('/', authenticate, validateRequest({ body: createBookingSchema }), createBooking);
 
+// Create a new booking with Stripe payment (authenticated users)
+router.post(
+  '/checkout',
+  authenticate,
+  validateRequest({ body: createBookingSchema }),
+  createBookingWithPayment
+);
+
 // Get all bookings (role-based filtering)
 router.get('/', authenticate, validateRequest({ query: getBookingsQuerySchema }), getBookings);
 
@@ -33,6 +43,14 @@ router.get('/availability', validateRequest({ query: availabilityQuerySchema }),
 
 // Get a specific booking by ID
 router.get('/:id', authenticate, validateRequest({ params: bookingIdParamsSchema }), getBooking);
+
+// Get payment details for a booking
+router.get(
+  '/:id/payment',
+  authenticate,
+  validateRequest({ params: bookingIdParamsSchema }),
+  getBookingPayment
+);
 
 // Update a booking (reschedule or change staff)
 router.put(

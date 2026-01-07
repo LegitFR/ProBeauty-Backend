@@ -156,7 +156,13 @@ async function getProductPayments(
     where: {
       status: PAYMENT_STATUS.SUCCEEDED, // Only count succeeded payments
       order: {
-        salonId,
+        orderItems: {
+          some: {
+            product: {
+              salonId,
+            },
+          },
+        },
       },
       ...(startDate || endDate
         ? {

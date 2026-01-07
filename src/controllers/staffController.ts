@@ -1,9 +1,11 @@
 import type { Request, Response } from 'express';
 
+import { uploadToCloudinary } from '@/services/fileUploadService';
 import * as staffService from '@/services/staffService';
 
 export async function createStaff(req: Request, res: Response): Promise<void> {
   const { name, salonId, serviceId, availability, userId } = req.body;
+  const file = req.file as Express.Multer.File | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -12,12 +14,20 @@ export async function createStaff(req: Request, res: Response): Promise<void> {
   }
 
   try {
+    let imageUrl: string | undefined;
+
+    if (file) {
+      const uploadResult = await uploadToCloudinary(file.buffer, 'probeauty/staff');
+      imageUrl = uploadResult.url;
+    }
+
     const staff = await staffService.createStaff(ownerId, {
       name,
       salonId,
       serviceId,
       availability,
       userId,
+      image: imageUrl,
     });
 
     const staffData = {
@@ -142,6 +152,7 @@ export async function getStaffBySalon(req: Request, res: Response): Promise<void
 export async function updateStaff(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   const { name, serviceId, availability, userId } = req.body;
+  const file = req.file as Express.Multer.File | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
@@ -150,11 +161,19 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
   }
 
   try {
+    let imageUrl: string | undefined;
+
+    if (file) {
+      const uploadResult = await uploadToCloudinary(file.buffer, 'probeauty/staff');
+      imageUrl = uploadResult.url;
+    }
+
     const staff = await staffService.updateStaff(id, ownerId, {
       name,
       serviceId,
       availability,
       userId,
+      image: imageUrl,
     });
 
     if (!staff) {

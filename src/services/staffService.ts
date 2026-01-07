@@ -8,6 +8,7 @@ interface CreateStaffData {
   serviceId: string;
   availability?: Record<string, unknown> | null;
   userId?: string;
+  image?: string;
 }
 
 interface UpdateStaffData {
@@ -15,6 +16,7 @@ interface UpdateStaffData {
   serviceId?: string;
   availability?: Record<string, unknown> | null;
   userId?: string;
+  image?: string;
 }
 
 interface GetStaffFilters {
@@ -63,6 +65,7 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
         ? (JSON.stringify(data.availability) as Prisma.InputJsonValue)
         : undefined,
       userId: data.userId,
+      image: data.image,
       services: {
         create: {
           serviceId: data.serviceId,
@@ -260,6 +263,7 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
           ? (JSON.stringify(data.availability) as Prisma.InputJsonValue)
           : undefined,
       userId: data.userId,
+      image: data.image,
       services:
         data.serviceId !== undefined
           ? {
