@@ -480,6 +480,7 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
       },
     });
   } catch (error) {
+    console.error('[Booking Controller] Error creating booking with payment:', error);
     if (error instanceof Error) {
       if (
         error.message.includes('not found') ||
@@ -492,6 +493,20 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
       }
       if (error.message.includes('past') || error.message.includes('conflicts')) {
         res.status(400).json({ message: error.message });
+        return;
+      }
+      if (error.message.includes('migration not applied') || error.message.includes('column')) {
+        res.status(500).json({
+          message: 'Database configuration error',
+          error: error.message,
+        });
+        return;
+      }
+      if (error.message.includes('client_secret is missing')) {
+        res.status(500).json({
+          message: 'Payment processing error',
+          error: 'Failed to initialize payment. Please try again.',
+        });
         return;
       }
       res.status(500).json({

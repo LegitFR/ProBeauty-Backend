@@ -629,17 +629,32 @@ export async function createBookingWithPayment(
     });
 
     // Create payment record with Stripe customer ID
-    await tx.payment.create({
-      data: {
-        orderId: null,
-        bookingId: newBooking.id,
-        provider: PAYMENT_PROVIDER.STRIPE,
-        amount: new Prisma.Decimal(servicePrice),
-        txnId: paymentIntent.id,
-        status: PAYMENT_STATUS.PENDING,
-        stripeCustomerId: stripeCustomer.id,
-      },
-    });
+    try {
+      await tx.payment.create({
+        data: {
+          orderId: null,
+          bookingId: newBooking.id,
+          provider: PAYMENT_PROVIDER.STRIPE,
+          amount: new Prisma.Decimal(servicePrice),
+          txnId: paymentIntent.id,
+          status: PAYMENT_STATUS.PENDING,
+          stripeCustomerId: stripeCustomer.id,
+        },
+      });
+    } catch (error) {
+      console.error('[Booking] Error creating payment record:', error);
+      // Check if it's a database schema issue
+      if (
+        error instanceof Error &&
+        error.message.includes('column') &&
+        error.message.includes('booking_id')
+      ) {
+        throw new Error(
+          'Database migration not applied. Please run: bun run prisma migrate deploy'
+        );
+      }
+      throw error;
+    }
 
     console.info(
       `[Booking] Payment record created for booking ${newBooking.id}, txnId: ${paymentIntent.id}, stripeCustomerId: ${stripeCustomer.id}`
@@ -691,9 +706,13 @@ export async function createBookingWithPayment(
     throw new Error('Failed to create booking');
   }
 
+  if (!paymentIntent.client_secret) {
+    throw new Error('PaymentIntent client_secret is missing');
+  }
+
   return {
     booking,
-    clientSecret: paymentIntent.client_secret || '',
+    clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
   };
 }
