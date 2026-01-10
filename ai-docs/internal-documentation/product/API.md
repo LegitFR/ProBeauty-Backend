@@ -52,7 +52,73 @@ Tip: Replace `http://localhost:5000` with your server URL in examples below.
 
 ## Endpoints
 
-### 1) Get All Products (Public) — GET `/api/v1/products`
+### 1) Search Products with Fuzzy Matching (Public) — GET `/api/v1/products/search`
+
+Searches products using optimistic fuzzy matching on product title and SKU. Case-insensitive and matches partial strings anywhere in the fields.
+
+Query parameters:
+- `q` (required): Search query string (minimum 1 character)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10)
+- `salonId` (optional): Filter by salon (`cuid`)
+- `minPrice` (optional): Minimum price (number)
+- `maxPrice` (optional): Maximum price (number)
+- `inStock` (optional): Filter by stock availability ("true" or "false")
+
+Sample success response (200):
+
+```json
+{
+  "message": "Products search completed successfully",
+  "data": [
+    {
+      "id": "prd_xxx123456789",
+      "salonId": "clxxx123456789",
+      "title": "Argan Oil Shampoo",
+      "sku": "ARG-SHAM-250",
+      "price": 699,
+      "quantity": 25,
+      "images": ["https://.../abc.jpg"],
+      "createdAt": "2025-01-15T10:30:00.000Z",
+      "updatedAt": "2025-01-15T10:30:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 1, "totalPages": 1 }
+}
+```
+
+curl examples:
+
+```bash
+# Search for "argan" in products
+curl -X GET "http://localhost:5000/api/v1/products/search?q=argan" \
+  -H "Content-Type: application/json"
+
+# Search with price range and stock filter
+curl -X GET "http://localhost:5000/api/v1/products/search?q=shampoo&minPrice=500&maxPrice=1000&inStock=true" \
+  -H "Content-Type: application/json"
+
+# Search within a specific salon
+curl -X GET "http://localhost:5000/api/v1/products/search?q=oil&salonId=clxxx123456789" \
+  -H "Content-Type: application/json"
+
+# Search by SKU (partial match)
+curl -X GET "http://localhost:5000/api/v1/products/search?q=ARG-SHAM" \
+  -H "Content-Type: application/json"
+```
+
+Search behavior:
+- Matches substring anywhere in `title` or `sku` fields
+- Case-insensitive matching (e.g., "argan" matches "Argan Oil Shampoo")
+- Very optimistic: even single characters will return results
+- Results ordered alphabetically by title
+- Supports all standard filtering (price, salon, stock) in addition to search
+
+Errors: 400 (validation - missing or empty query), 500 (server error)
+
+---
+
+### 2) Get All Products (Public) — GET `/api/v1/products`
 
 Retrieves products with optional pagination and filtering.
 
@@ -106,7 +172,7 @@ Errors: 400 (validation), 500 (server error)
 
 ---
 
-### 2) Get Products by Salon (Public) — GET `/api/v1/products/salon/:salonId`
+### 3) Get Products by Salon (Public) — GET `/api/v1/products/salon/:salonId`
 
 Retrieves all products for a specific salon with optional pagination/filters.
 
@@ -138,7 +204,7 @@ Errors: 400 (invalid ID or validation), 500 (server error)
 
 ---
 
-### 3) Get Product by ID (Public) — GET `/api/v1/products/:id`
+### 4) Get Product by ID (Public) — GET `/api/v1/products/:id`
 
 Retrieves a specific product by its ID.
 
@@ -175,7 +241,7 @@ Errors: 404 (not found), 400 (invalid ID), 500 (server error)
 
 ---
 
-### 4) Create Product (Protected) — POST `/api/v1/products`
+### 5) Create Product (Protected) — POST `/api/v1/products`
 
 Creates a new product for a salon owned by the authenticated user. Supports up to 5 image uploads.
 
@@ -231,7 +297,7 @@ Errors:
 
 ---
 
-### 5) Update Product (Protected) — PATCH `/api/v1/products/:id`
+### 6) Update Product (Protected) — PATCH `/api/v1/products/:id`
 
 Updates an existing product. Only the salon owner can update their product. Supports optional image uploads to add/replace images.
 
@@ -298,7 +364,7 @@ Errors:
 
 ---
 
-### 6) Delete Product (Protected) — DELETE `/api/v1/products/:id`
+### 7) Delete Product (Protected) — DELETE `/api/v1/products/:id`
 
 Deletes a product. Only the salon owner can delete their product.
 
@@ -329,7 +395,8 @@ Errors:
 
 ## Validation Rules
 
-- `salonId`: CUID string (required for create; optional filter on GET all)
+- `q` (search query): String, min 1 character (required for search endpoint)
+- `salonId`: CUID string (required for create; optional filter on GET all and search)
 - `title`: String, min 2 (required for create; optional for update)
 - `sku`: String, min 3, must be unique (required for create; optional for update)
 - `price`: String that parses to positive number (required for create; optional for update)
@@ -423,6 +490,8 @@ See `ai-docs/internal-documentation/auth/AUTH_OVERVIEW.md` for the full authenti
 1. Use pagination for large result sets
 2. Filter by `inStock=true` to show only available products
 3. Use the salon-specific endpoint when listing for a known salon
+4. Use the `/search` endpoint for user-driven product searches with fuzzy matching
+5. Combine search with filters (price, salon, stock) for refined results
 
 ### Security
 1. Never share access tokens
@@ -457,17 +526,21 @@ curl -X POST "http://localhost:5000/api/v1/products" \
   -F "images=@/path/to/img1.jpg" \
   -F "images=@/path/to/img2.jpg"
 
-# 3. Get all products (in stock)
+# 3. Search for products containing "argan"
+curl -X GET "http://localhost:5000/api/v1/products/search?q=argan&inStock=true" \
+  -H "Content-Type: application/json"
+
+# 4. Get all products (in stock)
 curl -X GET "http://localhost:5000/api/v1/products?inStock=true" \
   -H "Content-Type: application/json"
 
-# 4. Update product price
+# 5. Update product price
 curl -X PATCH "http://localhost:5000/api/v1/products/prd_xxx123456789" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "price": "749" }'
 
-# 5. Delete product
+# 6. Delete product
 curl -X DELETE "http://localhost:5000/api/v1/products/prd_xxx123456789" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```

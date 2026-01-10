@@ -231,3 +231,37 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
     });
   }
 }
+
+export async function searchProducts(req: Request, res: Response): Promise<void> {
+  const { q, page, limit, salonId, minPrice, maxPrice, inStock } = req.query;
+
+  try {
+    const filters = {
+      query: q as string,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      salonId: salonId as string | undefined,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      inStock: inStock ? inStock === 'true' : undefined,
+    };
+
+    const result = await productService.searchProducts(filters);
+
+    const productsData = result.products.map((product) => ({
+      ...product,
+      images: product.images || [],
+    }));
+
+    res.status(200).json({
+      message: 'Products search completed successfully',
+      data: productsData,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}

@@ -246,3 +246,74 @@ export async function deleteProduct(id: string, ownerId: string) {
     where: { id },
   });
 }
+
+interface SearchProductsFilters {
+  query: string;
+  page?: number;
+  limit?: number;
+  salonId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  inStock?: boolean;
+}
+
+export async function searchProducts(filters: SearchProductsFilters) {
+  const page = filters.page || 1;
+  const limit = filters.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const where: ProductsWhereClause & {
+    OR?: {
+      title?: { contains: string; mode: 'insensitive' };
+      sku?: { contains: string; mode: 'insensitive' };
+    }[];
+  } = {
+    OR: [
+      { title: { contains: filters.query, mode: 'insensitive' } },
+      { sku: { contains: filters.query, mode: 'insensitive' } },
+    ],
+  };
+
+  if (filters.salonId) {
+    where.salonId = filters.salonId;
+  }
+
+  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+    where.price = {};
+    if (filters.minPrice !== undefined) {
+      where.price.gte = new Prisma.Decimal(filters.minPrice);
+    }
+    if (filters.maxPrice !== undefined) {
+      where.price.lte = new Prisma.Decimal(filters.maxPrice);
+    }
+  }
+
+  if (filters.inStock) {
+    where.quantity = { gt: 0 };
+  }
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        salon: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { title: 'asc' },
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    products,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}

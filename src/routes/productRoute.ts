@@ -7,6 +7,7 @@ import {
   getProductsBySalon,
   updateProduct,
   deleteProduct,
+  searchProducts,
 } from '@/controllers/productController';
 import { authenticate } from '@/middlewares/auth/authenticate';
 import { uploadProductImages, handleMulterError } from '@/middlewares/uploadMiddleware';
@@ -17,9 +18,13 @@ import {
   getProductParamsSchema,
   getProductQuerySchema,
   getSalonProductsParamsSchema,
+  searchProductsQuerySchema,
 } from '@/schemas/productSchema';
 
 const router = Router();
+
+// Public route to search products with fuzzy matching
+router.get('/search', validateRequest({ query: searchProductsQuerySchema }), searchProducts);
 
 // Public route to get all products with pagination and filtering
 router.get('/', validateRequest({ query: getProductQuerySchema }), getAllProducts);

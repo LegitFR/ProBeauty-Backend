@@ -48,3 +48,16 @@ export const getProductQuerySchema: AnyZodObject = z.object({
 export const getSalonProductsParamsSchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID format'),
 });
+
+export const searchProductsQuerySchema: AnyZodObject = z.object({
+  q: z.string().min(1, 'Search query must be at least 1 character'),
+  page: z.string().transform(Number).optional(),
+  limit: z.string().transform(Number).optional(),
+  salonId: z.string().cuid('Invalid salon ID format').optional(),
+  minPrice: z.string().transform(Number).optional(),
+  maxPrice: z.string().transform(Number).optional(),
+  inStock: z
+    .string()
+    .transform((v) => v === 'true')
+    .optional(),
+});
