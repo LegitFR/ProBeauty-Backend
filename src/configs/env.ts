@@ -18,6 +18,7 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
   GOOGLE_WEB_CLIENT_ID: z.string().min(1, 'GOOGLE_WEB_CLIENT_ID is required'),
   GOOGLE_ANDROID_CLIENT_ID: z.string().min(1, 'GOOGLE_ANDROID_CLIENT_ID is required'),
+  GOOGLE_IOS_CLIENT_ID: z.string().min(1, 'GOOGLE_IOS_CLIENT_ID is required'),
   STRIPE_SECRET_KEY: z.string().min(1, 'STRIPE_SECRET_KEY is required'),
   STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET is required'),
 });

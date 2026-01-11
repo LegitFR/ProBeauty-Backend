@@ -6,6 +6,7 @@ import { envConfig } from '@/configs/env';
 const GOOGLE_CLIENT_IDS = [
   envConfig.GOOGLE_WEB_CLIENT_ID,
   envConfig.GOOGLE_ANDROID_CLIENT_ID,
+  envConfig.GOOGLE_IOS_CLIENT_ID,
 ].filter(Boolean);
 
 const client = new OAuth2Client();
