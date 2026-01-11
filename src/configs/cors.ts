@@ -1,6 +1,6 @@
 export const corsConfig = {
   origin: [
-    'https://localhost:3000',
+    'http://localhost:3000',
     'https://pro-beauty-web.vercel.app',
     'https://pro-beauty-salon-dashboard.vercel.app',
     'https://pro-beauty-admin.vercel.app',

@@ -419,6 +419,8 @@ export async function createBooking(data: CreateBookingData) {
           id: true,
           name: true,
           address: true,
+          images: true,
+          thumbnail: true,
         },
       },
       service: {
@@ -737,6 +739,8 @@ export async function getBookingById(id: string) {
           id: true,
           name: true,
           address: true,
+          images: true,
+          thumbnail: true,
         },
       },
       service: {
@@ -808,6 +812,8 @@ export async function getBookings(filters: GetBookingsFilters) {
           id: true,
           name: true,
           address: true,
+          images: true,
+          thumbnail: true,
         },
       },
       service: {
@@ -1261,6 +1267,8 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
           id: true,
           name: true,
           address: true,
+          images: true,
+          thumbnail: true,
         },
       },
       service: {
@@ -1332,6 +1340,8 @@ export async function cancelBooking(id: string) {
           id: true,
           name: true,
           address: true,
+          images: true,
+          thumbnail: true,
         },
       },
       service: {
@@ -1404,6 +1414,8 @@ export async function confirmBooking(id: string) {
           id: true,
           name: true,
           address: true,
+          images: true,
+          thumbnail: true,
         },
       },
       service: {
@@ -1472,6 +1484,8 @@ export async function completeBooking(id: string) {
           id: true,
           name: true,
           address: true,
+          images: true,
+          thumbnail: true,
         },
       },
       service: {
