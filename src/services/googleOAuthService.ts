@@ -3,7 +3,12 @@ import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '@/configs/db';
 import { envConfig } from '@/configs/env';
 
-const client = new OAuth2Client(envConfig.GOOGLE_CLIENT_ID);
+const GOOGLE_CLIENT_IDS = [
+  envConfig.GOOGLE_WEB_CLIENT_ID,
+  envConfig.GOOGLE_ANDROID_CLIENT_ID,
+].filter(Boolean);
+
+const client = new OAuth2Client();
 
 interface GoogleUserInfo {
   sub: string;
@@ -17,7 +22,7 @@ export const verifyGoogleToken = async (idToken: string): Promise<GoogleUserInfo
   try {
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: envConfig.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_CLIENT_IDS,
     });
 
     const payload = ticket.getPayload();
