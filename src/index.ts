@@ -12,6 +12,7 @@ import booking from '@/routes/bookingRoute';
 import cart from '@/routes/cartRoute';
 import favourite from '@/routes/favouriteRoute';
 import notifications from '@/routes/notificationRoute';
+import offer from '@/routes/offerRoute';
 import order from '@/routes/orderRoute';
 import product from '@/routes/productRoute';
 import review from '@/routes/reviewRoute';
@@ -62,6 +63,7 @@ const initializeApp = async () => {
     app.use('/api/v1/salons', analytics);
     app.use('/api/v1/products', product);
     app.use('/api/v1/services', service);
+    app.use('/api/v1/offers', offer);
     app.use('/api/v1/staff', staff);
     app.use('/api/v1/addresses', address);
     app.use('/api/v1/cart', cart);
