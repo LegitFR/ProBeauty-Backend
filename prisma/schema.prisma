@@ -26,13 +26,13 @@ model User {
   addresses     Address[]
   bookings      Booking[]
   cart          Cart?
+  deviceTokens  DeviceToken[]
   favourites    Favourite[]
   notifications Notification[]
   orders        Order[]
   reviews       Review[]
   ownedSalons   Salon[]
   staffProfiles Staff[]
-  deviceTokens  DeviceToken[]
 
   @@map("users")
 }
@@ -42,13 +42,13 @@ model Salon {
   ownerId   String    @map("owner_id")
   name      String
   address   String
-  venueType String    @default("everyone") @map("venue_type")
   geo       Json?
   hours     Json?
   verified  Boolean   @default(false)
   createdAt DateTime  @default(now()) @map("created_at")
   thumbnail String?
   images    String[]
+  venueType String    @default("everyone") @map("venue_type")
   bookings  Booking[]
   orders    Order[]
   products  Product[]
@@ -56,6 +56,7 @@ model Salon {
   owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   services  Service[]
   staff     Staff[]
+  offers    Offer[]
 
   @@index([ownerId])
   @@map("salons")
@@ -63,10 +64,10 @@ model Salon {
 
 model Staff {
   id           String         @id @default(cuid())
-  name         String
   salonId      String         @map("salon_id")
   userId       String?        @map("user_id")
   availability Json?
+  name         String
   image        String?
   bookings     Booking[]
   salon        Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
@@ -81,14 +82,15 @@ model Service {
   id              String         @id @default(cuid())
   salonId         String         @map("salon_id")
   title           String
-  category        String?
-  image           String?
   durationMinutes Int            @map("duration_minutes")
   price           Decimal        @db.Decimal(10, 2)
+  category        String?
+  image           String?
   bookings        Booking[]
   reviews         Review[]
   salon           Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
   staff           StaffService[]
+  offers          Offer[]
 
   @@index([salonId])
   @@index([category])
@@ -108,6 +110,7 @@ model Product {
   orderItems OrderItem[]
   salon      Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
   reviews    Review[]
+  offers     Offer[]
 
   @@index([salonId])
   @@map("products")
@@ -171,21 +174,19 @@ model OrderItem {
 model Payment {
   id               String    @id @default(cuid())
   orderId          String?   @map("order_id")
-  bookingId        String?   @map("booking_id")
   provider         String
   amount           Decimal   @db.Decimal(10, 2)
   status           String
   txnId            String    @map("txn_id")
-  stripeEventId    String?   @unique @map("stripe_event_id")
-  stripeCustomerId String?   @map("stripe_customer_id")
-  metadata         Json?
-  failureReason    String?   @map("failure_reason") @db.Text
   createdAt        DateTime  @default(now()) @map("created_at")
+  failureReason    String?   @map("failure_reason")
+  metadata         Json?
+  stripeCustomerId String?   @map("stripe_customer_id")
+  stripeEventId    String?   @unique @map("stripe_event_id")
   updatedAt        DateTime? @updatedAt @map("updated_at")
-
-  // Relations
-  order   Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId        String?   @map("booking_id")
+  booking          Booking?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  order            Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([bookingId])
@@ -238,6 +239,46 @@ model CartItem {
   @@map("cart_items")
 }
 
+model Offer {
+  id String @id @default(cuid())
+
+  // Ownership & Scope
+  salonId   String  @map("salon_id")
+  productId String? @map("product_id")
+  serviceId String? @map("service_id")
+
+  // Offer details
+  title         String
+  description   String?
+  offerType     String  @map("offer_type")
+  discountType  String  @map("discount_type") // percentage | flat
+  discountValue Decimal @db.Decimal(10, 2)
+
+  // Validity
+  startsAt DateTime @map("starts_at")
+  endsAt   DateTime @map("ends_at")
+  isActive Boolean  @default(true) @map("is_active")
+
+  // Media
+  image String? // banner / poster image
+
+  // Meta
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  salon   Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([salonId])
+  @@index([productId])
+  @@index([serviceId])
+  @@index([isActive])
+  @@index([startsAt, endsAt])
+  @@map("offers")
+}
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
@@ -264,10 +305,10 @@ model Address {
   state        String
   postalCode   String   @map("postal_code")
   country      String
-  addressType  String   @default("Home") @map("address_type")
   isDefault    Boolean  @default(false) @map("is_default")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
+  addressType  String   @default("Home") @map("address_type")
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -279,8 +320,8 @@ model StaffService {
   staffId   String   @map("staff_id")
   serviceId String   @map("service_id")
   createdAt DateTime @default(now()) @map("created_at")
-  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([staffId, serviceId])
   @@index([staffId])
@@ -293,8 +334,8 @@ model Favourite {
   userId    String   @map("user_id")
   productId String   @map("product_id")
   createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
   @@index([userId])
