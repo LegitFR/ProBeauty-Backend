@@ -355,6 +355,51 @@ curl -X DELETE http://localhost:5000/api/v1/notifications/clx123abc456def \
 
 ---
 
+## 6. Clear All Notifications
+
+Permanently delete all notifications for the authenticated user.
+
+### Endpoint
+
+```
+DELETE /notifications/clear-all
+```
+
+### Request Headers
+
+```bash
+Authorization: Bearer <access_token>
+```
+
+### Example Request
+
+```bash
+curl -X DELETE http://localhost:5000/api/v1/notifications/clear-all \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### Response
+
+**Success Response (200 OK):**
+
+```json
+{
+  "message": "All notifications cleared successfully",
+  "deletedCount": 25
+}
+```
+
+**Response when no notifications exist:**
+
+```json
+{
+  "message": "All notifications cleared successfully",
+  "deletedCount": 0
+}
+```
+
+---
+
 ## Notification Types
 
 | Type        | Description                   | Data Payload                          |
@@ -397,6 +442,7 @@ All notification endpoints are rate-limited to prevent abuse.
 - **Get Notifications**: 60 requests per minute
 - **Mark as Read**: 30 requests per minute
 - **Delete Notification**: 30 requests per minute
+- **Clear All Notifications**: 30 requests per minute
 
 Rate limit headers are included in responses:
 

@@ -6,6 +6,7 @@ import {
   markAsRead,
   registerDeviceToken,
   deleteNotification,
+  clearAllNotifications,
 } from '@/controllers/notificationController';
 import { authenticate } from '@/middlewares/auth/authenticate';
 import { authRateLimiter } from '@/middlewares/rateLimiter';
@@ -28,6 +29,8 @@ router.get('/', validateRequest({ query: getNotificationsSchema }), getUserNotif
 router.put('/:notificationId/read', validateRequest({ params: markAsReadSchema }), markAsRead);
 
 router.put('/read-all', markAllAsRead);
+
+router.delete('/clear-all', clearAllNotifications);
 
 router.delete('/:notificationId', deleteNotification);
 

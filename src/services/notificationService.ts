@@ -305,6 +305,14 @@ export async function deleteNotification(userId: string, notificationId: string)
   return { message: 'Notification deleted successfully' };
 }
 
+export async function clearAllNotifications(userId: string) {
+  const result = await prisma.notification.deleteMany({
+    where: { userId },
+  });
+
+  return { message: 'All notifications cleared successfully', deletedCount: result.count };
+}
+
 export async function cleanupInvalidTokens() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

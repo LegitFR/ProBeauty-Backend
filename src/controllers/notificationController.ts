@@ -100,3 +100,18 @@ export const deleteNotification = async (req: Request, res: Response, next: Next
     next(error);
   }
 };
+
+export const clearAllNotifications = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const result = await notificationService.clearAllNotifications(req.user.id);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
