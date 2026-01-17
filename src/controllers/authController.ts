@@ -304,31 +304,67 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 export const refreshAccessToken = async (req: Request, res: Response): Promise<void> => {
   const { refreshToken } = req.body;
 
+  // First verify the token is valid JWT before DB lookup
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(refreshToken);
+  } catch (error) {
+    const errorMessage = (error as Error).message;
+    // Provide specific error codes for frontend to handle appropriately
+    if (errorMessage.includes('expired')) {
+      res.status(401).json({
+        message: 'Refresh token expired',
+        code: 'REFRESH_TOKEN_EXPIRED',
+        error: errorMessage,
+      });
+      return;
+    }
+    res.status(401).json({
+      message: 'Invalid refresh token',
+      code: 'INVALID_REFRESH_TOKEN',
+      error: errorMessage,
+    });
+    return;
+  }
+
+  // Check if token exists in DB (ensures it hasn't been revoked/rotated)
   const user = await prisma.user.findFirst({
     where: { refreshToken },
   });
 
   if (!user) {
-    res.status(401).json({ message: 'Invalid refresh token' });
+    // Token was valid JWT but not in DB - could be stolen token after rotation
+    // Optionally: invalidate all sessions for this user as a security measure
+    res.status(401).json({
+      message: 'Refresh token has been revoked',
+      code: 'REFRESH_TOKEN_REVOKED',
+    });
     return;
   }
 
-  try {
-    const decoded = verifyRefreshToken(refreshToken);
-    if (decoded.userId !== user.id) {
-      res.status(401).json({ message: 'Invalid refresh token', error: 'User ID mismatch' });
-      return;
-    }
-  } catch (error) {
-    res.status(401).json({ message: 'Invalid refresh token', error: (error as Error).message });
+  if (decoded.userId !== user.id) {
+    res.status(401).json({
+      message: 'Invalid refresh token',
+      code: 'TOKEN_USER_MISMATCH',
+      error: 'User ID mismatch',
+    });
     return;
   }
 
-  const accessToken = generateAccessToken({ userId: user.id, role: user.role });
+  // Generate new tokens (token rotation for security)
+  const newAccessToken = generateAccessToken({ userId: user.id, role: user.role });
+  const newRefreshToken = generateRefreshToken({ userId: user.id });
+
+  // Update refresh token in DB (invalidates old one)
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { refreshToken: newRefreshToken },
+  });
 
   res.status(200).json({
-    message: 'Access token refreshed',
-    accessToken,
+    message: 'Tokens refreshed successfully',
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
   });
 };
 

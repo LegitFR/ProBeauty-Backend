@@ -24,7 +24,7 @@ export const authenticate = async (
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
   if (!token) {
-    res.status(401).json({ message: 'No token provided' });
+    res.status(401).json({ message: 'No token provided', code: 'NO_TOKEN' });
     return;
   }
 
@@ -35,15 +35,25 @@ export const authenticate = async (
       select: { id: true, role: true },
     });
     if (!user) {
-      res.status(401).json({ message: 'User not found' });
+      res.status(401).json({ message: 'User not found', code: 'USER_NOT_FOUND' });
       return;
     }
     req.user = { id: user.id, role: user.role };
     next();
   } catch (error) {
+    // Provide specific error code for expired tokens so frontend can trigger refresh
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({
+        success: false,
+        message: 'Access token has expired',
+        code: 'ACCESS_TOKEN_EXPIRED',
+      });
+      return;
+    }
     res.status(401).json({
       success: false,
       message: 'Invalid Token',
+      code: 'INVALID_TOKEN',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }

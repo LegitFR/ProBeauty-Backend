@@ -26,24 +26,24 @@ export const generateRefreshToken = (payload: RefreshTokenPayload): string => {
 
 export const verifyAccessToken = (token: string): AccessTokenPayload => {
   try {
-    const decoded = jwt.verify(token, ACCESS_SECRET_KEY) as AccessTokenPayload;
-    if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
+    // jwt.verify() automatically throws TokenExpiredError if token is expired
+    return jwt.verify(token, ACCESS_SECRET_KEY) as AccessTokenPayload;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
       throw new Error('Access token has expired');
     }
-    return decoded;
-  } catch (error) {
-    throw new Error('Invalid access token', error as Error);
+    throw new Error('Invalid access token');
   }
 };
 
 export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
   try {
-    const decoded = jwt.verify(token, REFRESH_SECRET_KEY) as RefreshTokenPayload;
-    if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
+    // jwt.verify() automatically throws TokenExpiredError if token is expired
+    return jwt.verify(token, REFRESH_SECRET_KEY) as RefreshTokenPayload;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
       throw new Error('Refresh token has expired');
     }
-    return decoded;
-  } catch (error) {
-    throw new Error('Invalid refresh token', error as Error);
+    throw new Error('Invalid refresh token');
   }
 };
