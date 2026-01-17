@@ -38,6 +38,12 @@ export async function getSalonAnalytics(
   const productCustomers = new Set<string>();
 
   for (const payment of productPayments) {
+    // Skip payments without an order (shouldn't happen with our query, but handle gracefully)
+    if (!payment.order) {
+      console.warn(`Payment ${payment.id} has no order - skipping from revenue`);
+      continue;
+    }
+
     productRevenue = productRevenue.add(payment.amount);
     productCustomers.add(payment.order.userId);
 
@@ -149,7 +155,7 @@ async function getProductPayments(
           title: string;
         };
       }[];
-    };
+    } | null;
   }[]
 > {
   return prisma.payment.findMany({
@@ -226,7 +232,7 @@ async function getServiceBookings(
       },
       ...(startDate || endDate
         ? {
-            createdAt: {
+            startTime: {
               ...(startDate && { gte: startDate }),
               ...(endDate && { lte: endDate }),
             },
