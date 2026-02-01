@@ -988,6 +988,95 @@ curl -X GET "http://localhost:5000/api/v1/staff/cmj8pklqi00019w0716gmlnrp/availa
 
 ---
 
+## Staff Reviews
+
+Staff reviews allow users to rate staff members after completing a booking. One rating per user per staff (enforced by unique constraint). Only review owners can update or delete their ratings.
+
+**Base path:** `/api/v1/staff-reviews`
+
+### Create Staff Review
+
+**Description:** Create a staff review. User must have a **COMPLETED** booking with the given staff. One review per user per staff.
+
+**Endpoint:** `POST /api/v1/staff-reviews`
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
+
+- `staffId` (string, required) — CUID format staff ID
+- `bookingId` (string, required) — CUID format booking ID (must be user's completed booking for this staff)
+- `rating` (number, required) — Integer 1–5
+- `comment` (string, optional) — Max 1000 characters
+
+**Success (201):** `{ "message": "Staff review created successfully", "data": { ... } }`
+
+**Errors:** 404 (booking not found/unauthorized/does not belong), 400 (already reviewed, or booking not COMPLETED)
+
+---
+
+### Get Staff Review by ID
+
+**Endpoint:** `GET /api/v1/staff-reviews/:id`
+
+**Authentication:** Not required
+
+**Success (200):** `{ "message": "Staff review retrieved successfully", "data": { ... } }`
+
+**Error (404):** Staff review not found
+
+---
+
+### Get Reviews by Staff ID
+
+**Description:** List reviews for a staff member with pagination and staff aggregate rating.
+
+**Endpoint:** `GET /api/v1/staff-reviews/staff/:staffId`
+
+**Query:** `page`, `limit` (optional)
+
+**Success (200):** `{ "message": "Staff reviews retrieved successfully", "data": [...], "averageRating": 4.5, "totalRatings": 12, "pagination": { ... } }`
+
+---
+
+### Get Current User's Staff Reviews
+
+**Endpoint:** `GET /api/v1/staff-reviews/user/me`
+
+**Authentication:** Required
+
+**Query:** `page`, `limit` (optional)
+
+**Success (200):** `{ "message": "Staff reviews retrieved successfully", "data": [...], "pagination": { ... } }`
+
+---
+
+### Update Staff Review
+
+**Endpoint:** `PATCH /api/v1/staff-reviews/:id`
+
+**Authentication:** Required (owner only)
+
+**Request Body:** `rating` (number 1–5, optional), `comment` (string, optional, max 1000)
+
+**Success (200):** `{ "message": "Staff review updated successfully", "data": { ... } }`
+
+**Errors:** 404 (review not found), 403 (not owner)
+
+---
+
+### Delete Staff Review
+
+**Endpoint:** `DELETE /api/v1/staff-reviews/:id`
+
+**Authentication:** Required (owner only)
+
+**Success (200):** `{ "message": "Staff review deleted successfully" }`
+
+**Errors:** 404 (review not found), 403 (not owner)
+
+---
+
 ## Validation Rules
 
 - **salonId**: Must be a valid CUID format, supplied in the request body
