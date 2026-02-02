@@ -9,7 +9,7 @@ import * as paymentService from '@/services/paymentService';
  */
 export async function createBooking(req: Request, res: Response): Promise<void> {
   const userId = req.user?.id;
-  const { salonId, serviceId, staffId, startTime } = req.body;
+  const { salonId, serviceIds, staffId, startTime } = req.body;
 
   if (!userId) {
     res.status(401).json({ message: 'Unauthorized' });
@@ -19,7 +19,7 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
   const booking = await bookingService.createBooking({
     userId,
     salonId,
-    serviceId,
+    serviceIds,
     staffId: staffId || undefined,
     startTime,
   });
@@ -134,16 +134,30 @@ export async function getBookings(req: Request, res: Response): Promise<void> {
  * Get available time slots
  */
 export async function getAvailableSlots(req: Request, res: Response): Promise<void> {
-  const { salonId, serviceId, staffId, date } = req.query;
+  const { salonId, serviceIds, staffId, date } = req.query;
 
-  if (!salonId || !serviceId || !date) {
-    res.status(400).json({ message: 'salonId, serviceId, and date are required' });
+  if (!salonId || !serviceIds || !date) {
+    res.status(400).json({ message: 'salonId, serviceIds, and date are required' });
+    return;
+  }
+
+  // Parse serviceIds - it can be a comma-separated string or JSON array
+  let parsedServiceIds: string[];
+  try {
+    parsedServiceIds =
+      typeof serviceIds === 'string'
+        ? serviceIds.includes(',')
+          ? serviceIds.split(',')
+          : JSON.parse(serviceIds)
+        : (serviceIds as string[]);
+  } catch {
+    res.status(400).json({ message: 'Invalid serviceIds format' });
     return;
   }
 
   const slots = await bookingService.getAvailableSlots({
     salonId: salonId as string,
-    serviceId: serviceId as string,
+    serviceIds: parsedServiceIds,
     staffId: staffId ? (staffId as string) : undefined,
     date: date as string,
   });
@@ -461,12 +475,12 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
   }
 
   try {
-    const { salonId, serviceId, staffId, startTime } = req.body;
+    const { salonId, serviceIds, staffId, startTime } = req.body;
 
     const result = await bookingService.createBookingWithPayment(
       userId,
       salonId,
-      serviceId,
+      serviceIds,
       staffId,
       startTime
     );

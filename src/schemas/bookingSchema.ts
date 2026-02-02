@@ -16,7 +16,9 @@ export type BookingStatus = z.infer<typeof bookingStatusEnum>;
 // Create booking schema
 export const createBookingSchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID'),
-  serviceId: z.string().cuid('Invalid service ID'),
+  serviceIds: z
+    .array(z.string().cuid('Invalid service ID'))
+    .min(1, 'At least one service is required'),
   staffId: z.string().cuid('Invalid staff ID').optional(),
   startTime: z.string().datetime('Invalid start time format'),
 });
@@ -36,7 +38,9 @@ export const bookingIdParamsSchema: AnyZodObject = z.object({
 // Availability query schema
 export const availabilityQuerySchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID'),
-  serviceId: z.string().cuid('Invalid service ID'),
+  serviceIds: z
+    .array(z.string().cuid('Invalid service ID'))
+    .min(1, 'At least one service is required'),
   staffId: z.string().cuid('Invalid staff ID').optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
 });

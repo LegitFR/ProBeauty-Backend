@@ -16,7 +16,7 @@ import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
 interface CreateBookingData {
   userId: string;
   salonId: string;
-  serviceId: string;
+  serviceIds: string[];
   staffId?: string;
   startTime: string;
 }
@@ -38,40 +38,47 @@ interface GetBookingsFilters {
 
 interface AvailabilityQuery {
   salonId: string;
-  serviceId: string;
+  serviceIds: string[];
   staffId?: string;
   date: string;
 }
 
 /**
- * Find all available staff members for a service at a specific time
+ * Find all available staff members for services at a specific time
  * @param salonId - The salon ID
- * @param serviceId - The service ID
+ * @param serviceIds - Array of service IDs
  * @param startTime - The requested booking start time
  * @param endTime - The requested booking end time
  * @returns Array of available staff IDs
  */
 async function findAvailableStaffForService(
   salonId: string,
-  serviceId: string,
+  serviceIds: string[],
   startTime: Date,
   endTime: Date
 ): Promise<string[]> {
-  // Find all staff at the salon who can perform this service
-  const staffWithService = await prisma.staff.findMany({
+  // Find all staff at the salon who can perform ALL the requested services
+  // We need to find staff that have all serviceIds in their services
+  const staffWithServices = await prisma.staff.findMany({
     where: {
       salonId,
-      services: {
-        some: {
-          serviceId,
-        },
-      },
     },
     select: {
       id: true,
       name: true,
       availability: true,
+      services: {
+        select: {
+          serviceId: true,
+        },
+      },
     },
+  });
+
+  // Filter staff who have ALL the requested services
+  const staffWithService = staffWithServices.filter((staff) => {
+    const staffServiceIds = staff.services.map((s) => s.serviceId);
+    return serviceIds.every((serviceId) => staffServiceIds.includes(serviceId));
   });
 
   if (staffWithService.length === 0) {
@@ -274,7 +281,7 @@ function selectRandomStaff(availableStaffIds: string[]): string {
  * Create a new booking with automatic confirmation
  */
 export async function createBooking(data: CreateBookingData) {
-  const { userId, salonId, serviceId, staffId, startTime } = data;
+  const { userId, salonId, serviceIds, staffId, startTime } = data;
 
   // Verify user exists
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -288,19 +295,32 @@ export async function createBooking(data: CreateBookingData) {
     throw new Error('Salon not found');
   }
 
-  // Verify service exists and get duration
-  const service = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!service) {
-    throw new Error('Service not found');
+  // Verify all services exist and belong to the salon, calculate total duration
+  const services = await prisma.service.findMany({
+    where: {
+      id: { in: serviceIds },
+    },
+  });
+
+  if (services.length !== serviceIds.length) {
+    throw new Error('One or more services not found');
   }
 
-  if (service.salonId !== salonId) {
-    throw new Error('Service does not belong to the specified salon');
+  // Verify all services belong to the salon
+  const invalidServices = services.filter((s) => s.salonId !== salonId);
+  if (invalidServices.length > 0) {
+    throw new Error('One or more services do not belong to the specified salon');
   }
+
+  // Calculate total duration from all services
+  const totalDurationMinutes = services.reduce(
+    (total, service) => total + service.durationMinutes,
+    0
+  );
 
   // Parse dates
   const bookingStartTime = new Date(startTime);
-  const bookingEndTime = new Date(bookingStartTime.getTime() + service.durationMinutes * 60000);
+  const bookingEndTime = new Date(bookingStartTime.getTime() + totalDurationMinutes * 60000);
 
   // Check if booking time is in the past
   if (bookingStartTime < new Date()) {
@@ -321,18 +341,16 @@ export async function createBooking(data: CreateBookingData) {
       throw new Error('Staff does not work at the specified salon');
     }
 
-    // Verify staff can perform this service
-    const canPerformService = await prisma.staffService.findUnique({
+    // Verify staff can perform ALL the requested services
+    const staffServices = await prisma.staffService.findMany({
       where: {
-        staffId_serviceId: {
-          staffId,
-          serviceId,
-        },
+        staffId,
+        serviceId: { in: serviceIds },
       },
     });
 
-    if (!canPerformService) {
-      throw new Error('Staff cannot perform this service');
+    if (staffServices.length !== serviceIds.length) {
+      throw new Error('Staff cannot perform one or more of the requested services');
     }
 
     // Parse staff availability
@@ -385,7 +403,7 @@ export async function createBooking(data: CreateBookingData) {
     // findAvailableStaffForService will throw detailed error if no staff available
     const availableStaffIds = await findAvailableStaffForService(
       salonId,
-      serviceId,
+      serviceIds,
       bookingStartTime,
       bookingEndTime
     );
@@ -399,7 +417,7 @@ export async function createBooking(data: CreateBookingData) {
     data: {
       userId,
       salonId,
-      serviceId,
+      serviceIds,
       staffId: assignedStaffId,
       startTime: bookingStartTime,
       endTime: bookingEndTime,
@@ -423,14 +441,6 @@ export async function createBooking(data: CreateBookingData) {
           thumbnail: true,
         },
       },
-      service: {
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          price: true,
-        },
-      },
       staff: {
         select: {
           id: true,
@@ -445,15 +455,27 @@ export async function createBooking(data: CreateBookingData) {
     },
   });
 
+  // services array is already fetched above, use it
+  const serviceNames = services.map((s) => s.title).join(', ');
+
   notificationEmitter.emit(NotificationEvents.BOOKING_CREATED, {
     userId: booking.userId,
     bookingId: booking.id,
     salonName: booking.salon.name,
-    serviceName: booking.service.title,
+    serviceName: serviceNames,
     startTime: booking.startTime,
   });
 
-  return booking;
+  // Add services to the response
+  return {
+    ...booking,
+    services: services.map((service) => ({
+      id: service.id,
+      title: service.title,
+      durationMinutes: service.durationMinutes,
+      price: service.price,
+    })),
+  };
 }
 
 interface BookingWithPayment {
@@ -469,7 +491,7 @@ interface BookingWithPayment {
 export async function createBookingWithPayment(
   userId: string,
   salonId: string,
-  serviceId: string,
+  serviceIds: string[],
   staffId: string | undefined,
   startTime: string
 ): Promise<BookingWithPayment> {
@@ -485,19 +507,36 @@ export async function createBookingWithPayment(
     throw new Error('Salon not found');
   }
 
-  // Verify service exists and get duration and price
-  const service = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!service) {
-    throw new Error('Service not found');
+  // Verify all services exist and belong to the salon, calculate total duration and price
+  const services = await prisma.service.findMany({
+    where: {
+      id: { in: serviceIds },
+    },
+  });
+
+  if (services.length !== serviceIds.length) {
+    throw new Error('One or more services not found');
   }
 
-  if (service.salonId !== salonId) {
-    throw new Error('Service does not belong to the specified salon');
+  // Verify all services belong to the salon
+  const invalidServices = services.filter((s) => s.salonId !== salonId);
+  if (invalidServices.length > 0) {
+    throw new Error('One or more services do not belong to the specified salon');
   }
+
+  // Calculate total duration and price from all services
+  const totalDurationMinutes = services.reduce(
+    (total, service) => total + service.durationMinutes,
+    0
+  );
+  const totalPrice = services.reduce(
+    (total, service) => total + parseFloat(service.price.toString()),
+    0
+  );
 
   // Parse dates
   const bookingStartTime = new Date(startTime);
-  const bookingEndTime = new Date(bookingStartTime.getTime() + service.durationMinutes * 60000);
+  const bookingEndTime = new Date(bookingStartTime.getTime() + totalDurationMinutes * 60000);
 
   // Check if booking time is in the past
   if (bookingStartTime < new Date()) {
@@ -518,18 +557,16 @@ export async function createBookingWithPayment(
       throw new Error('Staff does not work at the specified salon');
     }
 
-    // Verify staff can perform this service
-    const canPerformService = await prisma.staffService.findUnique({
+    // Verify staff can perform ALL the requested services
+    const staffServices = await prisma.staffService.findMany({
       where: {
-        staffId_serviceId: {
-          staffId,
-          serviceId,
-        },
+        staffId,
+        serviceId: { in: serviceIds },
       },
     });
 
-    if (!canPerformService) {
-      throw new Error('Staff cannot perform this service');
+    if (staffServices.length !== serviceIds.length) {
+      throw new Error('Staff cannot perform one or more of the requested services');
     }
 
     // Parse staff availability
@@ -590,9 +627,6 @@ export async function createBookingWithPayment(
     assignedStaffId = selectRandomStaff(availableStaffIds);
   }
 
-  // Get service price
-  const servicePrice = parseFloat(service.price.toString());
-
   // Get or create Stripe customer for the user
   const stripeCustomer = await stripeService.getOrCreateCustomer(user.email, user.name, {
     userId: user.id,
@@ -604,12 +638,12 @@ export async function createBookingWithPayment(
 
   // Create Stripe PaymentIntent with customer association
   const paymentIntent = await stripeService.createPaymentIntent(
-    servicePrice,
+    totalPrice,
     'usd',
     {
       userId,
       salonId,
-      serviceId,
+      serviceIds: serviceIds.join(','),
       ...(assignedStaffId ? { staffId: assignedStaffId } : {}),
     },
     stripeCustomer.id
@@ -622,7 +656,7 @@ export async function createBookingWithPayment(
       data: {
         userId,
         salonId,
-        serviceId,
+        serviceIds,
         staffId: assignedStaffId,
         startTime: bookingStartTime,
         endTime: bookingEndTime,
@@ -637,7 +671,7 @@ export async function createBookingWithPayment(
           orderId: null,
           bookingId: newBooking.id,
           provider: PAYMENT_PROVIDER.STRIPE,
-          amount: new Prisma.Decimal(servicePrice),
+          amount: new Prisma.Decimal(totalPrice),
           txnId: paymentIntent.id,
           status: PAYMENT_STATUS.PENDING,
           stripeCustomerId: stripeCustomer.id,
@@ -681,14 +715,6 @@ export async function createBookingWithPayment(
             address: true,
           },
         },
-        service: {
-          select: {
-            id: true,
-            title: true,
-            durationMinutes: true,
-            price: true,
-          },
-        },
         staff: {
           select: {
             id: true,
@@ -712,8 +738,19 @@ export async function createBookingWithPayment(
     throw new Error('PaymentIntent client_secret is missing');
   }
 
+  // Add services to the booking response
+  const bookingWithServices = {
+    ...booking,
+    services: services.map((service) => ({
+      id: service.id,
+      title: service.title,
+      durationMinutes: service.durationMinutes,
+      price: service.price,
+    })),
+  };
+
   return {
-    booking,
+    booking: bookingWithServices,
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
   };
@@ -743,14 +780,6 @@ export async function getBookingById(id: string) {
           thumbnail: true,
         },
       },
-      service: {
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          price: true,
-        },
-      },
       staff: {
         select: {
           id: true,
@@ -765,7 +794,25 @@ export async function getBookingById(id: string) {
     },
   });
 
-  return booking;
+  if (!booking) {
+    return null;
+  }
+
+  // Fetch services separately
+  const services = await prisma.service.findMany({
+    where: { id: { in: booking.serviceIds } },
+    select: {
+      id: true,
+      title: true,
+      durationMinutes: true,
+      price: true,
+    },
+  });
+
+  return {
+    ...booking,
+    services,
+  };
 }
 
 /**
@@ -816,14 +863,6 @@ export async function getBookings(filters: GetBookingsFilters) {
           thumbnail: true,
         },
       },
-      service: {
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          price: true,
-        },
-      },
       staff: {
         select: {
           id: true,
@@ -841,14 +880,37 @@ export async function getBookings(filters: GetBookingsFilters) {
     },
   });
 
-  return bookings;
+  // Fetch all services for all bookings
+  const allServiceIds = bookings.flatMap((b) => b.serviceIds);
+  const uniqueServiceIds = [...new Set(allServiceIds)];
+
+  const services = await prisma.service.findMany({
+    where: { id: { in: uniqueServiceIds } },
+    select: {
+      id: true,
+      title: true,
+      durationMinutes: true,
+      price: true,
+    },
+  });
+
+  // Create a map for quick lookup
+  const serviceMap = new Map(services.map((s) => [s.id, s]));
+
+  // Add services to each booking
+  const bookingsWithServices = bookings.map((booking) => ({
+    ...booking,
+    services: booking.serviceIds.map((id) => serviceMap.get(id)).filter(Boolean),
+  }));
+
+  return bookingsWithServices;
 }
 
 /**
- * Get available time slots for a specific date, service, and optionally staff
+ * Get available time slots for a specific date, services, and optionally staff
  */
 export async function getAvailableSlots(query: AvailabilityQuery) {
-  const { salonId, serviceId, staffId, date } = query;
+  const { salonId, serviceIds, staffId, date } = query;
 
   // Verify salon exists
   const salon = await prisma.salon.findUnique({ where: { id: salonId } });
@@ -856,15 +918,27 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
     throw new Error('Salon not found');
   }
 
-  // Verify service exists and belongs to salon
-  const service = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!service) {
-    throw new Error('Service not found');
+  // Verify all services exist and belong to salon
+  const services = await prisma.service.findMany({
+    where: {
+      id: { in: serviceIds },
+    },
+  });
+
+  if (services.length !== serviceIds.length) {
+    throw new Error('One or more services not found');
   }
 
-  if (service.salonId !== salonId) {
-    throw new Error('Service does not belong to the specified salon');
+  const invalidServices = services.filter((s) => s.salonId !== salonId);
+  if (invalidServices.length > 0) {
+    throw new Error('One or more services do not belong to the specified salon');
   }
+
+  // Calculate total duration from all services
+  const totalDurationMinutes = services.reduce(
+    (total, service) => total + service.durationMinutes,
+    0
+  );
 
   // Parse requested date
   const requestedDate = new Date(date);
@@ -925,28 +999,40 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
     slots = generateTimeSlots(
       requestedDate,
       staffAvailability,
-      service.durationMinutes,
+      totalDurationMinutes,
       existingBookings
     );
   } else {
-    // If no staffId provided, find all staff who can perform the service
+    // If no staffId provided, find all staff who can perform ALL the services
     // and generate aggregated slots showing when at least one staff is available
-    const staffWithService = await prisma.staff.findMany({
+    const staffWithServices = await prisma.staff.findMany({
       where: {
         salonId,
-        services: {
-          some: {
-            serviceId,
-          },
-        },
       },
       select: {
         id: true,
         availability: true,
+        services: {
+          select: {
+            serviceId: true,
+          },
+        },
       },
     });
 
-    if (staffWithService.length === 0) {
+    // Filter staff who have ALL the requested services
+    const staffWithService = staffWithServices.filter((staff) => {
+      const staffServiceIds = staff.services.map((s) => s.serviceId);
+      return serviceIds.every((serviceId) => staffServiceIds.includes(serviceId));
+    });
+
+    // Remove services from the result since we only need id and availability for later logic
+    const filteredStaffWithService = staffWithService.map((staff) => ({
+      id: staff.id,
+      availability: staff.availability,
+    }));
+
+    if (filteredStaffWithService.length === 0) {
       slots = [];
     } else {
       // Get day boundaries
@@ -961,7 +1047,7 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
         { startTime: string; endTime: string; available: boolean }
       >();
 
-      for (const staff of staffWithService) {
+      for (const staff of filteredStaffWithService) {
         const staffAvailability = parseStaffAvailability(staff.availability);
 
         // Get existing bookings for this staff on the requested date
@@ -982,11 +1068,11 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
           },
         });
 
-        // Generate time slots for this staff member
+        // Generate time slots for this staff member using total duration
         const staffSlots = generateTimeSlots(
           requestedDate,
           staffAvailability,
-          service.durationMinutes,
+          totalDurationMinutes,
           existingBookings
         );
 
@@ -1017,11 +1103,12 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
       id: salon.id,
       name: salon.name,
     },
-    service: {
-      id: service.id,
-      title: service.title,
-      durationMinutes: service.durationMinutes,
-    },
+    services: services.map((s) => ({
+      id: s.id,
+      title: s.title,
+      durationMinutes: s.durationMinutes,
+    })),
+    totalDurationMinutes,
     staff: staffInfo,
     slots,
   };
@@ -1036,14 +1123,21 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
   // Get existing booking
   const existingBooking = await prisma.booking.findUnique({
     where: { id },
-    include: {
-      service: true,
-    },
   });
 
   if (!existingBooking) {
     throw new Error('Booking not found');
   }
+
+  // Get services for duration calculation
+  const existingServices = await prisma.service.findMany({
+    where: { id: { in: existingBooking.serviceIds } },
+  });
+
+  const existingTotalDuration = existingServices.reduce(
+    (total, service) => total + service.durationMinutes,
+    0
+  );
 
   // Cannot update cancelled or completed bookings
   if (existingBooking.status === 'CANCELLED' || existingBooking.status === 'COMPLETED') {
@@ -1060,9 +1154,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
   // If rescheduling
   if (startTime) {
     const newStartTime = new Date(startTime);
-    const newEndTime = new Date(
-      newStartTime.getTime() + existingBooking.service.durationMinutes * 60000
-    );
+    const newEndTime = new Date(newStartTime.getTime() + existingTotalDuration * 60000);
 
     // Check if new time is in the past
     if (newStartTime < new Date()) {
@@ -1079,7 +1171,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       // Explicitly requesting "any staff" - find available staff and randomly assign
       const availableStaffIds = await findAvailableStaffForService(
         existingBooking.salonId,
-        existingBooking.serviceId,
+        existingBooking.serviceIds,
         newStartTime,
         newEndTime
       );
@@ -1102,18 +1194,16 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
 
     // Check staff availability if we have a target staff
     if (targetStaffId) {
-      // Verify staff can perform this service
-      const canPerformService = await prisma.staffService.findUnique({
+      // Verify staff can perform ALL the services in the booking
+      const staffServices = await prisma.staffService.findMany({
         where: {
-          staffId_serviceId: {
-            staffId: targetStaffId,
-            serviceId: existingBooking.serviceId,
-          },
+          staffId: targetStaffId,
+          serviceId: { in: existingBooking.serviceIds },
         },
       });
 
-      if (!canPerformService) {
-        throw new Error('Staff cannot perform this service');
+      if (staffServices.length !== existingBooking.serviceIds.length) {
+        throw new Error('Staff cannot perform one or more of the services in this booking');
       }
 
       // Get staff availability
@@ -1180,18 +1270,16 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       );
     } else {
       // Assigning or changing staff (without rescheduling)
-      // Verify staff can perform this service
-      const canPerformService = await prisma.staffService.findUnique({
+      // Verify staff can perform ALL the services
+      const staffServices = await prisma.staffService.findMany({
         where: {
-          staffId_serviceId: {
-            staffId,
-            serviceId: existingBooking.serviceId,
-          },
+          staffId,
+          serviceId: { in: existingBooking.serviceIds },
         },
       });
 
-      if (!canPerformService) {
-        throw new Error('Staff cannot perform this service');
+      if (staffServices.length !== existingBooking.serviceIds.length) {
+        throw new Error('Staff cannot perform one or more of the services in this booking');
       }
 
       const staff = await prisma.staff.findUnique({ where: { id: staffId } });
@@ -1271,14 +1359,6 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
           thumbnail: true,
         },
       },
-      service: {
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          price: true,
-        },
-      },
       staff: {
         select: {
           id: true,
@@ -1293,6 +1373,17 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
     },
   });
 
+  // Fetch services for the updated booking
+  const updatedServices = await prisma.service.findMany({
+    where: { id: { in: updatedBooking.serviceIds } },
+    select: {
+      id: true,
+      title: true,
+      durationMinutes: true,
+      price: true,
+    },
+  });
+
   if (startTime && updateData.startTime) {
     notificationEmitter.emit(NotificationEvents.BOOKING_RESCHEDULED, {
       userId: updatedBooking.userId,
@@ -1302,7 +1393,10 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
     });
   }
 
-  return updatedBooking;
+  return {
+    ...updatedBooking,
+    services: updatedServices,
+  };
 }
 
 /**
@@ -1344,14 +1438,6 @@ export async function cancelBooking(id: string) {
           thumbnail: true,
         },
       },
-      service: {
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          price: true,
-        },
-      },
       staff: {
         select: {
           id: true,
@@ -1366,13 +1452,27 @@ export async function cancelBooking(id: string) {
     },
   });
 
+  // Fetch services for the cancelled booking
+  const services = await prisma.service.findMany({
+    where: { id: { in: updatedBooking.serviceIds } },
+    select: {
+      id: true,
+      title: true,
+      durationMinutes: true,
+      price: true,
+    },
+  });
+
   notificationEmitter.emit(NotificationEvents.BOOKING_CANCELLED, {
     userId: updatedBooking.userId,
     bookingId: updatedBooking.id,
     salonName: updatedBooking.salon.name,
   });
 
-  return updatedBooking;
+  return {
+    ...updatedBooking,
+    services,
+  };
 }
 
 /**
@@ -1418,14 +1518,6 @@ export async function confirmBooking(id: string) {
           thumbnail: true,
         },
       },
-      service: {
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          price: true,
-        },
-      },
       staff: {
         select: {
           id: true,
@@ -1440,13 +1532,27 @@ export async function confirmBooking(id: string) {
     },
   });
 
+  // Fetch services for the confirmed booking
+  const services = await prisma.service.findMany({
+    where: { id: { in: updatedBooking.serviceIds } },
+    select: {
+      id: true,
+      title: true,
+      durationMinutes: true,
+      price: true,
+    },
+  });
+
   notificationEmitter.emit(NotificationEvents.BOOKING_CONFIRMED, {
     userId: updatedBooking.userId,
     bookingId: updatedBooking.id,
     salonName: updatedBooking.salon.name,
   });
 
-  return updatedBooking;
+  return {
+    ...updatedBooking,
+    services,
+  };
 }
 
 /**
@@ -1488,14 +1594,6 @@ export async function completeBooking(id: string) {
           thumbnail: true,
         },
       },
-      service: {
-        select: {
-          id: true,
-          title: true,
-          durationMinutes: true,
-          price: true,
-        },
-      },
       staff: {
         select: {
           id: true,
@@ -1510,11 +1608,25 @@ export async function completeBooking(id: string) {
     },
   });
 
+  // Fetch services for the completed booking
+  const services = await prisma.service.findMany({
+    where: { id: { in: updatedBooking.serviceIds } },
+    select: {
+      id: true,
+      title: true,
+      durationMinutes: true,
+      price: true,
+    },
+  });
+
   notificationEmitter.emit(NotificationEvents.BOOKING_COMPLETED, {
     userId: updatedBooking.userId,
     bookingId: updatedBooking.id,
     salonName: updatedBooking.salon.name,
   });
 
-  return updatedBooking;
+  return {
+    ...updatedBooking,
+    services,
+  };
 }
