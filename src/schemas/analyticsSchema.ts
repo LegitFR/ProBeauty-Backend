@@ -4,12 +4,12 @@
  * Zod schemas for validating analytics API requests
  */
 
-import { z, type AnyZodObject } from 'zod';
+import { z } from 'zod';
 
 /**
  * Schema for validating salonId parameter
  */
-export const analyticsParamsSchema: AnyZodObject = z.object({
+export const analyticsParamsSchema = z.object({
   salonId: z.string().cuid('Invalid salon ID format'),
 });
 
@@ -17,7 +17,7 @@ export const analyticsParamsSchema: AnyZodObject = z.object({
  * Schema for validating analytics query parameters
  * Supports optional date range filtering with validation
  */
-export const analyticsQuerySchema: AnyZodObject = z
+export const analyticsQuerySchema = z
   .object({
     startDate: z
       .string()

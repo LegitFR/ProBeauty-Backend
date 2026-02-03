@@ -69,6 +69,9 @@ export async function createSalon(ownerId: string, data: CreateSalonData) {
       images: data.images,
       verified: false,
     },
+    include: {
+      staff: true,
+    },
   });
 }
 
@@ -562,7 +565,7 @@ async function isStaffAvailableForTimeSegment(
 
   const existingBookings = await prisma.booking.findMany({
     where: {
-      staffId,
+      OR: [{ staffId }, { staffIds: { has: staffId } }],
       startTime: {
         gte: dayStart,
         lte: dayEnd,
@@ -914,7 +917,7 @@ export async function getAvailableStaffForService(
       // Exclude CANCELLED and NO_SHOW bookings as they don't block availability
       const existingBookings = await prisma.booking.findMany({
         where: {
-          staffId: staff.id,
+          OR: [{ staffId: staff.id }, { staffIds: { has: staff.id } }],
           startTime: {
             gte: dayStart,
             lte: dayEnd,

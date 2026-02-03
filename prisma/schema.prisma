@@ -125,6 +125,7 @@ model Booking {
   salonId      String        @map("salon_id")
   serviceIds   String[]      @map("service_ids")
   staffId      String?       @map("staff_id")
+  staffIds     String[]      @default([]) @map("staff_ids")
   startTime    DateTime      @map("start_time")
   endTime      DateTime      @map("end_time")
   status       String

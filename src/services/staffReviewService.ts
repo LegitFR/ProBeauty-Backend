@@ -55,7 +55,10 @@ export async function createStaffReview(data: CreateStaffReviewData) {
     throw new Error('Booking not found or unauthorized');
   }
 
-  if (booking.staffId !== staffId) {
+  const bookingStaffIds =
+    booking.staffIds.length > 0 ? booking.staffIds : booking.staffId ? [booking.staffId] : [];
+
+  if (!bookingStaffIds.includes(staffId)) {
     throw new Error('Booking does not belong to this staff member');
   }
 

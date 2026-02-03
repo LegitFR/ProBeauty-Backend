@@ -66,24 +66,27 @@ export async function getSalonAnalytics(
   const serviceCustomers = new Set<string>();
 
   for (const booking of serviceBookings) {
-    // Handle edge case: deleted services
-    if (!booking.service) {
-      console.warn(`Booking ${booking.id} has deleted service - skipping from revenue`);
-      continue;
-    }
-
-    serviceRevenue = serviceRevenue.add(booking.service.price);
     serviceCustomers.add(booking.userId);
 
-    const category = booking.service.category || 'Uncategorized';
-    const existing = serviceCategories.get(category) || {
-      revenue: new Prisma.Decimal(0),
-      count: 0,
-    };
-    serviceCategories.set(category, {
-      revenue: existing.revenue.add(booking.service.price),
-      count: existing.count + 1,
-    });
+    for (const serviceId of booking.serviceIds) {
+      const service = booking.serviceMap.get(serviceId);
+      if (!service) {
+        console.warn(`Booking ${booking.id} references deleted service ${serviceId} - skipping`);
+        continue;
+      }
+
+      serviceRevenue = serviceRevenue.add(service.price);
+
+      const category = service.category || 'Uncategorized';
+      const existing = serviceCategories.get(category) || {
+        revenue: new Prisma.Decimal(0),
+        count: 0,
+      };
+      serviceCategories.set(category, {
+        revenue: existing.revenue.add(service.price),
+        count: existing.count + 1,
+      });
+    }
   }
 
   // Calculate summary metrics
@@ -218,13 +221,11 @@ async function getServiceBookings(
   {
     id: string;
     userId: string;
-    service: {
-      price: Prisma.Decimal;
-      category: string | null;
-    } | null;
+    serviceIds: string[];
+    serviceMap: Map<string, { price: Prisma.Decimal; category: string | null }>;
   }[]
 > {
-  return prisma.booking.findMany({
+  const bookings = await prisma.booking.findMany({
     where: {
       salonId,
       status: {
@@ -242,14 +243,26 @@ async function getServiceBookings(
     select: {
       id: true,
       userId: true,
-      service: {
-        select: {
-          price: true,
-          category: true,
-        },
-      },
+      serviceIds: true,
     },
   });
+
+  const allServiceIds = bookings.flatMap((b) => b.serviceIds);
+  const uniqueServiceIds = [...new Set(allServiceIds)];
+
+  const services = uniqueServiceIds.length
+    ? await prisma.service.findMany({
+        where: { id: { in: uniqueServiceIds } },
+        select: { id: true, price: true, category: true },
+      })
+    : [];
+
+  const serviceMap = new Map(services.map((s) => [s.id, { price: s.price, category: s.category }]));
+
+  return bookings.map((b) => ({
+    ...b,
+    serviceMap,
+  }));
 }
 
 /**

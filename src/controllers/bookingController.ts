@@ -9,7 +9,7 @@ import * as paymentService from '@/services/paymentService';
  */
 export async function createBooking(req: Request, res: Response): Promise<void> {
   const userId = req.user?.id;
-  const { salonId, serviceIds, staffId, startTime } = req.body;
+  const { salonId, serviceIds, staffId, staffIds, startTime } = req.body;
 
   if (!userId) {
     res.status(401).json({ message: 'Unauthorized' });
@@ -21,6 +21,7 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     salonId,
     serviceIds,
     staffId: staffId || undefined,
+    staffIds: staffIds || undefined,
     startTime,
   });
 
@@ -207,19 +208,26 @@ export async function getBooking(req: Request, res: Response): Promise<void> {
     }
   } else if (userRole === 'staff') {
     // Verify this booking is assigned to the staff member
-    if (!booking.staffId) {
-      res.status(403).json({ message: 'Access denied' });
-      return;
-    }
     const { prisma } = await import('@/configs/db');
     const staffProfile = await prisma.staff.findFirst({
       where: {
         userId,
-        id: booking.staffId,
       },
     });
 
     if (!staffProfile) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    const bookingStaffIds = Array.isArray((booking as { staffIds?: unknown }).staffIds)
+      ? ((booking as { staffIds: string[] }).staffIds as string[])
+      : [];
+
+    const isAssigned =
+      booking.staffId === staffProfile.id || bookingStaffIds.includes(staffProfile.id);
+
+    if (!isAssigned) {
       res.status(403).json({ message: 'Access denied' });
       return;
     }
@@ -475,13 +483,14 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
   }
 
   try {
-    const { salonId, serviceIds, staffId, startTime } = req.body;
+    const { salonId, serviceIds, staffId, staffIds, startTime } = req.body;
 
     const result = await bookingService.createBookingWithPayment(
       userId,
       salonId,
       serviceIds,
       staffId,
+      staffIds,
       startTime
     );
 
