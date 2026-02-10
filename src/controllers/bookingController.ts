@@ -135,24 +135,18 @@ export async function getBookings(req: Request, res: Response): Promise<void> {
  * Get available time slots
  */
 export async function getAvailableSlots(req: Request, res: Response): Promise<void> {
-  const { salonId, serviceIds, staffId, date } = req.query;
+  const { salonId, serviceId, serviceIds: rawServiceIds, staffId, date } = req.query;
 
-  if (!salonId || !serviceIds || !date) {
-    res.status(400).json({ message: 'salonId, serviceIds, and date are required' });
-    return;
-  }
-
-  // Parse serviceIds - it can be a comma-separated string or JSON array
+  // Normalise serviceId / serviceIds into a string array.
+  // Supports: ?serviceId=x  |  ?serviceIds=x  |  ?serviceIds=x,y  |  ?serviceIds=x&serviceIds=y
+  const raw = rawServiceIds ?? serviceId;
   let parsedServiceIds: string[];
-  try {
-    parsedServiceIds =
-      typeof serviceIds === 'string'
-        ? serviceIds.includes(',')
-          ? serviceIds.split(',')
-          : JSON.parse(serviceIds)
-        : (serviceIds as string[]);
-  } catch {
-    res.status(400).json({ message: 'Invalid serviceIds format' });
+  if (Array.isArray(raw)) {
+    parsedServiceIds = raw as string[];
+  } else if (typeof raw === 'string') {
+    parsedServiceIds = raw.split(',');
+  } else {
+    res.status(400).json({ message: 'serviceId or serviceIds is required' });
     return;
   }
 
