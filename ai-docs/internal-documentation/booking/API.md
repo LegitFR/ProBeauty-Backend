@@ -18,8 +18,8 @@ Complete API documentation for the ProBeauty appointment booking system.
 ```json
 {
   "salonId": "clw8x9y0z0001abc123def456",
-  "serviceId": "clw8x9y0z0002abc123def456",
-  "staffId": "clw8x9y0z0003abc123def456",
+  "serviceIds": ["clw8x9y0z0002abc123def456", "clw8x9y0z0002abc123def999"],
+  "staffIds": ["clw8x9y0z0003abc123def456", "clw8x9y0z0003abc123def789"],
   "startTime": "2025-11-10T14:00:00.000Z"
 }
 ```
@@ -32,10 +32,11 @@ Complete API documentation for the ProBeauty appointment booking system.
     "id": "clw8x9y0z0004abc123def456",
     "userId": "clw8x9y0z0005abc123def456",
     "salonId": "clw8x9y0z0001abc123def456",
-    "serviceId": "clw8x9y0z0002abc123def456",
     "staffId": "clw8x9y0z0003abc123def456",
+    "serviceIds": ["clw8x9y0z0002abc123def456", "clw8x9y0z0002abc123def999"],
+    "staffIds": ["clw8x9y0z0003abc123def456", "clw8x9y0z0003abc123def789"],
     "startTime": "2025-11-10T14:00:00.000Z",
-    "endTime": "2025-11-10T14:30:00.000Z",
+    "endTime": "2025-11-10T15:00:00.000Z",
     "status": "CONFIRMED",
     "user": {
       "id": "clw8x9y0z0005abc123def456",
@@ -48,12 +49,10 @@ Complete API documentation for the ProBeauty appointment booking system.
       "name": "Beauty Salon",
       "address": "123 Main St"
     },
-    "service": {
-      "id": "clw8x9y0z0002abc123def456",
-      "title": "Haircut",
-      "durationMinutes": 30,
-      "price": "25.00"
-    },
+    "services": [
+      { "id": "clw8x9y0z0002abc123def456", "title": "Haircut", "durationMinutes": 30, "price": "25.00" },
+      { "id": "clw8x9y0z0002abc123def999", "title": "Beard Trim", "durationMinutes": 30, "price": "20.00" }
+    ],
     "staff": {
       "id": "clw8x9y0z0003abc123def456",
       "role": "Stylist",
@@ -61,7 +60,15 @@ Complete API documentation for the ProBeauty appointment booking system.
         "name": "Jane Smith",
         "email": "jane@salon.com"
       }
-    }
+    },
+    "staffMembers": [
+      { "id": "clw8x9y0z0003abc123def456", "name": "Jane Smith", "user": { "name": "Jane Smith", "email": "jane@salon.com" } },
+      { "id": "clw8x9y0z0003abc123def789", "name": "Alex Lee", "user": { "name": "Alex Lee", "email": "alex@salon.com" } }
+    ],
+    "serviceAssignments": [
+      { "serviceId": "clw8x9y0z0002abc123def456", "staffId": "clw8x9y0z0003abc123def456", "startTime": "2025-11-10T14:00:00.000Z", "endTime": "2025-11-10T14:30:00.000Z" },
+      { "serviceId": "clw8x9y0z0002abc123def999", "staffId": "clw8x9y0z0003abc123def789", "startTime": "2025-11-10T14:30:00.000Z", "endTime": "2025-11-10T15:00:00.000Z" }
+    ]
   }
 }
 ```
@@ -103,8 +110,8 @@ curl -X POST http://localhost:5000/api/v1/bookings \
   -H "Content-Type: application/json" \
   -d '{
     "salonId": "clw8x9y0z0001abc123def456",
-    "serviceId": "clw8x9y0z0002abc123def456",
-    "staffId": "clw8x9y0z0003abc123def456",
+    "serviceIds": ["clw8x9y0z0002abc123def456", "clw8x9y0z0002abc123def999"],
+    "staffIds": ["clw8x9y0z0003abc123def456", "clw8x9y0z0003abc123def789"],
     "startTime": "2025-11-10T14:00:00.000Z"
   }'
 ```
@@ -137,10 +144,11 @@ curl -X POST http://localhost:5000/api/v1/bookings \
       "id": "clw8x9y0z0004abc123def456",
       "userId": "clw8x9y0z0005abc123def456",
       "salonId": "clw8x9y0z0001abc123def456",
-      "serviceId": "clw8x9y0z0002abc123def456",
       "staffId": "clw8x9y0z0003abc123def456",
+      "serviceIds": ["clw8x9y0z0002abc123def456", "clw8x9y0z0002abc123def999"],
+      "staffIds": ["clw8x9y0z0003abc123def456", "clw8x9y0z0003abc123def789"],
       "startTime": "2025-11-10T14:00:00.000Z",
-      "endTime": "2025-11-10T14:30:00.000Z",
+      "endTime": "2025-11-10T15:00:00.000Z",
       "status": "CONFIRMED",
       "user": {
         "id": "clw8x9y0z0005abc123def456",
@@ -153,12 +161,14 @@ curl -X POST http://localhost:5000/api/v1/bookings \
         "name": "Beauty Salon",
         "address": "123 Main St"
       },
-      "service": {
-        "id": "clw8x9y0z0002abc123def456",
-        "title": "Haircut",
-        "durationMinutes": 30,
-        "price": "25.00"
-      },
+      "services": [
+        {
+          "id": "clw8x9y0z0002abc123def456",
+          "title": "Haircut",
+          "durationMinutes": 30,
+          "price": "25.00"
+        }
+      ],
       "staff": {
         "id": "clw8x9y0z0003abc123def456",
         "role": "Stylist",
@@ -194,7 +204,7 @@ curl -X GET "http://localhost:5000/api/v1/bookings?startDate=2025-11-10T00:00:00
 
 ## Get Available Time Slots
 
-**Description:** Retrieve available 30-minute time slots for a specific date, service, and staff member. Considers staff availability, service duration, and existing bookings.
+**Description:** Retrieve available 30-minute time slots for a specific date and services. Considers staff availability, total duration (sum of services), and existing bookings.
 
 **Endpoint:** `GET /api/v1/bookings/availability`
 
@@ -202,8 +212,8 @@ curl -X GET "http://localhost:5000/api/v1/bookings?startDate=2025-11-10T00:00:00
 
 **Query Parameters:**
 - `salonId` (string, required) - Salon ID
-- `serviceId` (string, required) - Service ID
-- `staffId` (string, required) - Staff member ID
+- `serviceIds` (string or string[], required) - Service IDs (comma-separated string or JSON array)
+- `staffId` (string, optional) - Staff member ID (when provided, checks only this staff)
 - `date` (string, required) - Date in YYYY-MM-DD format
 
 **Success Response (200 OK):**
@@ -216,11 +226,10 @@ curl -X GET "http://localhost:5000/api/v1/bookings?startDate=2025-11-10T00:00:00
       "id": "clw8x9y0z0001abc123def456",
       "name": "Beauty Salon"
     },
-    "service": {
-      "id": "clw8x9y0z0002abc123def456",
-      "title": "Haircut",
-      "durationMinutes": 30
-    },
+    "services": [
+      { "id": "clw8x9y0z0002abc123def456", "title": "Haircut", "durationMinutes": 30 },
+      { "id": "clw8x9y0z0002abc123def999", "title": "Beard Trim", "durationMinutes": 30 }
+    ],
     "staff": {
       "id": "clw8x9y0z0003abc123def456",
       "role": "Stylist"
@@ -256,7 +265,7 @@ curl -X GET "http://localhost:5000/api/v1/bookings?startDate=2025-11-10T00:00:00
 - **400 Bad Request** - Missing required parameters
   ```json
   {
-    "message": "salonId, serviceId, staffId, and date are required"
+    "message": "salonId, serviceIds, and date are required"
   }
   ```
 
@@ -276,7 +285,7 @@ curl -X GET "http://localhost:5000/api/v1/bookings?startDate=2025-11-10T00:00:00
 
 **cURL Command:**
 ```bash
-curl -X GET "http://localhost:5000/api/v1/bookings/availability?salonId=clw8x9y0z0001abc123def456&serviceId=clw8x9y0z0002abc123def456&staffId=clw8x9y0z0003abc123def456&date=2025-11-10" \
+curl -X GET "http://localhost:5000/api/v1/bookings/availability?salonId=clw8x9y0z0001abc123def456&serviceIds=clw8x9y0z0002abc123def456,clw8x9y0z0002abc123def999&staffId=clw8x9y0z0003abc123def456&date=2025-11-10" \
   -H "Content-Type: application/json"
 ```
 
@@ -307,10 +316,11 @@ curl -X GET "http://localhost:5000/api/v1/bookings/availability?salonId=clw8x9y0
     "id": "clw8x9y0z0004abc123def456",
     "userId": "clw8x9y0z0005abc123def456",
     "salonId": "clw8x9y0z0001abc123def456",
-    "serviceId": "clw8x9y0z0002abc123def456",
     "staffId": "clw8x9y0z0003abc123def456",
+    "serviceIds": ["clw8x9y0z0002abc123def456", "clw8x9y0z0002abc123def999"],
+    "staffIds": ["clw8x9y0z0003abc123def456", "clw8x9y0z0003abc123def789"],
     "startTime": "2025-11-10T14:00:00.000Z",
-    "endTime": "2025-11-10T14:30:00.000Z",
+    "endTime": "2025-11-10T15:00:00.000Z",
     "status": "CONFIRMED",
     "user": {
       "id": "clw8x9y0z0005abc123def456",
@@ -323,12 +333,10 @@ curl -X GET "http://localhost:5000/api/v1/bookings/availability?salonId=clw8x9y0
       "name": "Beauty Salon",
       "address": "123 Main St"
     },
-    "service": {
-      "id": "clw8x9y0z0002abc123def456",
-      "title": "Haircut",
-      "durationMinutes": 30,
-      "price": "25.00"
-    },
+    "services": [
+      { "id": "clw8x9y0z0002abc123def456", "title": "Haircut", "durationMinutes": 30, "price": "25.00" },
+      { "id": "clw8x9y0z0002abc123def999", "title": "Beard Trim", "durationMinutes": 30, "price": "20.00" }
+    ],
     "staff": {
       "id": "clw8x9y0z0003abc123def456",
       "role": "Stylist",
@@ -336,7 +344,15 @@ curl -X GET "http://localhost:5000/api/v1/bookings/availability?salonId=clw8x9y0
         "name": "Jane Smith",
         "email": "jane@salon.com"
       }
-    }
+    },
+    "staffMembers": [
+      { "id": "clw8x9y0z0003abc123def456", "name": "Jane Smith", "user": { "name": "Jane Smith", "email": "jane@salon.com" } },
+      { "id": "clw8x9y0z0003abc123def789", "name": "Alex Lee", "user": { "name": "Alex Lee", "email": "alex@salon.com" } }
+    ],
+    "serviceAssignments": [
+      { "serviceId": "clw8x9y0z0002abc123def456", "staffId": "clw8x9y0z0003abc123def456", "startTime": "2025-11-10T14:00:00.000Z", "endTime": "2025-11-10T14:30:00.000Z" },
+      { "serviceId": "clw8x9y0z0002abc123def999", "staffId": "clw8x9y0z0003abc123def789", "startTime": "2025-11-10T14:30:00.000Z", "endTime": "2025-11-10T15:00:00.000Z" }
+    ]
   }
 }
 ```
@@ -402,8 +418,9 @@ curl -X GET http://localhost:5000/api/v1/bookings/clw8x9y0z0004abc123def456 \
     "id": "clw8x9y0z0004abc123def456",
     "userId": "clw8x9y0z0005abc123def456",
     "salonId": "clw8x9y0z0001abc123def456",
-    "serviceId": "clw8x9y0z0002abc123def456",
     "staffId": "clw8x9y0z0003abc123def456",
+    "serviceIds": ["clw8x9y0z0002abc123def456"],
+    "staffIds": ["clw8x9y0z0003abc123def456"],
     "startTime": "2025-11-10T15:00:00.000Z",
     "endTime": "2025-11-10T15:30:00.000Z",
     "status": "CONFIRMED",
@@ -418,12 +435,9 @@ curl -X GET http://localhost:5000/api/v1/bookings/clw8x9y0z0004abc123def456 \
       "name": "Beauty Salon",
       "address": "123 Main St"
     },
-    "service": {
-      "id": "clw8x9y0z0002abc123def456",
-      "title": "Haircut",
-      "durationMinutes": 30,
-      "price": "25.00"
-    },
+    "services": [
+      { "id": "clw8x9y0z0002abc123def456", "title": "Haircut", "durationMinutes": 30, "price": "25.00" }
+    ],
     "staff": {
       "id": "clw8x9y0z0003abc123def456",
       "role": "Stylist",
@@ -488,8 +502,9 @@ curl -X PUT http://localhost:5000/api/v1/bookings/clw8x9y0z0004abc123def456 \
     "id": "clw8x9y0z0004abc123def456",
     "userId": "clw8x9y0z0005abc123def456",
     "salonId": "clw8x9y0z0001abc123def456",
-    "serviceId": "clw8x9y0z0002abc123def456",
     "staffId": "clw8x9y0z0003abc123def456",
+    "serviceIds": ["clw8x9y0z0002abc123def456"],
+    "staffIds": ["clw8x9y0z0003abc123def456"],
     "startTime": "2025-11-10T14:00:00.000Z",
     "endTime": "2025-11-10T14:30:00.000Z",
     "status": "CANCELLED",
@@ -504,12 +519,9 @@ curl -X PUT http://localhost:5000/api/v1/bookings/clw8x9y0z0004abc123def456 \
       "name": "Beauty Salon",
       "address": "123 Main St"
     },
-    "service": {
-      "id": "clw8x9y0z0002abc123def456",
-      "title": "Haircut",
-      "durationMinutes": 30,
-      "price": "25.00"
-    },
+    "services": [
+      { "id": "clw8x9y0z0002abc123def456", "title": "Haircut", "durationMinutes": 30, "price": "25.00" }
+    ],
     "staff": {
       "id": "clw8x9y0z0003abc123def456",
       "role": "Stylist",
@@ -584,12 +596,9 @@ curl -X DELETE http://localhost:5000/api/v1/bookings/clw8x9y0z0004abc123def456 \
       "name": "Beauty Salon",
       "address": "123 Main St"
     },
-    "service": {
-      "id": "clw8x9y0z0002abc123def456",
-      "title": "Haircut",
-      "durationMinutes": 30,
-      "price": "25.00"
-    },
+    "services": [
+      { "id": "clw8x9y0z0002abc123def456", "title": "Haircut", "durationMinutes": 30, "price": "25.00" }
+    ],
     "staff": {
       "id": "clw8x9y0z0003abc123def456",
       "role": "Stylist",
@@ -664,12 +673,9 @@ curl -X POST http://localhost:5000/api/v1/bookings/clw8x9y0z0004abc123def456/con
       "name": "Beauty Salon",
       "address": "123 Main St"
     },
-    "service": {
-      "id": "clw8x9y0z0002abc123def456",
-      "title": "Haircut",
-      "durationMinutes": 30,
-      "price": "25.00"
-    },
+    "services": [
+      { "id": "clw8x9y0z0002abc123def456", "title": "Haircut", "durationMinutes": 30, "price": "25.00" }
+    ],
     "staff": {
       "id": "clw8x9y0z0003abc123def456",
       "role": "Stylist",

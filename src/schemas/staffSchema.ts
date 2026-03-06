@@ -73,3 +73,38 @@ export const getStaffAvailabilityForDateQuerySchema: AnyZodObject = z.object({
     message: 'Invalid date format. Use ISO format (e.g., 2024-12-22)',
   }),
 });
+
+// Staff Review Schemas
+export const createStaffReviewSchema: AnyZodObject = z.object({
+  staffId: z.string().cuid('Invalid staff ID format'),
+  bookingId: z.string().cuid('Invalid booking ID format'),
+  rating: z
+    .number()
+    .int('Rating must be an integer')
+    .min(1, 'Rating must be at least 1')
+    .max(5, 'Rating must be at most 5'),
+  comment: z.string().max(1000, 'Comment must not exceed 1000 characters').optional(),
+});
+
+export const updateStaffReviewSchema: AnyZodObject = z.object({
+  rating: z
+    .number()
+    .int('Rating must be an integer')
+    .min(1, 'Rating must be at least 1')
+    .max(5, 'Rating must be at most 5')
+    .optional(),
+  comment: z.string().max(1000, 'Comment must not exceed 1000 characters').optional(),
+});
+
+export const staffReviewIdParamsSchema: AnyZodObject = z.object({
+  id: z.string().cuid('Invalid review ID format'),
+});
+
+export const staffIdParamsForReviewsSchema: AnyZodObject = z.object({
+  staffId: z.string().cuid('Invalid staff ID format'),
+});
+
+export const staffReviewQuerySchema: AnyZodObject = z.object({
+  page: z.string().transform(Number).optional(),
+  limit: z.string().transform(Number).optional(),
+});

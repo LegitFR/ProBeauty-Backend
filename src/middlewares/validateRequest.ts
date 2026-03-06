@@ -1,12 +1,10 @@
 /* eslint-disable security/detect-object-injection */
 import type { Request, Response, NextFunction } from 'express';
-import { ZodError, type ZodObject, type ZodRawShape } from 'zod';
-
-type AnyZodObject = ZodObject<ZodRawShape>;
+import { ZodError, type ZodTypeAny } from 'zod';
 
 type ValidationTarget = 'body' | 'query' | 'params' | 'headers' | 'cookies';
 
-type ZodSchemaGroup = Partial<Record<ValidationTarget, AnyZodObject>>;
+type ZodSchemaGroup = Partial<Record<ValidationTarget, ZodTypeAny>>;
 
 export const validateRequest = (schemas: ZodSchemaGroup) => {
   return (req: Request, res: Response, next: NextFunction) => {

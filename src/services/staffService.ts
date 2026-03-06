@@ -156,7 +156,7 @@ export async function getAllStaff(filters?: GetStaffFilters) {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { name: 'asc' },
     }),
     prisma.staff.count({ where }),
   ]);
@@ -199,7 +199,7 @@ export async function getStaffBySalonId(salonId: string, filters?: GetStaffFilte
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { name: 'asc' },
     }),
     prisma.staff.count({ where }),
   ]);
@@ -491,7 +491,7 @@ export async function getStaffAvailabilityWithBookings(
   // Get existing bookings for this staff on the requested date
   const existingBookings = await prisma.booking.findMany({
     where: {
-      staffId,
+      OR: [{ staffId }, { staffIds: { has: staffId } }],
       startTime: {
         gte: dayStart,
         lte: dayEnd,

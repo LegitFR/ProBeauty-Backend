@@ -18,6 +18,7 @@ import product from '@/routes/productRoute';
 import review from '@/routes/reviewRoute';
 import salon from '@/routes/salonRoute';
 import service from '@/routes/serviceRoute';
+import staffReview from '@/routes/staffReviewRoute';
 import staff from '@/routes/staffRoute';
 import user from '@/routes/userRoute';
 import webhooks from '@/routes/webhookRoutes';
@@ -65,6 +66,7 @@ const initializeApp = async () => {
     app.use('/api/v1/services', service);
     app.use('/api/v1/offers', offer);
     app.use('/api/v1/staff', staff);
+    app.use('/api/v1/staff-reviews', staffReview);
     app.use('/api/v1/addresses', address);
     app.use('/api/v1/cart', cart);
     app.use('/api/v1/orders', order);

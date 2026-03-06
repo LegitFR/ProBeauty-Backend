@@ -9,7 +9,7 @@ import * as paymentService from '@/services/paymentService';
  */
 export async function createBooking(req: Request, res: Response): Promise<void> {
   const userId = req.user?.id;
-  const { salonId, serviceId, staffId, startTime } = req.body;
+  const { salonId, serviceIds, staffId, staffIds, startTime } = req.body;
 
   if (!userId) {
     res.status(401).json({ message: 'Unauthorized' });
@@ -19,8 +19,9 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
   const booking = await bookingService.createBooking({
     userId,
     salonId,
-    serviceId,
+    serviceIds,
     staffId: staffId || undefined,
+    staffIds: staffIds || undefined,
     startTime,
   });
 
@@ -134,16 +135,24 @@ export async function getBookings(req: Request, res: Response): Promise<void> {
  * Get available time slots
  */
 export async function getAvailableSlots(req: Request, res: Response): Promise<void> {
-  const { salonId, serviceId, staffId, date } = req.query;
+  const { salonId, serviceId, serviceIds: rawServiceIds, staffId, date } = req.query;
 
-  if (!salonId || !serviceId || !date) {
-    res.status(400).json({ message: 'salonId, serviceId, and date are required' });
+  // Normalise serviceId / serviceIds into a string array.
+  // Supports: ?serviceId=x  |  ?serviceIds=x  |  ?serviceIds=x,y  |  ?serviceIds=x&serviceIds=y
+  const raw = rawServiceIds ?? serviceId;
+  let parsedServiceIds: string[];
+  if (Array.isArray(raw)) {
+    parsedServiceIds = raw as string[];
+  } else if (typeof raw === 'string') {
+    parsedServiceIds = raw.split(',');
+  } else {
+    res.status(400).json({ message: 'serviceId or serviceIds is required' });
     return;
   }
 
   const slots = await bookingService.getAvailableSlots({
     salonId: salonId as string,
-    serviceId: serviceId as string,
+    serviceIds: parsedServiceIds,
     staffId: staffId ? (staffId as string) : undefined,
     date: date as string,
   });
@@ -193,19 +202,26 @@ export async function getBooking(req: Request, res: Response): Promise<void> {
     }
   } else if (userRole === 'staff') {
     // Verify this booking is assigned to the staff member
-    if (!booking.staffId) {
-      res.status(403).json({ message: 'Access denied' });
-      return;
-    }
     const { prisma } = await import('@/configs/db');
     const staffProfile = await prisma.staff.findFirst({
       where: {
         userId,
-        id: booking.staffId,
       },
     });
 
     if (!staffProfile) {
+      res.status(403).json({ message: 'Access denied' });
+      return;
+    }
+
+    const bookingStaffIds = Array.isArray((booking as { staffIds?: unknown }).staffIds)
+      ? ((booking as { staffIds: string[] }).staffIds as string[])
+      : [];
+
+    const isAssigned =
+      booking.staffId === staffProfile.id || bookingStaffIds.includes(staffProfile.id);
+
+    if (!isAssigned) {
       res.status(403).json({ message: 'Access denied' });
       return;
     }
@@ -461,13 +477,14 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
   }
 
   try {
-    const { salonId, serviceId, staffId, startTime } = req.body;
+    const { salonId, serviceIds, staffId, staffIds, startTime } = req.body;
 
     const result = await bookingService.createBookingWithPayment(
       userId,
       salonId,
-      serviceId,
+      serviceIds,
       staffId,
+      staffIds,
       startTime
     );
 

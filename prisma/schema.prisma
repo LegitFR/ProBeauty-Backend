@@ -31,6 +31,7 @@ model User {
   notifications Notification[]
   orders        Order[]
   reviews       Review[]
+  staffReviews  StaffReview[]
   ownedSalons   Salon[]
   staffProfiles Staff[]
 
@@ -63,16 +64,19 @@ model Salon {
 }
 
 model Staff {
-  id           String         @id @default(cuid())
-  salonId      String         @map("salon_id")
-  userId       String?        @map("user_id")
-  availability Json?
-  name         String
-  image        String?
-  bookings     Booking[]
-  salon        Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  user         User?          @relation(fields: [userId], references: [id])
-  services     StaffService[]
+  id             String         @id @default(cuid())
+  salonId        String         @map("salon_id")
+  userId         String?        @map("user_id")
+  availability   Json?
+  name           String
+  image          String?
+  averageRating  Float?         @map("average_rating")
+  totalRatings   Int            @default(0) @map("total_ratings")
+  bookings       Booking[]
+  salon          Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user           User?          @relation(fields: [userId], references: [id])
+  services       StaffService[]
+  reviews        StaffReview[]
 
   @@index([salonId])
   @@map("staff")
@@ -86,7 +90,6 @@ model Service {
   price           Decimal        @db.Decimal(10, 2)
   category        String?
   image           String?
-  bookings        Booking[]
   reviews         Review[]
   salon           Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
   staff           StaffService[]
@@ -117,23 +120,23 @@ model Product {
 }
 
 model Booking {
-  id        String    @id @default(cuid())
-  userId    String    @map("user_id")
-  salonId   String    @map("salon_id")
-  serviceId String    @map("service_id")
-  staffId   String?   @map("staff_id")
-  startTime DateTime  @map("start_time")
-  endTime   DateTime  @map("end_time")
-  status    String
-  salon     Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  service   Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  staff     Staff?    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments  Payment[]
+  id           String        @id @default(cuid())
+  userId       String        @map("user_id")
+  salonId      String        @map("salon_id")
+  serviceIds   String[]      @map("service_ids")
+  staffId      String?       @map("staff_id")
+  staffIds     String[]      @default([]) @map("staff_ids")
+  startTime    DateTime      @map("start_time")
+  endTime      DateTime      @map("end_time")
+  status       String
+  salon        Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  staff        Staff?        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+  staffReviews StaffReview[]
 
   @@index([userId])
   @@index([salonId])
-  @@index([serviceId])
   @@index([staffId])
   @@index([startTime])
   @@map("bookings")
@@ -313,6 +316,27 @@ model Address {
 
   @@index([userId])
   @@map("addresses")
+}
+
+model StaffReview {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  staffId   String   @map("staff_id")
+  bookingId String   @map("booking_id")
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, staffId])
+  @@index([userId])
+  @@index([staffId])
+  @@index([bookingId])
+  @@map("staff_reviews")
 }
 
 model StaffService {
