@@ -1,6 +1,10 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import type { StripeWebhookRequest } from '@/middlewares/stripeWebhookValidator';
+import {
+  handleIfthenpayCreditCardCallback,
+  handleIfthenpayMbwayCallback,
+} from '@/services/webhookHandlers/ifthenpayWebhookHandler';
 import { handleStripeWebhook } from '@/services/webhookHandlers/stripeWebhookHandler';
 
 /**
@@ -46,6 +50,67 @@ export async function handleStripeWebhookController(
       message: 'Webhook received (processing error logged)',
       eventId: event.id,
       eventType: event.type,
+    });
+  }
+}
+
+export async function handleIfthenpayCreditCardWebhookController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const payment = await handleIfthenpayCreditCardCallback({
+      key: typeof req.query.key === 'string' ? req.query.key : undefined,
+      id: typeof req.query.id === 'string' ? req.query.id : undefined,
+      amount: typeof req.query.amount === 'string' ? req.query.amount : undefined,
+      payment_datetime:
+        typeof req.query.payment_datetime === 'string' ? req.query.payment_datetime : undefined,
+      payment_method:
+        typeof req.query.payment_method === 'string' ? req.query.payment_method : undefined,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'If-Then Pay callback processed successfully',
+      paymentId: payment.id,
+      txnId: payment.txnId,
+    });
+  } catch (error) {
+    console.error('Error processing If-Then Pay callback:', error);
+
+    res.status(400).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Invalid callback',
+    });
+  }
+}
+
+export async function handleIfthenpayMbwayWebhookController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const payment = await handleIfthenpayMbwayCallback({
+      key: typeof req.query.key === 'string' ? req.query.key : undefined,
+      orderId: typeof req.query.orderId === 'string' ? req.query.orderId : undefined,
+      requestId: typeof req.query.requestId === 'string' ? req.query.requestId : undefined,
+      amount: typeof req.query.amount === 'string' ? req.query.amount : undefined,
+      payment_datetime:
+        typeof req.query.payment_datetime === 'string' ? req.query.payment_datetime : undefined,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'If-Then Pay MB WAY callback processed successfully',
+      paymentId: payment.id,
+      txnId: payment.txnId,
+    });
+  } catch (error) {
+    console.error('Error processing If-Then Pay MB WAY callback:', error);
+
+    res.status(400).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Invalid callback',
     });
   }
 }

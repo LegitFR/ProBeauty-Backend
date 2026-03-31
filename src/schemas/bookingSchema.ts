@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const ifthenpayPaymentMethodEnum = z.enum(['CCARD', 'MBWAY']);
+const mbwayMobileNumberSchema = z
+  .string()
+  .regex(/^\d{1,4}#\d{6,15}$/, 'mobileNumber must be in countryCode#number format');
+
 // Booking status enum
 export const bookingStatusEnum = z.enum([
   'PENDING',
@@ -23,8 +28,18 @@ export const createBookingSchema = z
     staffId: z.string().cuid('Invalid staff ID').optional(),
     staffIds: z.array(z.string().cuid('Invalid staff ID')).optional(),
     startTime: z.string().datetime('Invalid start time format'),
+    paymentMethod: ifthenpayPaymentMethodEnum.optional().default('CCARD'),
+    mobileNumber: mbwayMobileNumberSchema.optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.paymentMethod === 'MBWAY' && !data.mobileNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['mobileNumber'],
+        message: 'mobileNumber is required when paymentMethod is MBWAY',
+      });
+    }
+
     if (!data.staffIds) return;
 
     if (data.staffIds.length === 0) {

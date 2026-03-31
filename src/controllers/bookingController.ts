@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import type { BookingStatus } from '@/schemas/bookingSchema';
 import * as bookingService from '@/services/bookingService';
+import { refreshPendingMbwayPayment } from '@/services/ifthenpayService';
 import * as paymentService from '@/services/paymentService';
 
 /**
@@ -465,7 +466,7 @@ export async function completeBooking(req: Request, res: Response): Promise<void
 }
 
 /**
- * Create a new booking with Stripe payment
+ * Create a new booking with If-Then Pay payment
  * POST /api/v1/bookings/checkout
  */
 export async function createBookingWithPayment(req: Request, res: Response): Promise<void> {
@@ -477,7 +478,8 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
   }
 
   try {
-    const { salonId, serviceIds, staffId, staffIds, startTime } = req.body;
+    const { salonId, serviceIds, staffId, staffIds, startTime, paymentMethod, mobileNumber } =
+      req.body;
 
     const result = await bookingService.createBookingWithPayment(
       userId,
@@ -485,15 +487,16 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
       serviceIds,
       staffId,
       staffIds,
-      startTime
+      startTime,
+      paymentMethod,
+      mobileNumber
     );
 
     res.status(201).json({
       message: 'Booking created successfully. Complete payment to confirm.',
       data: {
         booking: result.booking,
-        clientSecret: result.clientSecret,
-        paymentIntentId: result.paymentIntentId,
+        payment: result.payment,
       },
     });
   } catch (error) {
@@ -516,13 +519,6 @@ export async function createBookingWithPayment(req: Request, res: Response): Pro
         res.status(500).json({
           message: 'Database configuration error',
           error: error.message,
-        });
-        return;
-      }
-      if (error.message.includes('client_secret is missing')) {
-        res.status(500).json({
-          message: 'Payment processing error',
-          error: 'Failed to initialize payment. Please try again.',
         });
         return;
       }
@@ -566,10 +562,13 @@ export async function getBookingPayment(req: Request, res: Response): Promise<vo
 
     // Get payments for this booking
     const payments = await paymentService.getPaymentsByBookingId(id);
+    const refreshedPayments = await Promise.all(
+      payments.map((payment) => refreshPendingMbwayPayment(payment))
+    );
 
     res.status(200).json({
       message: 'Payment details retrieved successfully',
-      data: payments,
+      data: refreshedPayments,
     });
   } catch (error) {
     if (error instanceof Error) {

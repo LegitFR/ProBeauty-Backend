@@ -2,13 +2,30 @@ import { z, type AnyZodObject } from 'zod';
 
 import { ALL_ORDER_STATUSES } from '@/constants/orderStatus';
 
+const ifthenpayPaymentMethodEnum = z.enum(['CCARD', 'MBWAY']);
+const mbwayMobileNumberSchema = z
+  .string()
+  .regex(/^\d{1,4}#\d{6,15}$/, 'mobileNumber must be in countryCode#number format');
+
 /**
  * Schema for creating a new order from cart
  */
-export const createOrderSchema: AnyZodObject = z.object({
-  addressId: z.string().cuid('Invalid address ID format'),
-  notes: z.string().max(500, 'Notes must not exceed 500 characters').optional(),
-});
+export const createOrderSchema = z
+  .object({
+    addressId: z.string().cuid('Invalid address ID format'),
+    notes: z.string().max(500, 'Notes must not exceed 500 characters').optional(),
+    paymentMethod: ifthenpayPaymentMethodEnum.optional().default('CCARD'),
+    mobileNumber: mbwayMobileNumberSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentMethod === 'MBWAY' && !data.mobileNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['mobileNumber'],
+        message: 'mobileNumber is required when paymentMethod is MBWAY',
+      });
+    }
+  });
 
 /**
  * Schema for updating order status

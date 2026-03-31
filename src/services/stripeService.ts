@@ -2,6 +2,14 @@ import type Stripe from 'stripe';
 
 import { stripe, STRIPE_WEBHOOK_SECRET } from '@/configs/stripe';
 
+function requireStripe(): Stripe {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+
+  return stripe;
+}
+
 /**
  * Create a Stripe PaymentIntent
  * @param amount - Amount in dollars (will be converted to cents)
@@ -16,6 +24,7 @@ export async function createPaymentIntent(
   customerId?: string
 ): Promise<Stripe.PaymentIntent> {
   try {
+    const stripeClient = requireStripe();
     const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: Math.round(amount * 100), // Convert to cents
       currency,
@@ -30,7 +39,7 @@ export async function createPaymentIntent(
       paymentIntentParams.customer = customerId;
     }
 
-    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
+    const paymentIntent = await stripeClient.paymentIntents.create(paymentIntentParams);
 
     console.info(
       `[Stripe] PaymentIntent created: ${paymentIntent.id}, amount: ${amount}, customer: ${customerId || 'none'}`
@@ -50,7 +59,8 @@ export async function retrievePaymentIntent(
   paymentIntentId: string
 ): Promise<Stripe.PaymentIntent> {
   try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const stripeClient = requireStripe();
+    const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId);
     return paymentIntent;
   } catch (error) {
     console.error('Error retrieving Stripe PaymentIntent:', error);
@@ -63,7 +73,8 @@ export async function retrievePaymentIntent(
  */
 export async function cancelPaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
   try {
-    const paymentIntent = await stripe.paymentIntents.cancel(paymentIntentId);
+    const stripeClient = requireStripe();
+    const paymentIntent = await stripeClient.paymentIntents.cancel(paymentIntentId);
     return paymentIntent;
   } catch (error) {
     console.error('Error canceling Stripe PaymentIntent:', error);
@@ -76,7 +87,13 @@ export async function cancelPaymentIntent(paymentIntentId: string): Promise<Stri
  */
 export function verifyWebhookSignature(payload: string | Buffer, signature: string): Stripe.Event {
   try {
-    const event = stripe.webhooks.constructEvent(payload, signature, STRIPE_WEBHOOK_SECRET);
+    const stripeClient = requireStripe();
+
+    if (!STRIPE_WEBHOOK_SECRET) {
+      throw new Error('Stripe webhook secret is not configured');
+    }
+
+    const event = stripeClient.webhooks.constructEvent(payload, signature, STRIPE_WEBHOOK_SECRET);
     return event;
   } catch (error) {
     console.error('Webhook signature verification failed:', error);
@@ -93,6 +110,7 @@ export async function createRefund(
   reason?: Stripe.RefundCreateParams.Reason
 ): Promise<Stripe.Refund> {
   try {
+    const stripeClient = requireStripe();
     const refundParams: Stripe.RefundCreateParams = {
       payment_intent: paymentIntentId,
     };
@@ -105,7 +123,7 @@ export async function createRefund(
       refundParams.reason = reason;
     }
 
-    const refund = await stripe.refunds.create(refundParams);
+    const refund = await stripeClient.refunds.create(refundParams);
     return refund;
   } catch (error) {
     console.error('Error creating Stripe refund:', error);
@@ -118,7 +136,8 @@ export async function createRefund(
  */
 export async function retrieveCustomer(customerId: string): Promise<Stripe.Customer> {
   try {
-    const customer = await stripe.customers.retrieve(customerId);
+    const stripeClient = requireStripe();
+    const customer = await stripeClient.customers.retrieve(customerId);
     return customer as Stripe.Customer;
   } catch (error) {
     console.error('Error retrieving Stripe customer:', error);
@@ -135,6 +154,7 @@ export async function createCustomer(
   metadata?: Record<string, string>
 ): Promise<Stripe.Customer> {
   try {
+    const stripeClient = requireStripe();
     const customerParams: Stripe.CustomerCreateParams = {
       email,
     };
@@ -147,7 +167,7 @@ export async function createCustomer(
       customerParams.metadata = metadata;
     }
 
-    const customer = await stripe.customers.create(customerParams);
+    const customer = await stripeClient.customers.create(customerParams);
     console.info(`[Stripe] Customer created: ${customer.id}, email: ${email}`);
     return customer;
   } catch (error) {
@@ -166,8 +186,9 @@ export async function getOrCreateCustomer(
   metadata?: Record<string, string>
 ): Promise<Stripe.Customer> {
   try {
+    const stripeClient = requireStripe();
     // Search for existing customer by email
-    const existingCustomers = await stripe.customers.list({
+    const existingCustomers = await stripeClient.customers.list({
       email,
       limit: 1,
     });

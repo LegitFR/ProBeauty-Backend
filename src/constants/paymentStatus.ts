@@ -2,7 +2,7 @@
  * Payment Status Constants
  *
  * Defines the lifecycle states for payments in the system.
- * Payments progress through these states based on Stripe webhook events.
+ * Payments progress through these states based on provider callbacks/webhooks.
  */
 
 export const PAYMENT_STATUS = {
@@ -21,6 +21,7 @@ export type PaymentStatus = (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS]
  */
 export const PAYMENT_PROVIDER = {
   STRIPE: 'stripe',
+  IFTHENPAY: 'ifthenpay',
   CASH: 'cash',
 } as const;
 

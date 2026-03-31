@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
 
 import { type OrderStatus } from '@/constants/orderStatus';
+import { refreshPendingMbwayPayment } from '@/services/ifthenpayService';
 import * as orderService from '@/services/orderService';
 import * as paymentService from '@/services/paymentService';
 
 /**
- * Create a new order with Stripe payment from the user's cart
+ * Create a new order with If-Then Pay payment from the user's cart
  * POST /api/v1/orders/checkout
  */
 export async function createOrderWithPayment(req: Request, res: Response): Promise<void> {
@@ -17,16 +18,20 @@ export async function createOrderWithPayment(req: Request, res: Response): Promi
   }
 
   try {
-    const { addressId } = req.body;
+    const { addressId, paymentMethod, mobileNumber } = req.body;
 
-    const result = await orderService.createOrderWithPayment(userId, addressId);
+    const result = await orderService.createOrderWithPayment(
+      userId,
+      addressId,
+      paymentMethod,
+      mobileNumber
+    );
 
     res.status(201).json({
       message: 'Order created successfully. Complete payment to confirm.',
       data: {
         order: result.order,
-        clientSecret: result.clientSecret,
-        paymentIntentId: result.paymentIntentId,
+        payment: result.payment,
       },
     });
   } catch (error) {
@@ -73,10 +78,13 @@ export async function getOrderPayment(req: Request, res: Response): Promise<void
 
     // Get payment details
     const payments = await paymentService.getPaymentsByOrderId(orderId);
+    const refreshedPayments = await Promise.all(
+      payments.map((payment) => refreshPendingMbwayPayment(payment))
+    );
 
     res.status(200).json({
       message: 'Payment details retrieved successfully',
-      data: payments,
+      data: refreshedPayments,
     });
   } catch (error) {
     if (error instanceof Error) {

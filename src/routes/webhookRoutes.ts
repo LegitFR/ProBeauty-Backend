@@ -1,6 +1,10 @@
 import { Router } from 'express';
 
-import { handleStripeWebhookController } from '@/controllers/webhookController';
+import {
+  handleIfthenpayCreditCardWebhookController,
+  handleIfthenpayMbwayWebhookController,
+  handleStripeWebhookController,
+} from '@/controllers/webhookController';
 import { stripeWebhookValidator } from '@/middlewares/stripeWebhookValidator';
 
 const router = Router();
@@ -14,5 +18,7 @@ const router = Router();
  * The raw body middleware is applied in index.ts BEFORE express.json().
  */
 router.post('/stripe', stripeWebhookValidator, handleStripeWebhookController);
+router.get('/ifthenpay/ccard', handleIfthenpayCreditCardWebhookController);
+router.get('/ifthenpay/mbway', handleIfthenpayMbwayWebhookController);
 
 export default router;

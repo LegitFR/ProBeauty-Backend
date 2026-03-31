@@ -1,5 +1,6 @@
 import type Stripe from 'stripe';
 
+import { PAYMENT_PROVIDER, PAYMENT_STATUS } from '@/constants/paymentStatus';
 import * as paymentService from '@/services/paymentService';
 
 /**
@@ -20,7 +21,11 @@ export async function handlePaymentIntentSucceeded(
   console.info(`[Webhook Handler] Metadata:`, paymentIntent.metadata);
 
   try {
-    const payment = await paymentService.markPaymentSucceeded(paymentIntent.id, event.id);
+    const payment = await paymentService.markPaymentSucceeded(
+      paymentIntent.id,
+      event.id,
+      PAYMENT_PROVIDER.STRIPE
+    );
     console.info(
       `[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as succeeded, DB record ID: ${payment.id}`
     );
@@ -55,7 +60,8 @@ export async function handlePaymentIntentFailed(
     const payment = await paymentService.markPaymentFailed(
       paymentIntent.id,
       event.id,
-      failureReason
+      failureReason,
+      PAYMENT_PROVIDER.STRIPE
     );
     console.info(
       `[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as failed, DB record ID: ${payment.id}`
@@ -82,7 +88,11 @@ export async function handlePaymentIntentCanceled(
   console.info(`[Webhook Handler] PaymentIntent ID: ${paymentIntent.id}`);
 
   try {
-    const payment = await paymentService.markPaymentCanceled(paymentIntent.id, event.id);
+    const payment = await paymentService.markPaymentCanceled(
+      paymentIntent.id,
+      event.id,
+      PAYMENT_PROVIDER.STRIPE
+    );
     console.info(
       `[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as canceled, DB record ID: ${payment.id}`
     );
@@ -117,7 +127,11 @@ export async function handleChargeRefunded(event: Stripe.ChargeRefundedEvent): P
 
     console.info(`[Webhook Handler] Associated PaymentIntent ID: ${paymentIntentId}`);
 
-    const payment = await paymentService.markPaymentRefunded(paymentIntentId, event.id);
+    const payment = await paymentService.markPaymentRefunded(
+      paymentIntentId,
+      event.id,
+      PAYMENT_PROVIDER.STRIPE
+    );
     console.info(
       `[Webhook Handler] SUCCESS: Payment ${paymentIntentId} marked as refunded, DB record ID: ${payment.id}`
     );
@@ -141,7 +155,10 @@ export async function handlePaymentIntentProcessing(
 
   try {
     // Get the existing payment
-    const payment = await paymentService.getPaymentByTxnId(paymentIntent.id);
+    const payment = await paymentService.getPaymentByTxnId(
+      paymentIntent.id,
+      PAYMENT_PROVIDER.STRIPE
+    );
 
     if (!payment) {
       console.error(`[Webhook Handler] Payment not found for payment intent: ${paymentIntent.id}`);
@@ -152,7 +169,12 @@ export async function handlePaymentIntentProcessing(
     }
 
     // Update to processing status if needed
-    await paymentService.updatePaymentStatus(paymentIntent.id, 'processing', event.id);
+    await paymentService.updatePaymentStatus({
+      txnId: paymentIntent.id,
+      status: PAYMENT_STATUS.PROCESSING,
+      providerEventId: event.id,
+      provider: PAYMENT_PROVIDER.STRIPE,
+    });
     console.info(`[Webhook Handler] SUCCESS: Payment ${paymentIntent.id} marked as processing`);
   } catch (error) {
     console.error(

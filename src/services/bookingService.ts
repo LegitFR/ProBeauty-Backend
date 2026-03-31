@@ -4,7 +4,12 @@ import { prisma } from '@/configs/db';
 import { BOOKING_STATUS } from '@/constants/bookingStatus';
 import { PAYMENT_PROVIDER, PAYMENT_STATUS } from '@/constants/paymentStatus';
 import type { BookingStatus } from '@/schemas/bookingSchema';
-import * as stripeService from '@/services/stripeService';
+import {
+  IFTHENPAY_METHOD,
+  type IfthenpayMethod,
+  type IfthenpayPaymentSession,
+  initiateIfthenpayPayment,
+} from '@/services/ifthenpayService';
 import {
   parseStaffAvailability,
   generateTimeSlots,
@@ -12,6 +17,7 @@ import {
   checkBookingConflicts,
 } from '@/utils/availabilityUtils';
 import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
+import { generatePaymentReference } from '@/utils/paymentUtils';
 
 interface CreateBookingData {
   userId: string;
@@ -592,13 +598,11 @@ export async function createBooking(data: CreateBookingData) {
 
 interface BookingWithPayment {
   booking: Awaited<ReturnType<typeof prisma.booking.findUnique>>;
-  clientSecret: string;
-  paymentIntentId: string;
+  payment: IfthenpayPaymentSession;
 }
 
 /**
- * Create a booking with Stripe payment
- * Validates booking data, creates booking with PAYMENT_PENDING status, and initiates Stripe payment
+ * Create a booking with If-Then Pay CCARD payment.
  */
 export async function createBookingWithPayment(
   userId: string,
@@ -606,10 +610,17 @@ export async function createBookingWithPayment(
   serviceIds: string[],
   staffId: string | undefined,
   staffIds: string[] | undefined,
-  startTime: string
+  startTime: string,
+  paymentMethod: IfthenpayMethod = IFTHENPAY_METHOD.CCARD,
+  mobileNumber?: string
 ): Promise<BookingWithPayment> {
-  // Verify user exists
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      email: true,
+    },
+  });
+
   if (!user) {
     throw new Error('User not found');
   }
@@ -798,28 +809,17 @@ export async function createBookingWithPayment(
 
   const primaryStaffId = assignedStaffIds[0] ?? null;
 
-  // Get or create Stripe customer for the user
-  const stripeCustomer = await stripeService.getOrCreateCustomer(user.email, user.name, {
-    userId: user.id,
+  const paymentReference = generatePaymentReference('bok', salonId);
+  const paymentSession = await initiateIfthenpayPayment({
+    amount: totalPrice,
+    orderId: paymentReference,
+    entityType: 'booking',
+    entityId: salonId,
+    method: paymentMethod,
+    mobileNumber,
+    email: user.email,
+    description: `Booking ${paymentReference}`,
   });
-
-  console.info(
-    `[Booking] Creating booking for user ${userId} with Stripe customer ${stripeCustomer.id}`
-  );
-
-  // Create Stripe PaymentIntent with customer association
-  const paymentIntent = await stripeService.createPaymentIntent(
-    totalPrice,
-    'usd',
-    {
-      userId,
-      salonId,
-      serviceIds: serviceIds.join(','),
-      ...(primaryStaffId ? { staffId: primaryStaffId } : {}),
-      ...(uniqueStaffIds.length > 0 ? { staffIds: uniqueStaffIds.join(',') } : {}),
-    },
-    stripeCustomer.id
-  );
 
   // Create booking with PAYMENT_PENDING status in a transaction
   const booking = await prisma.$transaction(async (tx) => {
@@ -837,17 +837,26 @@ export async function createBookingWithPayment(
       },
     });
 
-    // Create payment record with Stripe customer ID
     try {
       await tx.payment.create({
         data: {
           orderId: null,
           bookingId: newBooking.id,
-          provider: PAYMENT_PROVIDER.STRIPE,
+          provider: PAYMENT_PROVIDER.IFTHENPAY,
           amount: new Prisma.Decimal(totalPrice),
-          txnId: paymentIntent.id,
+          txnId: paymentSession.reference,
           status: PAYMENT_STATUS.PENDING,
-          stripeCustomerId: stripeCustomer.id,
+          ifthenpayRequestId: paymentSession.requestId,
+          ifthenpayMethod: paymentSession.method,
+          ...(paymentSession.method === IFTHENPAY_METHOD.CCARD
+            ? { ifthenpayPaymentUrl: paymentSession.paymentUrl }
+            : {}),
+          metadata: {
+            initiation: paymentSession.rawResponse as unknown as Prisma.InputJsonValue,
+            ...(paymentSession.method === IFTHENPAY_METHOD.MBWAY
+              ? { mobileNumber: paymentSession.mobileNumber }
+              : {}),
+          } as Prisma.InputJsonValue,
         },
       });
     } catch (error) {
@@ -866,7 +875,7 @@ export async function createBookingWithPayment(
     }
 
     console.info(
-      `[Booking] Payment record created for booking ${newBooking.id}, txnId: ${paymentIntent.id}, stripeCustomerId: ${stripeCustomer.id}`
+      `[Booking] Payment record created for booking ${newBooking.id}, txnId: ${paymentSession.reference}, requestId: ${paymentSession.requestId}`
     );
 
     // Return booking with relations
@@ -907,10 +916,6 @@ export async function createBookingWithPayment(
     throw new Error('Failed to create booking');
   }
 
-  if (!paymentIntent.client_secret) {
-    throw new Error('PaymentIntent client_secret is missing');
-  }
-
   // Add services to the booking response
   const staffMembers = await prisma.staff.findMany({
     where: { id: { in: uniqueStaffIds } },
@@ -948,8 +953,7 @@ export async function createBookingWithPayment(
 
   return {
     booking: bookingWithServices,
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id,
+    payment: paymentSession,
   };
 }
 

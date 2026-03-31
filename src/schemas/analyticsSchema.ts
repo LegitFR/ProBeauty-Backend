@@ -45,7 +45,7 @@ export const analyticsQuerySchema = z
  * Schema for validating admin analytics query parameters
  * Supports date range, period granularity, and top services limit
  */
-export const adminAnalyticsQuerySchema: AnyZodObject = z
+export const adminAnalyticsQuerySchema = z
   .object({
     startDate: z
       .string()

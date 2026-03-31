@@ -4,8 +4,14 @@ import { prisma } from '@/configs/db';
 import { ORDER_STATUS, type OrderStatus, isValidStatusTransition } from '@/constants/orderStatus';
 import { PAYMENT_STATUS, PAYMENT_PROVIDER } from '@/constants/paymentStatus';
 import * as cartService from '@/services/cartService';
-import * as stripeService from '@/services/stripeService';
+import {
+  IFTHENPAY_METHOD,
+  type IfthenpayMethod,
+  type IfthenpayPaymentSession,
+  initiateIfthenpayPayment,
+} from '@/services/ifthenpayService';
 import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
+import { generatePaymentReference } from '@/utils/paymentUtils';
 
 /**
  * Extended Order with items and product details
@@ -42,17 +48,17 @@ interface PaginatedOrders {
  */
 interface OrderWithPayment {
   order: OrderWithItems;
-  clientSecret: string;
-  paymentIntentId: string;
+  payment: IfthenpayPaymentSession;
 }
 
 /**
- * Create an order from the user's cart with Stripe payment
- * Validates stock, calculates totals, creates order with items, and initiates Stripe payment
+ * Create an order from the user's cart with If-Then Pay CCARD payment.
  */
 export async function createOrderWithPayment(
   userId: string,
-  addressId: string
+  addressId: string,
+  paymentMethod: IfthenpayMethod = IFTHENPAY_METHOD.CCARD,
+  mobileNumber?: string
 ): Promise<OrderWithPayment> {
   // Validate cart has items and sufficient stock
   const validation = await cartService.validateCartForCheckout(userId);
@@ -80,9 +86,11 @@ export async function createOrderWithPayment(
     throw new Error('Unauthorized: You do not own this address');
   }
 
-  // Get user for Stripe customer creation
   const user = await prisma.user.findUnique({
     where: { id: userId },
+    select: {
+      email: true,
+    },
   });
 
   if (!user) {
@@ -100,28 +108,17 @@ export async function createOrderWithPayment(
     total += itemTotal;
   }
 
-  // Get or create Stripe customer for the user
-  const stripeCustomer = await stripeService.getOrCreateCustomer(user.email, user.name, {
-    userId: user.id,
+  const paymentReference = generatePaymentReference('ord', addressId);
+  const paymentSession = await initiateIfthenpayPayment({
+    amount: total,
+    orderId: paymentReference,
+    entityType: 'order',
+    entityId: addressId,
+    method: paymentMethod,
+    mobileNumber,
+    email: user.email,
+    description: `Order ${paymentReference}`,
   });
-
-  console.info(
-    `[Order] Creating order for user ${userId} with Stripe customer ${stripeCustomer.id}`
-  );
-
-  // Create Stripe PaymentIntent with customer association
-  // Include salonIds array in metadata for multi-salon orders
-  const salonIdsArray = Array.from(salonIds);
-  const paymentIntent = await stripeService.createPaymentIntent(
-    total,
-    'usd',
-    {
-      userId,
-      addressId,
-      ...(salonId ? { salonId } : { salonIds: salonIdsArray.join(',') }),
-    },
-    stripeCustomer.id
-  );
 
   // Determine final salonId
   let finalSalonId: string | null | undefined = salonId;
@@ -167,15 +164,24 @@ export async function createOrderWithPayment(
         });
       }
 
-      // Create payment record with Stripe customer ID
       await tx.payment.create({
         data: {
           orderId: newOrder.id,
-          provider: PAYMENT_PROVIDER.STRIPE,
+          provider: PAYMENT_PROVIDER.IFTHENPAY,
           amount: new Prisma.Decimal(total),
-          txnId: paymentIntent.id,
+          txnId: paymentSession.reference,
           status: PAYMENT_STATUS.PENDING,
-          stripeCustomerId: stripeCustomer.id,
+          ifthenpayRequestId: paymentSession.requestId,
+          ifthenpayMethod: paymentSession.method,
+          ...(paymentSession.method === IFTHENPAY_METHOD.CCARD
+            ? { ifthenpayPaymentUrl: paymentSession.paymentUrl }
+            : {}),
+          metadata: {
+            initiation: paymentSession.rawResponse as unknown as Prisma.InputJsonValue,
+            ...(paymentSession.method === IFTHENPAY_METHOD.MBWAY
+              ? { mobileNumber: paymentSession.mobileNumber }
+              : {}),
+          } as Prisma.InputJsonValue,
         },
       });
 
@@ -238,10 +244,6 @@ export async function createOrderWithPayment(
     console.error('[Order] Error emitting notification:', error);
   }
 
-  if (!paymentIntent.client_secret) {
-    throw new Error('PaymentIntent client_secret is missing');
-  }
-
   // Convert Decimal values to strings for JSON serialization
   // Prisma Decimal can cause serialization issues with Express
   const serializedOrder = JSON.parse(
@@ -257,8 +259,7 @@ export async function createOrderWithPayment(
   // Return the order with payment details
   const result = {
     order: serializedOrder as OrderWithItems,
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id,
+    payment: paymentSession,
   };
 
   return result;

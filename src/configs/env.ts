@@ -19,8 +19,18 @@ const envSchema = z.object({
   GOOGLE_WEB_CLIENT_ID: z.string().min(1, 'GOOGLE_WEB_CLIENT_ID is required'),
   GOOGLE_ANDROID_CLIENT_ID: z.string().min(1, 'GOOGLE_ANDROID_CLIENT_ID is required'),
   GOOGLE_IOS_CLIENT_ID: z.string().min(1, 'GOOGLE_IOS_CLIENT_ID is required'),
-  STRIPE_SECRET_KEY: z.string().min(1, 'STRIPE_SECRET_KEY is required'),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET is required'),
+  STRIPE_SECRET_KEY: z.string().min(1, 'STRIPE_SECRET_KEY is required').optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET is required').optional(),
+  IFTHENPAY_CCARD_KEY: z.string().min(1, 'IFTHENPAY_CCARD_KEY is required'),
+  IFTHENPAY_MBWAY_KEY: z.string().min(1, 'IFTHENPAY_MBWAY_KEY is required').optional(),
+  IFTHENPAY_ANTI_PHISHING_KEY: z.string().min(1, 'IFTHENPAY_ANTI_PHISHING_KEY is required'),
+  IFTHENPAY_USE_SANDBOX: z
+    .enum(['true', 'false'])
+    .optional()
+    .default('false')
+    .transform((value) => value === 'true'),
+  BACKEND_PUBLIC_URL: z.string().url('BACKEND_PUBLIC_URL must be a valid URL'),
+  FRONTEND_APP_URL: z.string().url('FRONTEND_APP_URL must be a valid URL'),
 });
 
 const parsed = envSchema.safeParse(process.env);
