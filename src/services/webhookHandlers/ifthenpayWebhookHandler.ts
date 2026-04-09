@@ -34,10 +34,10 @@ function assertValidAntiPhishingKey(key?: string): void {
   }
 }
 
-async function getValidatedIfthenpayPayment(txnId: string, amount: string, method: string) {
+async function getValidatedCcardPayment(txnId: string, amount: string) {
   const payment = await paymentService.getPaymentByTxnIdWithFilters(txnId, {
     provider: PAYMENT_PROVIDER.IFTHENPAY,
-    ifthenpayMethod: method,
+    ifthenpayMethod: IFTHENPAY_METHOD.CCARD,
   });
 
   if (!payment) {
@@ -48,6 +48,38 @@ async function getValidatedIfthenpayPayment(txnId: string, amount: string, metho
   const storedAmount = Number.parseFloat(payment.amount.toString());
   if (Math.abs(callbackAmount - storedAmount) > 0.001) {
     throw new Error('Payment amount mismatch');
+  }
+
+  return payment;
+}
+
+async function getValidatedMbwayPayment(requestId: string, amount?: string) {
+  // MBWay: look up by requestId — ifthenpay sends back their own orderId in the
+  // callback which does not match the txnId we stored, so requestId is the only
+  // reliable identifier.
+  const payment = await paymentService.getPaymentByIfthenpayRequestId(
+    requestId,
+    IFTHENPAY_METHOD.MBWAY
+  );
+
+  if (!payment) {
+    throw new Error('Payment not found');
+  }
+
+  // Validate amount only when ifthenpay includes it in the callback.
+  // Ifthenpay may send amounts with a comma decimal separator (e.g. "1,50"),
+  // so normalise before parsing. Skip the check if still unparseable.
+  if (amount) {
+    const normalised = amount.replace(',', '.');
+    const callbackAmount = Number.parseFloat(normalised);
+    if (!Number.isNaN(callbackAmount)) {
+      const storedAmount = Number.parseFloat(payment.amount.toString());
+      if (Math.abs(callbackAmount - storedAmount) > 0.001) {
+        throw new Error('Payment amount mismatch');
+      }
+    } else {
+      console.warn('[IfthenpayWebhook] Could not parse MBWay callback amount:', amount);
+    }
   }
 
   return payment;
@@ -68,7 +100,7 @@ export async function handleIfthenpayCreditCardCallback(callback: IfthenpayCredi
     throw new Error('Invalid payment method');
   }
 
-  await getValidatedIfthenpayPayment(callback.id, callback.amount, IFTHENPAY_METHOD.CCARD);
+  await getValidatedCcardPayment(callback.id, callback.amount);
 
   return paymentService.markPaymentSucceeded(callback.id, undefined, PAYMENT_PROVIDER.IFTHENPAY, {
     ifthenpayCallback: {
@@ -81,34 +113,13 @@ export async function handleIfthenpayCreditCardCallback(callback: IfthenpayCredi
 export async function handleIfthenpayMbwayCallback(callback: IfthenpayMbwayCallback) {
   assertValidAntiPhishingKey(callback.key);
 
-  if (!callback.orderId) {
-    throw new Error('Missing payment reference');
-  }
-
   if (!callback.requestId) {
     throw new Error('Missing requestId');
   }
 
-  if (!callback.amount) {
-    throw new Error('Missing callback amount');
-  }
+  const payment = await getValidatedMbwayPayment(callback.requestId, callback.amount);
 
-  const payment = await getValidatedIfthenpayPayment(
-    callback.orderId,
-    callback.amount,
-    IFTHENPAY_METHOD.MBWAY
-  );
-
-  if (payment.ifthenpayRequestId !== callback.requestId) {
-    throw new Error('RequestId mismatch');
-  }
-
-  return paymentService.markPaymentSucceeded(
-    callback.orderId,
-    undefined,
-    PAYMENT_PROVIDER.IFTHENPAY,
-    {
-      mbwayCallback: callback,
-    }
-  );
+  return paymentService.markPaymentSucceeded(payment.txnId, undefined, PAYMENT_PROVIDER.IFTHENPAY, {
+    mbwayCallback: callback,
+  });
 }

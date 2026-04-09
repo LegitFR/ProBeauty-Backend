@@ -10,6 +10,7 @@ import {
   type PaymentStatus,
 } from '@/constants/paymentStatus';
 import { syncOrderInvoiceForPayment } from '@/services/vendusInvoiceService';
+import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -300,6 +301,36 @@ export async function updatePaymentStatus(input: UpdatePaymentStatusInput): Prom
 
     console.info(`[Payment] Successfully processed payment update for txnId=${txnId}`);
     await triggerOrderInvoiceSync(payment);
+
+    if (status === PAYMENT_STATUS.SUCCEEDED && payment.orderId) {
+      try {
+        const order = await prisma.order.findUnique({
+          where: { id: payment.orderId },
+          include: {
+            salon: true,
+            orderItems: {
+              include: { product: { include: { salon: true } } },
+              take: 1,
+            },
+          },
+        });
+
+        if (order) {
+          const salonName =
+            order.salon?.name || order.orderItems[0]?.product?.salon?.name || 'Your salon';
+
+          notificationEmitter.emit(NotificationEvents.ORDER_CREATED, {
+            userId: order.userId,
+            orderId: order.id,
+            total: order.total.toString(),
+            salonName,
+          });
+        }
+      } catch (err) {
+        console.error('[Payment] Failed to emit ORDER_CREATED notification:', err);
+      }
+    }
+
     return payment;
   } catch (error) {
     console.error(`[Payment] Error updating payment status for txnId ${txnId}:`, error);
@@ -312,6 +343,20 @@ export async function getPaymentByTxnIdWithFilters(
   filters: PaymentLookupFilters
 ): Promise<Payment | null> {
   return getPaymentByTxnId(txnId, filters.provider, filters.ifthenpayMethod);
+}
+
+export async function getPaymentByIfthenpayRequestId(
+  requestId: string,
+  ifthenpayMethod: string
+): Promise<Payment | null> {
+  return prisma.payment.findFirst({
+    where: {
+      ifthenpayRequestId: requestId,
+      provider: PAYMENT_PROVIDER.IFTHENPAY,
+      ifthenpayMethod,
+    },
+    include: { order: true, booking: true },
+  });
 }
 
 export async function markPaymentSucceeded(

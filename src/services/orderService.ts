@@ -6,6 +6,7 @@ import { PAYMENT_STATUS, PAYMENT_PROVIDER } from '@/constants/paymentStatus';
 import * as cartService from '@/services/cartService';
 import {
   IFTHENPAY_METHOD,
+  type IfthenpayCreditCardPaymentSession,
   type IfthenpayMethod,
   type IfthenpayPaymentSession,
   initiateIfthenpayPayment,
@@ -109,16 +110,6 @@ export async function createOrderWithPayment(
   }
 
   const paymentReference = generatePaymentReference('ord', addressId);
-  const paymentSession = await initiateIfthenpayPayment({
-    amount: total,
-    orderId: paymentReference,
-    entityType: 'order',
-    entityId: addressId,
-    method: paymentMethod,
-    mobileNumber,
-    email: user.email,
-    description: `Order ${paymentReference}`,
-  });
 
   // Determine final salonId
   let finalSalonId: string | null | undefined = salonId;
@@ -129,10 +120,10 @@ export async function createOrderWithPayment(
     );
   }
 
-  // Create order with items in a transaction (with increased timeout for serverless DB)
-  const orderId = await prisma.$transaction(
+  // Step 1: Create order + payment record in DB FIRST so the txnId always exists
+  // before we call ifthenpay. This ensures the webhook callback can always find the payment.
+  const { orderId, paymentId } = await prisma.$transaction(
     async (tx) => {
-      // Create order with PAYMENT_PENDING status
       const newOrder = await tx.order.create({
         data: {
           userId,
@@ -142,7 +133,6 @@ export async function createOrderWithPayment(
         },
       });
 
-      // Create order items and reduce product quantities
       for (const cartItem of cart.cartItems) {
         await tx.orderItem.create({
           data: {
@@ -153,66 +143,93 @@ export async function createOrderWithPayment(
           },
         });
 
-        // Reduce product quantity
         await tx.product.update({
           where: { id: cartItem.productId },
-          data: {
-            quantity: {
-              decrement: cartItem.quantity,
-            },
-          },
+          data: { quantity: { decrement: cartItem.quantity } },
         });
       }
 
-      await tx.payment.create({
+      const newPayment = await tx.payment.create({
         data: {
           orderId: newOrder.id,
           provider: PAYMENT_PROVIDER.IFTHENPAY,
           amount: new Prisma.Decimal(total),
-          txnId: paymentSession.reference,
+          txnId: paymentReference,
           status: PAYMENT_STATUS.PENDING,
-          ifthenpayRequestId: paymentSession.requestId,
-          ifthenpayMethod: paymentSession.method,
-          ...(paymentSession.method === IFTHENPAY_METHOD.CCARD
-            ? { ifthenpayPaymentUrl: paymentSession.paymentUrl }
-            : {}),
+          ifthenpayMethod: paymentMethod,
           metadata: {
-            checkout: {
-              addressId,
-            },
-            initiation: paymentSession.rawResponse as unknown as Prisma.InputJsonValue,
-            ...(paymentSession.method === IFTHENPAY_METHOD.MBWAY
-              ? { mobileNumber: paymentSession.mobileNumber }
-              : {}),
+            checkout: { addressId },
+            ...(paymentMethod === IFTHENPAY_METHOD.MBWAY && mobileNumber ? { mobileNumber } : {}),
           } as Prisma.InputJsonValue,
         },
       });
 
-      // Clear the cart
-      await tx.cartItem.deleteMany({
-        where: { cartId: cart.id },
-      });
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-      // Return just the order ID - fetch full order outside transaction to avoid timeout
-      return newOrder.id;
+      return { orderId: newOrder.id, paymentId: newPayment.id };
     },
-    {
-      maxWait: 10000, // 10 seconds max wait to acquire connection
-      timeout: 30000, // 30 seconds timeout for transaction
-    }
+    { maxWait: 10000, timeout: 30000 }
   );
 
-  // Fetch the full order with relations OUTSIDE the transaction (avoids timeout)
+  // Step 2: Call ifthenpay AFTER the DB record is committed
+  let paymentSession: IfthenpayPaymentSession;
+  try {
+    paymentSession = await initiateIfthenpayPayment({
+      amount: total,
+      orderId: paymentReference,
+      entityType: 'order',
+      entityId: addressId,
+      method: paymentMethod,
+      mobileNumber,
+      email: user.email,
+      description: `Order ${paymentReference}`,
+    });
+  } catch (error) {
+    // Ifthenpay initiation failed — mark order and payment as failed and restore stock
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: ORDER_STATUS.PAYMENT_FAILED },
+      });
+      await tx.payment.update({
+        where: { id: paymentId },
+        data: { status: PAYMENT_STATUS.FAILED, failureReason: 'Payment initiation failed' },
+      });
+      for (const cartItem of cart.cartItems) {
+        await tx.product.update({
+          where: { id: cartItem.productId },
+          data: { quantity: { increment: cartItem.quantity } },
+        });
+      }
+    });
+    throw error;
+  }
+
+  // Step 3: Update payment record with ifthenpay session details
+  await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      ifthenpayRequestId: paymentSession.requestId,
+      ...(paymentSession.method === IFTHENPAY_METHOD.CCARD
+        ? { ifthenpayPaymentUrl: (paymentSession as IfthenpayCreditCardPaymentSession).paymentUrl }
+        : {}),
+      metadata: {
+        checkout: { addressId },
+        initiation: paymentSession.rawResponse as unknown as Prisma.InputJsonValue,
+        ...(paymentSession.method === IFTHENPAY_METHOD.MBWAY
+          ? { mobileNumber: paymentSession.mobileNumber }
+          : {}),
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  // Fetch the full order with relations
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
       orderItems: {
         include: {
-          product: {
-            include: {
-              salon: true,
-            },
-          },
+          product: { include: { salon: true } },
         },
       },
       salon: true,
@@ -223,35 +240,8 @@ export async function createOrderWithPayment(
     throw new Error('Failed to create order');
   }
 
-  // Get salon name for notification
-  let salonNameDisplay = 'Your salon';
-  try {
-    if (order.salon?.name) {
-      salonNameDisplay = order.salon.name;
-    } else if (order.orderItems?.length > 0 && order.orderItems[0]?.product?.salon?.name) {
-      salonNameDisplay = order.orderItems[0].product.salon.name;
-    }
-  } catch (error) {
-    console.error('[Order] Error getting salon name:', error);
-  }
-
-  // Emit notification (non-blocking)
-  try {
-    notificationEmitter.emit(NotificationEvents.ORDER_CREATED, {
-      userId: order.userId,
-      orderId: order.id,
-      total: order.total.toString(),
-      salonName: salonNameDisplay,
-    });
-  } catch (error) {
-    console.error('[Order] Error emitting notification:', error);
-  }
-
-  // Convert Decimal values to strings for JSON serialization
-  // Prisma Decimal can cause serialization issues with Express
   const serializedOrder = JSON.parse(
     JSON.stringify(order, (key, value) => {
-      // Convert Decimal to string
       if (value && typeof value === 'object' && value.constructor?.name === 'Decimal') {
         return value.toString();
       }
@@ -259,13 +249,10 @@ export async function createOrderWithPayment(
     })
   );
 
-  // Return the order with payment details
-  const result = {
+  return {
     order: serializedOrder as OrderWithItems,
     payment: paymentSession,
   };
-
-  return result;
 }
 
 /**
