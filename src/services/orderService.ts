@@ -177,6 +177,9 @@ export async function createOrderWithPayment(
             ? { ifthenpayPaymentUrl: paymentSession.paymentUrl }
             : {}),
           metadata: {
+            checkout: {
+              addressId,
+            },
             initiation: paymentSession.rawResponse as unknown as Prisma.InputJsonValue,
             ...(paymentSession.method === IFTHENPAY_METHOD.MBWAY
               ? { mobileNumber: paymentSession.mobileNumber }

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import sendEmail from './sendEmail';
+import sendEmail, { type EmailAttachment } from './sendEmail';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,4 +70,35 @@ export const sendEmailChangeSuccessEmail = async (email: string, name: string): 
   const template = fs.readFileSync(templatePath, 'utf-8');
   const htmlContent = injectData(template, { name });
   await sendEmail(email, 'Email Address Updated', htmlContent);
+};
+
+interface OrderInvoiceEmailInput {
+  email: string;
+  customerName: string;
+  orderId: string;
+  invoiceNumber: string;
+  invoiceUrl: string;
+  attachment: EmailAttachment;
+}
+
+export const sendOrderInvoiceEmail = async ({
+  email,
+  customerName,
+  orderId,
+  invoiceNumber,
+  invoiceUrl,
+  attachment,
+}: OrderInvoiceEmailInput): Promise<void> => {
+  const templatePath = path.join(__dirname, 'templates', 'orderInvoice.html');
+  const template = fs.readFileSync(templatePath, 'utf-8');
+  const htmlContent = injectData(template, {
+    customerName,
+    orderId,
+    invoiceNumber,
+    invoiceUrl,
+  });
+
+  await sendEmail(email, `Your ProBeauty invoice ${invoiceNumber}`, htmlContent, {
+    attachments: [attachment],
+  });
 };

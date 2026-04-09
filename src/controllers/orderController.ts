@@ -49,6 +49,10 @@ export async function createOrderWithPayment(req: Request, res: Response): Promi
         res.status(403).json({ message: error.message });
         return;
       }
+      if (error.message.startsWith('MB WAY payment declined')) {
+        res.status(422).json({ message: error.message });
+        return;
+      }
       res.status(500).json({
         message: 'Failed to create order',
         error: error.message,

@@ -29,6 +29,13 @@ const envSchema = z.object({
     .optional()
     .default('false')
     .transform((value) => value === 'true'),
+  VENDUS_API_KEY: z.string().min(1, 'VENDUS_API_KEY is required'),
+  VENDUS_BASE_URL: z
+    .string()
+    .url('VENDUS_BASE_URL must be a valid URL')
+    .default('https://www.vendus.pt/ws/v1.1'),
+  VENDUS_DOCUMENT_TYPE: z.string().min(1, 'VENDUS_DOCUMENT_TYPE is required').default('FS'),
+  VENDUS_MODE: z.enum(['normal', 'tests']).default('normal'),
   BACKEND_PUBLIC_URL: z.string().url('BACKEND_PUBLIC_URL must be a valid URL'),
   FRONTEND_APP_URL: z.string().url('FRONTEND_APP_URL must be a valid URL'),
 });

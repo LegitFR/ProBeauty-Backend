@@ -123,13 +123,20 @@ function getMbwayStatusEndpoint(requestId: string): string {
   return url.toString();
 }
 
-function validateAuthorizationFailure(message: string | undefined): never {
+function validateAuthorizationFailure(
+  message: string | undefined,
+  status: string | undefined
+): never {
   if (message === 'Unauthorized request') {
     throw new Error(
       envConfig.IFTHENPAY_USE_SANDBOX
         ? 'If-Then Pay sandbox authorization failed. Check the configured key for this method.'
         : 'If-Then Pay authorization failed. Check the configured key or sandbox setting for this method.'
     );
+  }
+
+  if (status === '999' || message?.toLowerCase() === 'declined') {
+    throw new Error('MB WAY payment declined. The phone number may not be registered with MB WAY.');
   }
 
   throw new Error('Invalid If-Then Pay payment response');
@@ -176,7 +183,7 @@ export async function initiateCreditCardPayment(
     typeof data.RequestId !== 'string'
   ) {
     console.error('[IfThenPay] Invalid CCARD initiation response:', data);
-    validateAuthorizationFailure(data.Message);
+    validateAuthorizationFailure(data.Message, data.Status);
   }
 
   return {
@@ -231,7 +238,7 @@ export async function initiateMbwayPayment(
 
   if (data.Status !== '000' || typeof data.RequestId !== 'string') {
     console.error('[IfThenPay] Invalid MB WAY initiation response:', data);
-    validateAuthorizationFailure(data.Message);
+    validateAuthorizationFailure(data.Message, data.Status);
   }
 
   return {

@@ -1,10 +1,26 @@
 import nodemailer from 'nodemailer';
+import type Mail from 'nodemailer/lib/mailer';
 
 import { envConfig } from '@/configs/env';
 
 const EMAIL_TIMEOUT = 15000; // 15 seconds timeout
 
-const sendEmail = async (email: string, subject: string, htmlContent: string): Promise<void> => {
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
+interface SendEmailOptions {
+  attachments?: EmailAttachment[];
+}
+
+const sendEmail = async (
+  email: string,
+  subject: string,
+  htmlContent: string,
+  options: SendEmailOptions = {}
+): Promise<void> => {
   const { EMAIL_USERNAME, EMAIL_PASSWORD, EMAIL_HOST, EMAIL_PORT } = envConfig;
 
   try {
@@ -28,11 +44,16 @@ const sendEmail = async (email: string, subject: string, htmlContent: string): P
       rateLimit: 5,
     });
 
-    const mailOptions = {
+    const mailOptions: Mail.Options = {
       from: `"ProBeauty" <${EMAIL_USERNAME}>`,
       to: email,
       subject: subject,
       html: htmlContent,
+      attachments: options.attachments?.map((attachment) => ({
+        filename: attachment.filename,
+        content: attachment.content,
+        contentType: attachment.contentType,
+      })),
     };
 
     // Add timeout wrapper to prevent indefinite hanging

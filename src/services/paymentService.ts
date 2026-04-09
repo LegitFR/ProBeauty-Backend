@@ -9,6 +9,7 @@ import {
   type PaymentProvider,
   type PaymentStatus,
 } from '@/constants/paymentStatus';
+import { syncOrderInvoiceForPayment } from '@/services/vendusInvoiceService';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -66,6 +67,18 @@ function isTerminalStatus(status: string): boolean {
     status === PAYMENT_STATUS.CANCELED ||
     status === PAYMENT_STATUS.REFUNDED
   );
+}
+
+async function triggerOrderInvoiceSync(payment: Payment): Promise<void> {
+  if (!payment.orderId || payment.status !== PAYMENT_STATUS.SUCCEEDED) {
+    return;
+  }
+
+  try {
+    await syncOrderInvoiceForPayment(payment.id);
+  } catch (error) {
+    console.error(`[Payment] Vendus invoice sync failed for payment ${payment.id}:`, error);
+  }
 }
 
 /**
@@ -193,6 +206,7 @@ export async function updatePaymentStatus(input: UpdatePaymentStatusInput): Prom
       const existingPayment = await getPaymentByStripeEventId(providerEventId);
       if (existingPayment) {
         console.info(`[Payment] Stripe event ${providerEventId} already processed. Skipping.`);
+        await triggerOrderInvoiceSync(existingPayment);
         return existingPayment;
       }
     }
@@ -209,6 +223,7 @@ export async function updatePaymentStatus(input: UpdatePaymentStatusInput): Prom
       existingPayment.status === PAYMENT_STATUS.SUCCEEDED
     ) {
       console.info(`[Payment] Payment ${existingPayment.id} already succeeded. Treating as no-op.`);
+      await triggerOrderInvoiceSync(existingPayment);
       return existingPayment;
     }
 
@@ -284,6 +299,7 @@ export async function updatePaymentStatus(input: UpdatePaymentStatusInput): Prom
     });
 
     console.info(`[Payment] Successfully processed payment update for txnId=${txnId}`);
+    await triggerOrderInvoiceSync(payment);
     return payment;
   } catch (error) {
     console.error(`[Payment] Error updating payment status for txnId ${txnId}:`, error);
