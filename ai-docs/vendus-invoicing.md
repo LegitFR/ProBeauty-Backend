@@ -30,6 +30,7 @@
 - Vendus state is persisted in `payment.metadata.invoice`.
 - Repeated success webhooks will not create a second document once `vendusDocumentId` exists.
 - If document creation already happened but email sending failed, the next successful retry path will only retry the missing email step.
+- If Vendus returns a CloudFront edge block, duplicate webhook retries for the same payment are suppressed for 15 minutes to avoid repeatedly hammering Vendus while the upstream/network block is still active.
 
 ## Environment Variables
 
@@ -37,3 +38,10 @@
 - `VENDUS_BASE_URL`
 - `VENDUS_DOCUMENT_TYPE`
 - `VENDUS_MODE`
+
+Local Node/tsx runs load `.env.local` before `.env` so they match Bun's local environment precedence.
+
+## Troubleshooting
+
+- Vendus API validation/auth errors should return JSON.
+- A text/html `403` with `server: CloudFront` means the request was blocked by Vendus' edge layer before API authentication was evaluated. Check the runtime network/IP with Vendus support and include the CloudFront request id from the backend error log.

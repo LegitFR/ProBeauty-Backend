@@ -13,6 +13,8 @@ import {
 
 type JsonRecord = Prisma.JsonObject;
 
+const VENDUS_EDGE_RETRY_COOLDOWN_MS = 15 * 60 * 1000;
+
 interface InvoiceMetadata {
   vendusClientId?: number;
   vendusDocumentId?: number;
@@ -57,6 +59,19 @@ function getInvoiceMetadata(payment: Payment): InvoiceMetadata {
   }
 
   return invoice as InvoiceMetadata;
+}
+
+function shouldSkipRecentVendusEdgeRetry(invoiceMetadata: InvoiceMetadata): boolean {
+  if (!invoiceMetadata.lastError?.includes('source=CloudFront') || !invoiceMetadata.lastAttemptAt) {
+    return false;
+  }
+
+  const lastAttemptTime = new Date(invoiceMetadata.lastAttemptAt).getTime();
+  if (Number.isNaN(lastAttemptTime)) {
+    return false;
+  }
+
+  return Date.now() - lastAttemptTime < VENDUS_EDGE_RETRY_COOLDOWN_MS;
 }
 
 function formatDate(date: Date): string {
@@ -172,6 +187,9 @@ export async function syncOrderInvoiceForPayment(paymentId: string): Promise<voi
     }
 
     const invoiceMetadata = getInvoiceMetadata(payment);
+    if (shouldSkipRecentVendusEdgeRetry(invoiceMetadata)) {
+      return;
+    }
 
     let vendusClientId = invoiceMetadata.vendusClientId;
     if (!vendusClientId) {

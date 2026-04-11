@@ -56,13 +56,45 @@ function getBaseUrl(): string {
   return envConfig.VENDUS_BASE_URL.replace(/\/+$/, '');
 }
 
+function stripHtml(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getCloudFrontRequestId(value: string): string | undefined {
+  return value.match(/Request ID:\s*([^<\s]+)/)?.[1];
+}
+
 async function parseError(response: Response): Promise<string> {
+  const fallback = `HTTP ${response.status}`;
+  const contentType = response.headers.get('content-type') || '';
+  const bodyText = await response.text().catch(() => '');
+
   try {
-    const body = (await response.json()) as VendusErrorResponse;
-    return body.error || body.message || JSON.stringify(body.errors) || `HTTP ${response.status}`;
+    if (contentType.includes('application/json') && bodyText) {
+      const body = JSON.parse(bodyText) as VendusErrorResponse;
+      return body.error || body.message || JSON.stringify(body.errors) || fallback;
+    }
   } catch {
-    return `HTTP ${response.status}`;
+    return fallback;
   }
+
+  const summary = stripHtml(bodyText).slice(0, 300);
+  const requestId = getCloudFrontRequestId(bodyText);
+  const server = response.headers.get('server');
+  const cache = response.headers.get('x-cache');
+  const edgeDetails = server === 'CloudFront' ? [server, cache].filter(Boolean).join(', ') : server;
+
+  return [
+    fallback,
+    edgeDetails ? `source=${edgeDetails}` : undefined,
+    summary || undefined,
+    requestId ? `requestId=${requestId}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(' - ');
 }
 
 async function vendusRequest<TResponse>(
