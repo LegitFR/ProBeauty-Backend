@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "dev:ts-node": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json && node scripts/resolve-dist-aliases.mjs",
     "start": "tsx src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:notification": "tsx test-notification.ts",
