@@ -11,7 +11,7 @@ import { envConfig } from '@/configs/env';
 // Keep Stripe optional so historical webhook/payment reads still work after CCARD cutover.
 export const stripe = envConfig.STRIPE_SECRET_KEY
   ? new Stripe(envConfig.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-12-15.clover',
+      apiVersion: '2026-02-25.clover',
       typescript: true,
     })
   : null;
