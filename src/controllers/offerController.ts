@@ -185,6 +185,7 @@ export async function listOffers(req: Request, res: Response): Promise<void> {
       salonId: req.query.salonId as string | undefined,
       productId: req.query.productId as string | undefined,
       serviceId: req.query.serviceId as string | undefined,
+      offerType: req.query.offerType as string | undefined,
       activeOnly: req.query.activeOnly ? req.query.activeOnly === 'true' : undefined,
       page: req.query.page ? Number(req.query.page) : undefined,
       limit: req.query.limit ? Number(req.query.limit) : undefined,
@@ -234,6 +235,7 @@ export async function getActiveOffers(req: Request, res: Response): Promise<void
       salonId: req.query.salonId as string | undefined,
       productId: req.query.productId as string | undefined,
       serviceId: req.query.serviceId as string | undefined,
+      offerType: req.query.offerType as string | undefined,
       page: req.query.page ? Number(req.query.page) : undefined,
       limit: req.query.limit ? Number(req.query.limit) : undefined,
     };

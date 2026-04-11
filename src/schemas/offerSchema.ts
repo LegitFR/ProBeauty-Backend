@@ -48,6 +48,7 @@ export const listOffersQuerySchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID format').optional(),
   productId: z.string().cuid('Invalid product ID format').optional(),
   serviceId: z.string().cuid('Invalid service ID format').optional(),
+  offerType: z.enum(['salon', 'product', 'service']).optional(),
   activeOnly: z
     .string()
     .transform((v) => v === 'true')
@@ -60,6 +61,7 @@ export const getActiveOffersQuerySchema: AnyZodObject = z.object({
   salonId: z.string().cuid('Invalid salon ID format').optional(),
   productId: z.string().cuid('Invalid product ID format').optional(),
   serviceId: z.string().cuid('Invalid service ID format').optional(),
+  offerType: z.enum(['salon', 'product', 'service']).optional(),
   page: z.string().transform(Number).optional(),
   limit: z.string().transform(Number).optional(),
 });

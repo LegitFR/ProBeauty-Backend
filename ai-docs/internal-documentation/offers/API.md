@@ -259,6 +259,7 @@ curl -X DELETE http://localhost:5000/api/v1/offers/clh7x8y9z0ad \
 - `salonId` (string, optional) - Filter by specific salon
 - `productId` (string, optional) - Filter by product
 - `serviceId` (string, optional) - Filter by service
+- `offerType` (string, optional) - Filter by offer type: `salon` | `product` | `service`
 - `activeOnly` (boolean, optional) - Show only active offers
 - `page` (number, optional) - Page number (default: 1)
 - `limit` (number, optional) - Items per page (default: 10)
@@ -308,7 +309,7 @@ curl -X DELETE http://localhost:5000/api/v1/offers/clh7x8y9z0ad \
 **cURL Command:**
 
 ```bash
-curl -X GET "http://localhost:5000/api/v1/offers?salonId=clh7x8y9z0ab&activeOnly=true&page=1&limit=10" \
+curl -X GET "http://localhost:5000/api/v1/offers?salonId=clh7x8y9z0ab&offerType=product&activeOnly=true&page=1&limit=10" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -386,6 +387,7 @@ curl -X GET http://localhost:5000/api/v1/offers/clh7x8y9z0ad \
 - `salonId` (string, optional) - Filter by salon
 - `productId` (string, optional) - Filter by product
 - `serviceId` (string, optional) - Filter by service
+- `offerType` (string, optional) - Filter by offer type: `salon` | `product` | `service`
 - `page` (number, optional) - Page number (default: 1)
 - `limit` (number, optional) - Items per page (default: 10)
 
@@ -434,7 +436,7 @@ curl -X GET http://localhost:5000/api/v1/offers/clh7x8y9z0ad \
 **cURL Command:**
 
 ```bash
-curl -X GET "http://localhost:5000/api/v1/offers/public/active?salonId=clh7x8y9z0ab&page=1&limit=10"
+curl -X GET "http://localhost:5000/api/v1/offers/public/active?salonId=clh7x8y9z0ab&offerType=product&page=1&limit=10"
 ```
 
 ---
@@ -695,6 +697,18 @@ curl -X POST http://localhost:5000/api/v1/offers \
 
 ```bash
 curl -X GET "http://localhost:5000/api/v1/offers/public/active?salonId=clh7x8y9z0ab"
+```
+
+### 3a. Get only product offers for a salon
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/offers/public/active?salonId=clh7x8y9z0ab&offerType=product"
+```
+
+### 3b. Get only salon-wide offers
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/offers/public/active?offerType=salon"
 ```
 
 ### 4. Validate offer before booking checkout

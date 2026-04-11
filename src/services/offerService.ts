@@ -31,6 +31,7 @@ interface GetOffersFilters {
   salonId?: string;
   productId?: string;
   serviceId?: string;
+  offerType?: string;
   activeOnly?: boolean;
   page?: number;
   limit?: number;
@@ -257,6 +258,7 @@ export async function listOffersForSalon(filters: GetOffersFilters, ownerId: str
     salonId?: string;
     productId?: string;
     serviceId?: string;
+    offerType?: string;
     isActive?: boolean;
   } = {
     salon: { ownerId },
@@ -272,6 +274,10 @@ export async function listOffersForSalon(filters: GetOffersFilters, ownerId: str
 
   if (filters.serviceId) {
     where.serviceId = filters.serviceId;
+  }
+
+  if (filters.offerType) {
+    where.offerType = filters.offerType;
   }
 
   if (filters.activeOnly) {
@@ -341,6 +347,7 @@ export async function getActiveOffers(filters: Omit<GetOffersFilters, 'activeOnl
     salonId?: string;
     productId?: string;
     serviceId?: string;
+    offerType?: string;
   } = {
     isActive: true,
     startsAt: { lte: now },
@@ -357,6 +364,10 @@ export async function getActiveOffers(filters: Omit<GetOffersFilters, 'activeOnl
 
   if (filters.serviceId) {
     where.serviceId = filters.serviceId;
+  }
+
+  if (filters.offerType) {
+    where.offerType = filters.offerType;
   }
 
   const [offers, total] = await Promise.all([
