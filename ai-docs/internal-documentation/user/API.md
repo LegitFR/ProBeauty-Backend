@@ -136,7 +136,7 @@ Updates the authenticated user’s basic profile details.
 Editable fields:
 
 - `name` (optional)
-- `phone` (optional, must be a valid 10‑digit mobile starting 6–9)
+- `phone` (optional, must contain 9 to 14 digits)
 
 At least one field must be provided. Email is **not** editable here; use the email change flow below.
 
@@ -312,5 +312,4 @@ Errors: 400 (validation / invalid or expired OTP), 401 (unauthorized), 409 (emai
 - Schemas: `src/schemas/userSchema.ts`
 - Services: `src/services/userService.ts`, `src/services/emailService.ts`
 - Mount path: `src/index.ts`
-
 

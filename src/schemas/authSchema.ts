@@ -5,7 +5,7 @@ export const signupSchema: AnyZodObject = z.object({
   email: z.string().email('Invalid email address'),
   phone: z
     .string()
-    .regex(/^[6-9]\d{9}$/, 'Invalid phone number')
+    .regex(/^\d{9,14}$/, 'Phone number must contain 9 to 14 digits')
     .optional(),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.string().default('customer'),

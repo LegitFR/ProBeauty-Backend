@@ -4,7 +4,7 @@ export const updateProfileSchema: AnyZodObject = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
   phone: z
     .string()
-    .regex(/^[6-9]\d{9}$/, 'Invalid phone number')
+    .regex(/^\d{9,14}$/, 'Phone number must contain 9 to 14 digits')
     .optional(),
 });
 
