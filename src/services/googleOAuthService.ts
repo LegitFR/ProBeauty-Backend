@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 
 import { prisma } from '@/configs/db';
 import { envConfig } from '@/configs/env';
+import admin from '@/configs/firebase';
 
 const GOOGLE_CLIENT_IDS = [
   envConfig.GOOGLE_WEB_CLIENT_ID,
@@ -9,7 +10,7 @@ const GOOGLE_CLIENT_IDS = [
   envConfig.GOOGLE_IOS_CLIENT_ID,
 ].filter(Boolean);
 
-const client = new OAuth2Client();
+const googleOauthClient = new OAuth2Client();
 
 interface GoogleUserInfo {
   sub: string;
@@ -19,9 +20,60 @@ interface GoogleUserInfo {
   picture?: string;
 }
 
-export const verifyGoogleToken = async (idToken: string): Promise<GoogleUserInfo> => {
+function getJwtIssuer(idToken: string): string | null {
   try {
-    const ticket = await client.verifyIdToken({
+    const parts = idToken.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as {
+      iss?: unknown;
+    };
+    return typeof payload.iss === 'string' ? payload.iss : null;
+  } catch {
+    return null;
+  }
+}
+
+async function verifyFirebaseGoogleIdToken(idToken: string): Promise<GoogleUserInfo> {
+  let decoded;
+  try {
+    decoded = await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Firebase token verification failed: ${message}`);
+  }
+
+  if (decoded.firebase?.sign_in_provider !== 'google.com') {
+    throw new Error('Google sign-in required');
+  }
+
+  const googleSubRaw = decoded.firebase.identities?.['google.com'];
+  const googleSub = Array.isArray(googleSubRaw) ? googleSubRaw[0] : undefined;
+  if (!googleSub || typeof googleSub !== 'string') {
+    throw new Error('Google identity missing from token');
+  }
+
+  if (!decoded.email) {
+    throw new Error('Email not found in token');
+  }
+
+  if (!decoded.email_verified) {
+    throw new Error('Email not verified');
+  }
+
+  return {
+    sub: googleSub,
+    email: decoded.email,
+    email_verified: Boolean(decoded.email_verified),
+    name: decoded.name || decoded.email.split('@')[0],
+    picture: decoded.picture,
+  };
+}
+
+async function verifyNativeGoogleIdToken(idToken: string): Promise<GoogleUserInfo> {
+  try {
+    const ticket = await googleOauthClient.verifyIdToken({
       idToken,
       audience: GOOGLE_CLIENT_IDS,
     });
@@ -40,6 +92,10 @@ export const verifyGoogleToken = async (idToken: string): Promise<GoogleUserInfo
       throw new Error('Email not found in Google token');
     }
 
+    if (!payload.sub) {
+      throw new Error('Subject missing from Google token');
+    }
+
     return {
       sub: payload.sub,
       email: payload.email,
@@ -53,6 +109,28 @@ export const verifyGoogleToken = async (idToken: string): Promise<GoogleUserInfo
     }
     throw new Error('Google token verification failed');
   }
+}
+
+/**
+ * Supports:
+ * - Firebase Auth ID tokens (web: signInWithPopup + Google) — issuer securetoken.google.com
+ * - Native Google ID tokens (mobile: Google Sign-In SDK) — issuer accounts.google.com
+ */
+export const verifyGoogleToken = async (idToken: string): Promise<GoogleUserInfo> => {
+  const issuer = getJwtIssuer(idToken);
+  if (!issuer) {
+    throw new Error('Invalid token');
+  }
+
+  if (issuer.startsWith('https://securetoken.google.com/')) {
+    return verifyFirebaseGoogleIdToken(idToken);
+  }
+
+  if (issuer === 'https://accounts.google.com' || issuer === 'accounts.google.com') {
+    return verifyNativeGoogleIdToken(idToken);
+  }
+
+  throw new Error('Unsupported authentication token');
 };
 
 export const findOrCreateGoogleUser = async (googleProfile: GoogleUserInfo) => {
