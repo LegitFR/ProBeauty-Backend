@@ -91,13 +91,14 @@ export async function getStaff(req: Request, res: Response): Promise<void> {
 }
 
 export async function getAllStaff(req: Request, res: Response): Promise<void> {
-  const { page, limit, salonId } = req.query;
+  const { page, limit, salonId, serviceId } = req.query;
 
   try {
     const filters = {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
       salonId: salonId as string | undefined,
+      serviceId: serviceId as string | undefined,
     };
 
     const result = await staffService.getAllStaff(filters);
@@ -122,12 +123,13 @@ export async function getAllStaff(req: Request, res: Response): Promise<void> {
 
 export async function getStaffBySalon(req: Request, res: Response): Promise<void> {
   const { salonId } = req.params;
-  const { page, limit } = req.query;
+  const { page, limit, serviceId } = req.query;
 
   try {
     const filters = {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
+      serviceId: serviceId as string | undefined,
     };
 
     const result = await staffService.getStaffBySalonId(salonId, filters);

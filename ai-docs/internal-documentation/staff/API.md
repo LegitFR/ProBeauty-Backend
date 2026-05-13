@@ -297,7 +297,7 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 
 ## Get Staff by Salon
 
-**Description:** Retrieve all staff members for a specific salon.
+**Description:** Retrieve all staff members for a specific salon. Optionally filter by `serviceId` to return only staff members assigned to perform a particular service.
 
 **Endpoint:** `GET /api/v1/staff/salon/:salonId`
 
@@ -311,6 +311,7 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 
 - `page` (number, optional) — Page number for pagination (default: 1)
 - `limit` (number, optional) — Number of results per page (default: 10)
+- `serviceId` (string, optional) — Filter staff by service ID (only returns staff assigned to this service)
 
 **Success Response (200 OK):**
 
@@ -437,6 +438,12 @@ curl -X GET http://localhost:5000/api/v1/staff/clv9876543210zyxwvuts \
 }
 ```
 
+**Response Notes:**
+
+- Without `serviceId`, returns all staff members for the salon.
+- With `serviceId`, returns only staff members that have a matching `staff_services` relation for the provided service.
+- This endpoint does not check date/time availability or existing booking conflicts. Use `GET /api/v1/staff/available-on-date` for date-based availability, or `GET /api/v1/salons/:salonId/services/:serviceId/available-staff` for exact start-time availability.
+
 **cURL Command:**
 
 ```bash
@@ -451,11 +458,18 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
   -H "Content-Type: application/json"
 ```
 
+**cURL Command with Service Filter:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?serviceId=clv1111111111abcdefgh&page=1&limit=10" \
+  -H "Content-Type: application/json"
+```
+
 ---
 
 ## Get All Staff
 
-**Description:** Retrieve all staff members across all salons.
+**Description:** Retrieve all staff members across all salons. Optionally filter by salon and/or service.
 
 **Endpoint:** `GET /api/v1/staff`
 
@@ -466,6 +480,7 @@ curl -X GET "http://localhost:5000/api/v1/staff/salon/clv1234567890abcdefgh?page
 - `page` (number, optional) — Page number for pagination (default: 1)
 - `limit` (number, optional) — Number of results per page (default: 10)
 - `salonId` (string, optional) — Filter by salon ID
+- `serviceId` (string, optional) — Filter by service ID (only returns staff assigned to this service)
 
 **Success Response (200 OK):**
 
@@ -551,6 +566,19 @@ curl -X GET http://localhost:5000/api/v1/staff \
 curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv1234567890abcdefgh" \
   -H "Content-Type: application/json"
 ```
+
+**cURL Command with Salon and Service Filter:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/staff?page=1&limit=10&salonId=clv1234567890abcdefgh&serviceId=clv1111111111abcdefgh" \
+  -H "Content-Type: application/json"
+```
+
+**Response Notes:**
+
+- `salonId` and `serviceId` can be used independently or together.
+- When both are provided, returns staff in the salon who are assigned to the service.
+- This endpoint does not check date/time availability or existing booking conflicts.
 
 ---
 

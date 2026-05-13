@@ -50,6 +50,7 @@ export const getStaffQuerySchema: AnyZodObject = z.object({
   page: z.string().transform(Number).optional(),
   limit: z.string().transform(Number).optional(),
   salonId: z.string().cuid('Invalid salon ID format').optional(),
+  serviceId: z.string().cuid('Invalid service ID format').optional(),
 });
 
 export const getSalonStaffParamsSchema: AnyZodObject = z.object({

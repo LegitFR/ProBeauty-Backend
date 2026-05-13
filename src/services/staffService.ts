@@ -23,6 +23,7 @@ interface GetStaffFilters {
   page?: number;
   limit?: number;
   salonId?: string;
+  serviceId?: string;
 }
 
 export async function createStaff(ownerId: string, data: CreateStaffData) {
@@ -121,19 +122,23 @@ export async function getStaffById(id: string) {
   });
 }
 
-interface StaffWhereClause {
-  salonId?: string;
-}
-
 export async function getAllStaff(filters?: GetStaffFilters) {
   const page = filters?.page || 1;
   const limit = filters?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: StaffWhereClause = {};
+  const where: Prisma.StaffWhereInput = {};
 
   if (filters?.salonId) {
     where.salonId = filters.salonId;
+  }
+
+  if (filters?.serviceId) {
+    where.services = {
+      some: {
+        serviceId: filters.serviceId,
+      },
+    };
   }
 
   const [staff, total] = await Promise.all([
@@ -177,7 +182,15 @@ export async function getStaffBySalonId(salonId: string, filters?: GetStaffFilte
   const limit = filters?.limit || 10;
   const skip = (page - 1) * limit;
 
-  const where: StaffWhereClause = { salonId };
+  const where: Prisma.StaffWhereInput = { salonId };
+
+  if (filters?.serviceId) {
+    where.services = {
+      some: {
+        serviceId: filters.serviceId,
+      },
+    };
+  }
 
   const [staff, total] = await Promise.all([
     prisma.staff.findMany({
