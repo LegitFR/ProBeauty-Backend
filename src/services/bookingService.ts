@@ -50,6 +50,28 @@ interface AvailabilityQuery {
   date: string;
 }
 
+interface ServiceSegment {
+  serviceId: string;
+  startTime: Date;
+  endTime: Date;
+}
+
+interface StaffCandidate {
+  id: string;
+  name: string;
+  availability: unknown;
+}
+
+interface BookingTimeRange {
+  startTime: Date;
+  endTime: Date;
+}
+
+interface StaffAvailabilityContext {
+  staffByServiceId: Map<string, StaffCandidate[]>;
+  bookingsByStaffId: Map<string, BookingTimeRange[]>;
+}
+
 function normalizeStaffIds(params: {
   serviceIds: string[];
   staffId?: string;
@@ -75,25 +97,166 @@ function bookingStaffWhere(staffId: string) {
   } satisfies Prisma.BookingWhereInput;
 }
 
-/**
- * Find all available staff members for services at a specific time
- * @param salonId - The salon ID
- * @param serviceIds - Array of service IDs
- * @param startTime - The requested booking start time
- * @param endTime - The requested booking end time
- * @returns Array of available staff IDs
- */
-async function findAvailableStaffForService(
-  salonId: string,
-  serviceIds: string[],
-  startTime: Date,
-  endTime: Date
-): Promise<string[]> {
-  // Find all staff at the salon who can perform ALL the requested services
-  // We need to find staff that have all serviceIds in their services
-  const staffWithServices = await prisma.staff.findMany({
+function getDayBounds(date: Date): { dayStart: Date; dayEnd: Date } {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  return { dayStart, dayEnd };
+}
+
+function buildServiceSegments(
+  bookingStartTime: Date,
+  orderedServices: { id: string; durationMinutes: number }[]
+): ServiceSegment[] {
+  const serviceSegments: ServiceSegment[] = [];
+  let cursorTime = new Date(bookingStartTime);
+
+  for (const service of orderedServices) {
+    const segmentStart = new Date(cursorTime);
+    const segmentEnd = new Date(segmentStart.getTime() + service.durationMinutes * 60000);
+    serviceSegments.push({ serviceId: service.id, startTime: segmentStart, endTime: segmentEnd });
+    cursorTime = segmentEnd;
+  }
+
+  return serviceSegments;
+}
+
+async function getExistingBookingsForStaff(staffId: string, date: Date) {
+  const { dayStart, dayEnd } = getDayBounds(date);
+
+  return prisma.booking.findMany({
+    where: {
+      ...bookingStaffWhere(staffId),
+      startTime: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+      status: {
+        notIn: ['CANCELLED', 'NO_SHOW'],
+      },
+    },
+    select: {
+      startTime: true,
+      endTime: true,
+    },
+  });
+}
+
+async function findAvailableStaffForServiceSegment(params: {
+  salonId: string;
+  serviceId: string;
+  startTime: Date;
+  endTime: Date;
+  pendingSegmentsByStaff?: Map<string, { startTime: Date; endTime: Date }[]>;
+}): Promise<StaffCandidate[]> {
+  const { salonId, serviceId, startTime, endTime, pendingSegmentsByStaff } = params;
+
+  const staffForService = await prisma.staff.findMany({
     where: {
       salonId,
+      services: {
+        some: {
+          serviceId,
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      availability: true,
+    },
+  });
+
+  const availableStaff: StaffCandidate[] = [];
+
+  for (const staff of staffForService) {
+    const staffAvailability = parseStaffAvailability(staff.availability);
+    if (!staffAvailability) continue;
+
+    const existingBookings = await getExistingBookingsForStaff(staff.id, startTime);
+    const pendingSegments = pendingSegmentsByStaff?.get(staff.id) ?? [];
+    const blockingSegments = [...existingBookings, ...pendingSegments];
+
+    if (isSlotAvailable(startTime, endTime, staffAvailability, blockingSegments)) {
+      availableStaff.push(staff);
+    }
+  }
+
+  return availableStaff;
+}
+
+async function assignAvailableStaffToSegments(
+  salonId: string,
+  serviceSegments: ServiceSegment[]
+): Promise<string[]> {
+  const assignedStaffIds: string[] = [];
+  const pendingSegmentsByStaff = new Map<string, { startTime: Date; endTime: Date }[]>();
+
+  for (const segment of serviceSegments) {
+    const staffAssignedToService = await prisma.staff.count({
+      where: {
+        salonId,
+        services: {
+          some: {
+            serviceId: segment.serviceId,
+          },
+        },
+      },
+    });
+
+    if (staffAssignedToService === 0) {
+      throw new Error(
+        `No staff members are assigned to perform service ${segment.serviceId}. Please select a different service or contact the salon.`
+      );
+    }
+
+    const candidates = await findAvailableStaffForServiceSegment({
+      salonId,
+      serviceId: segment.serviceId,
+      startTime: segment.startTime,
+      endTime: segment.endTime,
+      pendingSegmentsByStaff,
+    });
+
+    if (candidates.length === 0) {
+      throw new Error(
+        `No staff members are available for service ${segment.serviceId} at the requested time. Please try a different time or select a specific staff member.`
+      );
+    }
+
+    const selectedStaffId = selectRandomStaff(candidates.map((staff) => staff.id));
+    assignedStaffIds.push(selectedStaffId);
+
+    const pendingSegments = pendingSegmentsByStaff.get(selectedStaffId) ?? [];
+    pendingSegments.push({
+      startTime: segment.startTime,
+      endTime: segment.endTime,
+    });
+    pendingSegmentsByStaff.set(selectedStaffId, pendingSegments);
+  }
+
+  return assignedStaffIds;
+}
+
+async function buildStaffAvailabilityContext(params: {
+  salonId: string;
+  serviceIds: string[];
+  date: Date;
+}): Promise<StaffAvailabilityContext> {
+  const { salonId, serviceIds, date } = params;
+
+  const staff = await prisma.staff.findMany({
+    where: {
+      salonId,
+      services: {
+        some: {
+          serviceId: {
+            in: serviceIds,
+          },
+        },
+      },
     },
     select: {
       id: true,
@@ -107,74 +270,28 @@ async function findAvailableStaffForService(
     },
   });
 
-  // Filter staff who have ALL the requested services
-  const staffWithService = staffWithServices.filter((staff) => {
-    const staffServiceIds = staff.services.map((s) => s.serviceId);
-    return serviceIds.every((serviceId) => staffServiceIds.includes(serviceId));
-  });
+  const staffByServiceId = new Map<string, StaffCandidate[]>();
 
-  if (staffWithService.length === 0) {
-    // Check if there are any staff at the salon at all
-    const allStaffAtSalon = await prisma.staff.findMany({
-      where: { salonId },
-      select: { id: true, name: true },
-    });
-
-    if (allStaffAtSalon.length === 0) {
-      throw new Error(
-        'No staff members found at this salon. Please contact the salon to add staff members.'
-      );
+  for (const staffMember of staff) {
+    for (const service of staffMember.services) {
+      const staffForService = staffByServiceId.get(service.serviceId) ?? [];
+      staffForService.push({
+        id: staffMember.id,
+        name: staffMember.name,
+        availability: staffMember.availability,
+      });
+      staffByServiceId.set(service.serviceId, staffForService);
     }
-
-    // Check if any staff have services assigned
-    const staffWithAnyService = await prisma.staff.findMany({
-      where: {
-        salonId,
-        services: {
-          some: {},
-        },
-      },
-      select: { id: true, name: true },
-    });
-
-    if (staffWithAnyService.length === 0) {
-      throw new Error(
-        'No staff members have services assigned. Please contact the salon to assign services to staff members.'
-      );
-    }
-
-    throw new Error(
-      'No staff members are assigned to perform this service. Please select a specific staff member or contact the salon.'
-    );
   }
 
-  // Get the day boundaries for checking existing bookings
-  const dayStart = new Date(startTime);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(startTime);
-  dayEnd.setHours(23, 59, 59, 999);
+  const staffIds = staff.map((staffMember) => staffMember.id);
+  const bookingsByStaffId = new Map<string, BookingTimeRange[]>();
 
-  // Check availability for each staff member
-  const availableStaffIds: string[] = [];
-  const unavailableReasons: { staffId: string; staffName: string; reason: string }[] = [];
-
-  for (const staff of staffWithService) {
-    const staffAvailability = parseStaffAvailability(staff.availability);
-
-    // Check if staff has availability configured
-    if (!staffAvailability) {
-      unavailableReasons.push({
-        staffId: staff.id,
-        staffName: staff.name,
-        reason: 'No availability schedule configured',
-      });
-      continue;
-    }
-
-    // Get existing bookings for this staff on the same day
-    const existingBookings = await prisma.booking.findMany({
+  if (staffIds.length > 0) {
+    const { dayStart, dayEnd } = getDayBounds(date);
+    const bookings = await prisma.booking.findMany({
       where: {
-        ...bookingStaffWhere(staff.id),
+        OR: [{ staffId: { in: staffIds } }, { staffIds: { hasSome: staffIds } }],
         startTime: {
           gte: dayStart,
           lte: dayEnd,
@@ -184,115 +301,73 @@ async function findAvailableStaffForService(
         },
       },
       select: {
+        staffId: true,
+        staffIds: true,
         startTime: true,
         endTime: true,
       },
     });
 
-    // Check if this staff member is available at the requested time
-    const available = isSlotAvailable(startTime, endTime, staffAvailability, existingBookings);
+    for (const booking of bookings) {
+      const bookingStaffIds =
+        booking.staffIds.length > 0 ? booking.staffIds : booking.staffId ? [booking.staffId] : [];
 
-    if (available) {
-      availableStaffIds.push(staff.id);
-    } else {
-      // Determine why staff is unavailable - provide detailed debugging info
-      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = days[startTime.getDay()] as keyof typeof staffAvailability;
-      const dayAvailability = staffAvailability[dayName];
-
-      // Get the requested time in local format for debugging
-      const requestedHour = startTime.getHours();
-      const requestedMinute = startTime.getMinutes();
-      const requestedTimeStr = `${requestedHour.toString().padStart(2, '0')}:${requestedMinute.toString().padStart(2, '0')}`;
-
-      let reason = 'Not available';
-      if (!dayAvailability?.isAvailable) {
-        reason = `Not working on ${dayName}`;
-      } else if (!dayAvailability.slots || dayAvailability.slots.length === 0) {
-        reason = `No availability slots configured for ${dayName}`;
-      } else if (existingBookings.length > 0) {
-        const conflict = checkBookingConflicts(startTime, endTime, existingBookings);
-        if (conflict) {
-          reason = `Has conflicting booking at ${conflict.startTime.toISOString()}`;
-        } else {
-          // Time doesn't fit in any slot
-          const slotRanges = dayAvailability.slots.map((s) => `${s.start}-${s.end}`).join(', ');
-          reason = `Requested time ${requestedTimeStr} not in available slots: ${slotRanges}`;
-        }
-      } else {
-        // No bookings but time doesn't fit
-        const slotRanges = dayAvailability.slots.map((s) => `${s.start}-${s.end}`).join(', ');
-        reason = `Requested time ${requestedTimeStr} not in available slots: ${slotRanges}`;
+      for (const staffId of bookingStaffIds) {
+        const staffBookings = bookingsByStaffId.get(staffId) ?? [];
+        staffBookings.push({
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+        });
+        bookingsByStaffId.set(staffId, staffBookings);
       }
-
-      unavailableReasons.push({
-        staffId: staff.id,
-        staffName: staff.name,
-        reason,
-      });
     }
   }
 
-  // If no staff available, provide detailed error message with time slot suggestions
-  if (availableStaffIds.length === 0 && unavailableReasons.length > 0) {
-    const reasonsSummary = unavailableReasons.map((r) => `${r.staffName}: ${r.reason}`).join('; ');
+  return {
+    staffByServiceId,
+    bookingsByStaffId,
+  };
+}
 
-    // Get total duration to suggest valid time slots
-    const services = await prisma.service.findMany({
-      where: { id: { in: serviceIds } },
-      select: { durationMinutes: true },
+function canAssignStaffToSegmentsFromContext(
+  serviceSegments: ServiceSegment[],
+  context: StaffAvailabilityContext
+): boolean {
+  const pendingSegmentsByStaff = new Map<string, BookingTimeRange[]>();
+
+  for (const segment of serviceSegments) {
+    const candidates = context.staffByServiceId.get(segment.serviceId) ?? [];
+    let selectedStaffId: string | undefined;
+
+    for (const candidate of candidates) {
+      const staffAvailability = parseStaffAvailability(candidate.availability);
+      if (!staffAvailability) continue;
+
+      const existingBookings = context.bookingsByStaffId.get(candidate.id) ?? [];
+      const pendingSegments = pendingSegmentsByStaff.get(candidate.id) ?? [];
+      const blockingSegments = [...existingBookings, ...pendingSegments];
+
+      if (
+        isSlotAvailable(segment.startTime, segment.endTime, staffAvailability, blockingSegments)
+      ) {
+        selectedStaffId = candidate.id;
+        break;
+      }
+    }
+
+    if (!selectedStaffId) {
+      return false;
+    }
+
+    const pendingSegments = pendingSegmentsByStaff.get(selectedStaffId) ?? [];
+    pendingSegments.push({
+      startTime: segment.startTime,
+      endTime: segment.endTime,
     });
-    const totalDurationMinutes = services.reduce((total, s) => total + s.durationMinutes, 0);
-
-    // Generate suggested time slots based on availability
-    let suggestionText = '';
-    if (totalDurationMinutes > 0 && staffWithService.length > 0) {
-      const firstStaff = staffWithService[0];
-      const staffAvailability = parseStaffAvailability(firstStaff.availability);
-      if (staffAvailability) {
-        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const dayName = days[startTime.getDay()] as keyof typeof staffAvailability;
-        const dayAvailability = staffAvailability[dayName];
-
-        if (dayAvailability?.isAvailable && dayAvailability.slots) {
-          const suggestedSlots: string[] = [];
-          const serviceDurationMinutes = totalDurationMinutes;
-
-          for (const slot of dayAvailability.slots) {
-            // Parse slot times
-            const [slotStartHour, slotStartMin] = slot.start.split(':').map(Number);
-            const [slotEndHour, slotEndMin] = slot.end.split(':').map(Number);
-            const slotStartMinutes = slotStartHour * 60 + slotStartMin;
-            const slotEndMinutes = slotEndHour * 60 + slotEndMin;
-
-            // Generate 30-minute interval suggestions that fit the service duration
-            for (
-              let currentMinutes = slotStartMinutes;
-              currentMinutes + serviceDurationMinutes <= slotEndMinutes;
-              currentMinutes += 30
-            ) {
-              const hours = Math.floor(currentMinutes / 60);
-              const mins = currentMinutes % 60;
-              const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-              suggestedSlots.push(timeStr);
-            }
-          }
-
-          if (suggestedSlots.length > 0) {
-            // Show first 8 suggestions
-            const topSuggestions = suggestedSlots.slice(0, 8);
-            suggestionText = ` Suggested available times (for ${totalDurationMinutes}-min booking): ${topSuggestions.join(', ')}.`;
-          }
-        }
-      }
-    }
-
-    throw new Error(
-      `No staff members are available at the requested time. Reasons: ${reasonsSummary}.${suggestionText} Please try a different time or select a specific staff member.`
-    );
+    pendingSegmentsByStaff.set(selectedStaffId, pendingSegments);
   }
 
-  return availableStaffIds;
+  return true;
 }
 
 /**
@@ -371,14 +446,7 @@ export async function createBooking(data: CreateBookingData) {
   }
 
   // Split the booking window into per-service segments (sequential)
-  const serviceSegments: { serviceId: string; startTime: Date; endTime: Date }[] = [];
-  let cursorTime = new Date(bookingStartTime);
-  for (const service of orderedServices) {
-    const segmentStart = new Date(cursorTime);
-    const segmentEnd = new Date(segmentStart.getTime() + service.durationMinutes * 60000);
-    serviceSegments.push({ serviceId: service.id, startTime: segmentStart, endTime: segmentEnd });
-    cursorTime = segmentEnd;
-  }
+  const serviceSegments = buildServiceSegments(bookingStartTime, orderedServices);
 
   let assignedStaffIds = normalizeStaffIds({ serviceIds, staffId, staffIds });
 
@@ -387,16 +455,7 @@ export async function createBooking(data: CreateBookingData) {
   }
 
   if (!assignedStaffIds) {
-    // No staff selection provided: pick a single staff member that can do ALL services,
-    // and is available for the entire booking window.
-    const availableStaffIds = await findAvailableStaffForService(
-      salonId,
-      serviceIds,
-      bookingStartTime,
-      bookingEndTime
-    );
-    const selectedStaffId = selectRandomStaff(availableStaffIds);
-    assignedStaffIds = Array(serviceIds.length).fill(selectedStaffId);
+    assignedStaffIds = await assignAvailableStaffToSegments(salonId, serviceSegments);
   }
 
   const uniqueStaffIds = Array.from(new Set(assignedStaffIds));
@@ -678,14 +737,7 @@ export async function createBookingWithPayment(
   }
 
   // Split the booking window into per-service segments (sequential)
-  const serviceSegments: { serviceId: string; startTime: Date; endTime: Date }[] = [];
-  let cursorTime = new Date(bookingStartTime);
-  for (const service of orderedServices) {
-    const segmentStart = new Date(cursorTime);
-    const segmentEnd = new Date(segmentStart.getTime() + service.durationMinutes * 60000);
-    serviceSegments.push({ serviceId: service.id, startTime: segmentStart, endTime: segmentEnd });
-    cursorTime = segmentEnd;
-  }
+  const serviceSegments = buildServiceSegments(bookingStartTime, orderedServices);
 
   let assignedStaffIds = normalizeStaffIds({ serviceIds, staffId, staffIds });
 
@@ -694,14 +746,7 @@ export async function createBookingWithPayment(
   }
 
   if (!assignedStaffIds) {
-    const availableStaffIds = await findAvailableStaffForService(
-      salonId,
-      serviceIds,
-      bookingStartTime,
-      bookingEndTime
-    );
-    const selectedStaffId = selectRandomStaff(availableStaffIds);
-    assignedStaffIds = Array(serviceIds.length).fill(selectedStaffId);
+    assignedStaffIds = await assignAvailableStaffToSegments(salonId, serviceSegments);
   }
 
   const uniqueStaffIds = Array.from(new Set(assignedStaffIds));
@@ -1257,6 +1302,10 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
     (total, service) => total + service.durationMinutes,
     0
   );
+  const serviceMap = new Map(services.map((s) => [s.id, s]));
+  const orderedServices = serviceIds
+    .map((id) => serviceMap.get(id))
+    .filter(Boolean) as (typeof services)[number][];
 
   // Parse requested date
   const requestedDate = new Date(date);
@@ -1321,97 +1370,31 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
       existingBookings
     );
   } else {
-    // If no staffId provided, find all staff who can perform ALL the services
-    // and generate aggregated slots showing when at least one staff is available
-    const staffWithServices = await prisma.staff.findMany({
-      where: {
-        salonId,
-      },
-      select: {
-        id: true,
-        availability: true,
-        services: {
-          select: {
-            serviceId: true,
-          },
-        },
-      },
+    const slotIntervalMinutes = 30;
+    const dayMinutes = 24 * 60;
+    const availabilityContext = await buildStaffAvailabilityContext({
+      salonId,
+      serviceIds,
+      date: requestedDate,
     });
 
-    // Filter staff who have ALL the requested services
-    const staffWithService = staffWithServices.filter((staff) => {
-      const staffServiceIds = staff.services.map((s) => s.serviceId);
-      return serviceIds.every((serviceId) => staffServiceIds.includes(serviceId));
-    });
+    for (
+      let currentMinutes = 0;
+      currentMinutes + totalDurationMinutes <= dayMinutes;
+      currentMinutes += slotIntervalMinutes
+    ) {
+      const slotStart = new Date(requestedDate);
+      slotStart.setHours(Math.floor(currentMinutes / 60), currentMinutes % 60, 0, 0);
+      const slotEnd = new Date(slotStart.getTime() + totalDurationMinutes * 60000);
+      const serviceSegments = buildServiceSegments(slotStart, orderedServices);
 
-    // Remove services from the result since we only need id and availability for later logic
-    const filteredStaffWithService = staffWithService.map((staff) => ({
-      id: staff.id,
-      availability: staff.availability,
-    }));
-
-    if (filteredStaffWithService.length === 0) {
-      slots = [];
-    } else {
-      // Get day boundaries
-      const dayStart = new Date(requestedDate);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(requestedDate);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      // Generate slots for each staff member and merge them
-      const allSlotsMap = new Map<
-        string,
-        { startTime: string; endTime: string; available: boolean }
-      >();
-
-      for (const staff of filteredStaffWithService) {
-        const staffAvailability = parseStaffAvailability(staff.availability);
-
-        // Get existing bookings for this staff on the requested date
-        const existingBookings = await prisma.booking.findMany({
-          where: {
-            ...bookingStaffWhere(staff.id),
-            startTime: {
-              gte: dayStart,
-              lte: dayEnd,
-            },
-            status: {
-              notIn: ['CANCELLED', 'NO_SHOW'],
-            },
-          },
-          select: {
-            startTime: true,
-            endTime: true,
-          },
+      if (canAssignStaffToSegmentsFromContext(serviceSegments, availabilityContext)) {
+        slots.push({
+          startTime: slotStart.toISOString(),
+          endTime: slotEnd.toISOString(),
+          available: true,
         });
-
-        // Generate time slots for this staff member using total duration
-        const staffSlots = generateTimeSlots(
-          requestedDate,
-          staffAvailability,
-          totalDurationMinutes,
-          existingBookings
-        );
-
-        // Merge slots: a slot is available if at least one staff member has it available
-        for (const slot of staffSlots) {
-          const slotKey = slot.startTime;
-          const existingSlot = allSlotsMap.get(slotKey);
-
-          if (!existingSlot) {
-            allSlotsMap.set(slotKey, slot);
-          } else if (slot.available && !existingSlot.available) {
-            // If this staff has it available, mark the slot as available
-            existingSlot.available = true;
-          }
-        }
       }
-
-      // Convert map to array and sort by start time
-      slots = Array.from(allSlotsMap.values()).sort((a, b) =>
-        a.startTime.localeCompare(b.startTime)
-      );
     }
   }
 
@@ -1456,6 +1439,10 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
     (total, service) => total + service.durationMinutes,
     0
   );
+  const existingServiceMap = new Map(existingServices.map((service) => [service.id, service]));
+  const orderedExistingServices = existingBooking.serviceIds
+    .map((serviceId) => existingServiceMap.get(serviceId))
+    .filter(Boolean) as (typeof existingServices)[number][];
 
   // Cannot update cancelled or completed bookings
   if (existingBooking.status === 'CANCELLED' || existingBooking.status === 'COMPLETED') {
@@ -1466,6 +1453,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
     startTime?: Date;
     endTime?: Date;
     staffId?: string | null;
+    staffIds?: string[];
     status?: BookingStatus;
   } = {};
 
@@ -1486,22 +1474,15 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
     let targetStaffId: string | null = null;
 
     if (staffId === null) {
-      // Explicitly requesting "any staff" - find available staff and randomly assign
-      const availableStaffIds = await findAvailableStaffForService(
+      const serviceSegments = buildServiceSegments(newStartTime, orderedExistingServices);
+      const assignedStaffIds = await assignAvailableStaffToSegments(
         existingBooking.salonId,
-        existingBooking.serviceIds,
-        newStartTime,
-        newEndTime
+        serviceSegments
       );
 
-      if (availableStaffIds.length === 0) {
-        throw new Error(
-          'No staff members are available for this service at the requested time. Please try a different time or select a specific staff member.'
-        );
-      }
-
-      targetStaffId = selectRandomStaff(availableStaffIds);
+      targetStaffId = assignedStaffIds[0] ?? null;
       updateData.staffId = targetStaffId;
+      updateData.staffIds = assignedStaffIds;
     } else if (staffId !== undefined) {
       // Specific staff requested
       targetStaffId = staffId;
@@ -1510,8 +1491,9 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       targetStaffId = existingBooking.staffId;
     }
 
-    // Check staff availability if we have a target staff
-    if (targetStaffId) {
+    // Check single-staff availability if we have a specific target staff.
+    // Multi-staff "any staff" reschedules are validated during segment assignment above.
+    if (targetStaffId && !updateData.staffIds) {
       // Verify staff can perform ALL the services in the booking
       const staffServices = await prisma.staffService.findMany({
         where: {

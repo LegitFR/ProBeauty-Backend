@@ -28,6 +28,7 @@ Complete API documentation for the ProBeauty appointment booking system.
 - Omit `staffId`/`staffIds` to let the backend automatically assign an available staff member.
 - `staffId: null`, `staffIds: [null]`, `staffIds: []`, empty string values, and `"any"`/`"any_staff"` placeholders are also treated as no staff selection.
 - When no staff is selected, the backend chooses a staff member from the requested salon who can perform the requested service(s) and is available for the requested time.
+- For multi-service bookings, the backend assigns staff per sequential service segment, so different services can be handled by different available staff members.
 
 **Success Response (201 Created):**
 ```json

@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 import type { BookingStatus } from '@/schemas/bookingSchema';
 import * as bookingService from '@/services/bookingService';
@@ -8,7 +8,11 @@ import * as paymentService from '@/services/paymentService';
 /**
  * Create a new booking
  */
-export async function createBooking(req: Request, res: Response): Promise<void> {
+export async function createBooking(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const userId = req.user?.id;
   const { salonId, serviceIds, staffId, staffIds, startTime } = req.body;
 
@@ -17,19 +21,28 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const booking = await bookingService.createBooking({
-    userId,
-    salonId,
-    serviceIds,
-    staffId: staffId || undefined,
-    staffIds: staffIds || undefined,
-    startTime,
-  });
+  try {
+    const booking = await bookingService.createBooking({
+      userId,
+      salonId,
+      serviceIds,
+      staffId: staffId || undefined,
+      staffIds: staffIds || undefined,
+      startTime,
+    });
 
-  res.status(201).json({
-    message: 'Booking created successfully',
-    data: booking,
-  });
+    res.status(201).json({
+      message: 'Booking created successfully',
+      data: booking,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(400).json({ message: error.message });
+      return;
+    }
+
+    next(error);
+  }
 }
 
 /**
