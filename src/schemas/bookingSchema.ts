@@ -5,6 +5,50 @@ const mbwayMobileNumberSchema = z
   .string()
   .regex(/^\d{1,4}#\d{6,15}$/, 'mobileNumber must be in countryCode#number format');
 
+const emptyStaffSelectorValues = new Set(['', 'null', 'undefined', 'any', 'any_staff']);
+
+function normalizeOptionalStaffId(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string' && emptyStaffSelectorValues.has(value.trim().toLowerCase())) {
+    return undefined;
+  }
+
+  return value;
+}
+
+const optionalStaffIdSchema = z.preprocess(
+  normalizeOptionalStaffId,
+  z.string().cuid('Invalid staff ID').optional()
+);
+
+const optionalStaffIdsSchema = z.preprocess(
+  (value) => {
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+
+    if (!Array.isArray(value)) {
+      return value;
+    }
+
+    if (value.length === 0) {
+      return undefined;
+    }
+
+    const normalizedStaffIds = value.map(normalizeOptionalStaffId);
+
+    if (normalizedStaffIds.every((staffId) => staffId === undefined)) {
+      return undefined;
+    }
+
+    return normalizedStaffIds;
+  },
+  z.array(z.string().cuid('Invalid staff ID')).optional()
+);
+
 // Booking status enum
 export const bookingStatusEnum = z.enum([
   'PENDING',
@@ -25,8 +69,8 @@ export const createBookingSchema = z
     serviceIds: z
       .array(z.string().cuid('Invalid service ID'))
       .min(1, 'At least one service is required'),
-    staffId: z.string().cuid('Invalid staff ID').optional(),
-    staffIds: z.array(z.string().cuid('Invalid staff ID')).optional(),
+    staffId: optionalStaffIdSchema,
+    staffIds: optionalStaffIdsSchema,
     startTime: z.string().datetime('Invalid start time format'),
     paymentMethod: ifthenpayPaymentMethodEnum.optional().default('CCARD'),
     mobileNumber: mbwayMobileNumberSchema.optional(),
