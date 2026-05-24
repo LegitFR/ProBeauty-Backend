@@ -1,0 +1,3 @@
+-- Baseline migration: Initial schema
+-- This migration represents the initial database schema
+-- All tables and relationships were created in this migration
