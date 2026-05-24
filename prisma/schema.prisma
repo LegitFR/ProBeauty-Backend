@@ -27,8 +27,9 @@ model User {
   bookings      Booking[]
   cart          Cart?
   deviceTokens  DeviceToken[]
-  favourites    Favourite[]
-  notifications Notification[]
+  favourites        Favourite[]
+  salonFavourites   SalonFavourite[]
+  notifications     Notification[]
   orders        Order[]
   reviews       Review[]
   staffReviews  StaffReview[]
@@ -50,14 +51,15 @@ model Salon {
   thumbnail String?
   images    String[]
   venueType String    @default("everyone") @map("venue_type")
-  bookings  Booking[]
-  orders    Order[]
-  products  Product[]
-  reviews   Review[]
-  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  services  Service[]
-  staff     Staff[]
-  offers    Offer[]
+  bookings        Booking[]
+  orders          Order[]
+  products        Product[]
+  reviews         Review[]
+  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  services        Service[]
+  staff           Staff[]
+  offers          Offer[]
+  favouritedBy    SalonFavourite[]
 
   @@index([ownerId])
   @@map("salons")
@@ -368,6 +370,20 @@ model Favourite {
   @@index([userId])
   @@index([productId])
   @@map("favourites")
+}
+
+model SalonFavourite {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  salonId   String   @map("salon_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, salonId])
+  @@index([userId])
+  @@index([salonId])
+  @@map("salon_favourites")
 }
 
 model DeviceToken {

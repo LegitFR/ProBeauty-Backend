@@ -1,6 +1,7 @@
 import type { Cart, CartItem, Product } from '@prisma/client';
 
 import { prisma } from '@/configs/db';
+import { AppError } from '@/utils/AppError';
 
 /**
  * Extended CartItem with product details
@@ -60,11 +61,11 @@ export async function addItemToCart(
   });
 
   if (!product) {
-    throw new Error('Product not found');
+    throw new AppError('Product not found', 404);
   }
 
   if (product.quantity < quantity) {
-    throw new Error(`Insufficient stock. Only ${product.quantity} items available`);
+    throw new AppError(`Insufficient stock. Only ${product.quantity} items available`, 400);
   }
 
   // Get or create cart
@@ -84,8 +85,9 @@ export async function addItemToCart(
 
     // Check if new quantity exceeds stock
     if (product.quantity < newQuantity) {
-      throw new Error(
-        `Cannot add ${quantity} more items. Only ${product.quantity - existingCartItem.quantity} more available`
+      throw new AppError(
+        `Cannot add ${quantity} more items. Only ${product.quantity - existingCartItem.quantity} more available`,
+        400
       );
     }
 
@@ -125,11 +127,11 @@ export async function updateCartItem(
   });
 
   if (!product) {
-    throw new Error('Product not found');
+    throw new AppError('Product not found', 404);
   }
 
   if (product.quantity < quantity) {
-    throw new Error(`Insufficient stock. Only ${product.quantity} items available`);
+    throw new AppError(`Insufficient stock. Only ${product.quantity} items available`, 400);
   }
 
   // Get cart
@@ -144,7 +146,7 @@ export async function updateCartItem(
   });
 
   if (!cartItem) {
-    throw new Error('Item not found in cart');
+    throw new AppError('Item not found in cart', 404);
   }
 
   // Update quantity
@@ -173,7 +175,7 @@ export async function removeCartItem(userId: string, productId: string): Promise
   });
 
   if (!cartItem) {
-    throw new Error('Item not found in cart');
+    throw new AppError('Item not found in cart', 404);
   }
 
   // Delete cart item
@@ -216,7 +218,7 @@ export async function getCartWithDetails(userId: string): Promise<CartSummary> {
   });
 
   if (!cartWithItems) {
-    throw new Error('Cart not found');
+    throw new AppError('Cart not found', 500);
   }
 
   // Calculate totals

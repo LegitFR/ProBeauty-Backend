@@ -1,5 +1,6 @@
 import { prisma } from '@/configs/db';
 import { BOOKING_STATUS } from '@/constants/bookingStatus';
+import { AppError } from '@/utils/AppError';
 
 interface CreateStaffReviewData {
   userId: string;
@@ -52,18 +53,18 @@ export async function createStaffReview(data: CreateStaffReviewData) {
   });
 
   if (!booking || booking.userId !== userId) {
-    throw new Error('Booking not found or unauthorized');
+    throw new AppError('Booking not found or unauthorized', 404);
   }
 
   const bookingStaffIds =
     booking.staffIds.length > 0 ? booking.staffIds : booking.staffId ? [booking.staffId] : [];
 
   if (!bookingStaffIds.includes(staffId)) {
-    throw new Error('Booking does not belong to this staff member');
+    throw new AppError('Booking does not belong to this staff member', 400);
   }
 
   if (booking.status !== BOOKING_STATUS.COMPLETED) {
-    throw new Error('Can only review staff after completing a booking');
+    throw new AppError('Can only review staff after completing a booking', 400);
   }
 
   const existingReview = await prisma.staffReview.findUnique({
@@ -71,7 +72,7 @@ export async function createStaffReview(data: CreateStaffReviewData) {
   });
 
   if (existingReview) {
-    throw new Error('You have already reviewed this staff member');
+    throw new AppError('You have already reviewed this staff member', 400);
   }
 
   const review = await prisma.$transaction(async (tx) => {
@@ -198,11 +199,11 @@ export async function updateStaffReview(id: string, userId: string, data: Update
   });
 
   if (!review) {
-    throw new Error('Staff review not found');
+    throw new AppError('Staff review not found', 404);
   }
 
   if (review.userId !== userId) {
-    throw new Error('Unauthorized: You can only update your own reviews');
+    throw new AppError('Unauthorized: You can only update your own reviews', 403);
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -245,11 +246,11 @@ export async function deleteStaffReview(id: string, userId: string) {
   });
 
   if (!review) {
-    throw new Error('Staff review not found');
+    throw new AppError('Staff review not found', 404);
   }
 
   if (review.userId !== userId) {
-    throw new Error('Unauthorized: You can only delete your own reviews');
+    throw new AppError('Unauthorized: You can only delete your own reviews', 403);
   }
 
   const staffId = review.staffId;

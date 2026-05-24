@@ -1,153 +1,347 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You're Invited – ProBeauty Team</title>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
       body {
-        font-family: Arial, sans-serif;
-        line-height: 1.6;
-        color: #1a1a1a;
-        background-color: #f8f8f8;
+        font-family: 'Inter', Arial, sans-serif;
+        background-color: #0f0f0f;
+        color: #f5f5f5;
         margin: 0;
-        padding: 24px;
+        padding: 32px 16px;
+        -webkit-font-smoothing: antialiased;
       }
 
-      .container {
-        max-width: 560px;
+      .wrapper {
+        max-width: 580px;
         margin: 0 auto;
-        background: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        border: 1px solid #e0e0e0;
       }
 
-      .header {
-        background: #1a1a1a;
-        color: white;
-        padding: 20px;
+      .logo-bar {
         text-align: center;
+        padding: 24px 0 20px;
       }
 
-      .header h1 {
-        margin: 0;
-        font-size: 20px;
-        font-weight: bold;
-        background-color: #6a0dad;
-        padding: 10px;
-        border-radius: 6px;
-      }
-
-      .content {
-        padding: 24px;
-        text-align: center;
-      }
-
-      .content p {
-        margin: 16px 0;
-        font-size: 14px;
-        color: #555;
-      }
-
-      .highlight {
-        color: #1a1a1a;
-        font-weight: bold;
-      }
-
-      .otp {
+      .logo-text {
         font-size: 28px;
-        font-weight: bold;
-        color: #6a0dad;
-        margin: 20px 0;
-        letter-spacing: 2px;
-        font-family: 'Courier New', monospace;
-      }
-
-      .note {
-        margin: 20px 0;
-        padding: 12px;
-        background: #f3f0ff;
-        border: 1px solid #d3bfff;
-        border-radius: 6px;
-        font-size: 13px;
-        color: #4a148c;
-      }
-
-      .button {
-        display: inline-block;
-        margin-top: 20px;
-        background-color: #6a0dad;
+        font-weight: 900;
+        letter-spacing: -1px;
         color: #ffffff;
-        padding: 12px 24px;
+        line-height: 1;
+        display: inline-block;
+      }
+
+      .logo-text .b-accent {
+        color: #ff8200;
+      }
+
+      .logo-sub {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 3px;
+        color: #ff8200;
+        text-align: right;
+        margin-top: -4px;
+        text-transform: lowercase;
+      }
+
+      .card {
+        background: #1a1a1a;
+        border-radius: 16px;
+        border: 1px solid #2a2a2a;
+        overflow: hidden;
+      }
+
+      .hero {
+        background: linear-gradient(160deg, #1c1200 0%, #1a1a1a 60%);
+        border-bottom: 1px solid #2a2a2a;
+        padding: 44px 32px 40px;
+        text-align: center;
+        position: relative;
+      }
+
+      .hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #ff8200, #e06600, #ff8200);
+      }
+
+      .invite-badge {
+        width: 76px;
+        height: 76px;
+        background: linear-gradient(135deg, #ff8200, #e06600);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 22px;
+        font-size: 36px;
+        line-height: 76px;
+        box-shadow: 0 8px 32px rgba(255, 130, 0, 0.3);
+      }
+
+      .hero h1 {
+        font-size: 26px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 10px;
+        letter-spacing: -0.5px;
+      }
+
+      .hero p {
+        font-size: 15px;
+        color: #888888;
+        line-height: 1.6;
+      }
+
+      .body {
+        padding: 36px 32px;
+        text-align: center;
+      }
+
+      .greeting {
+        font-size: 15px;
+        color: #aaaaaa;
+        margin-bottom: 12px;
+      }
+
+      .greeting strong {
+        color: #f5f5f5;
+        font-weight: 600;
+      }
+
+      .message {
+        font-size: 14px;
+        color: #888888;
+        line-height: 1.7;
+        margin-bottom: 28px;
+      }
+
+      /* Credentials card */
+      .credentials-card {
+        background: #111111;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        text-align: left;
+      }
+
+      .credentials-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #555555;
+        margin-bottom: 16px;
+      }
+
+      .credential-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #1e1e1e;
+      }
+
+      .credential-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .credential-row:first-of-type {
+        padding-top: 0;
+      }
+
+      .cred-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #555555;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .cred-value {
+        font-size: 14px;
+        color: #f5f5f5;
+        font-weight: 500;
+      }
+
+      .cred-value.password {
+        color: #ff8200;
+        font-size: 22px;
+        font-weight: 800;
+        font-family: 'Courier New', Courier, monospace;
+        letter-spacing: 4px;
+      }
+
+      /* CTA Button */
+      .cta-section {
+        margin-bottom: 24px;
+      }
+
+      .cta-btn {
+        display: inline-block;
+        background: linear-gradient(135deg, #ff8200, #e06600);
+        color: #ffffff;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 14px 36px;
+        border-radius: 50px;
         text-decoration: none;
-        border-radius: 5px;
-        font-weight: bold;
+        letter-spacing: 0.3px;
+        box-shadow: 0 4px 20px rgba(255, 130, 0, 0.3);
+      }
+
+      /* Warning note */
+      .note {
+        background: #1f1400;
+        border: 1px solid #3d2800;
+        border-left: 3px solid #ff8200;
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-size: 13px;
+        color: #c0934d;
+        line-height: 1.6;
+        text-align: left;
+      }
+
+      .note strong {
+        color: #ff8200;
       }
 
       .footer {
-        background: #f8f8f8;
-        padding: 16px;
+        background: #111111;
+        border-top: 1px solid #2a2a2a;
+        padding: 24px 32px;
         text-align: center;
-        font-size: 12px;
-        color: #666;
       }
 
       .footer p {
-        margin: 4px 0;
+        font-size: 12px;
+        color: #555555;
+        line-height: 1.7;
+        margin-bottom: 4px;
       }
 
       .footer a {
-        color: #6a0dad;
+        color: #ff8200;
         text-decoration: none;
-        font-weight: bold;
+        font-weight: 500;
       }
 
-      .footer a:hover {
-        text-decoration: underline;
+      .footer .divider {
+        width: 40px;
+        height: 1px;
+        background: #2a2a2a;
+        margin: 14px auto;
+      }
+
+      .footer .copyright {
+        font-size: 11px;
+        color: #444444;
       }
 
       @media screen and (max-width: 600px) {
         body {
-          padding: 16px;
+          padding: 20px 12px;
         }
 
-        .container {
-          margin: 16px auto;
+        .hero,
+        .body {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        .footer {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        .credential-row {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
         }
       }
     </style>
   </head>
 
   <body>
-    <div class="container">
-      <!-- Header -->
-      <div class="header">
-        <h1>TalkTime Mobile App</h1>
-      </div>
-
-      <!-- Content -->
-      <div class="content">
-        <p>Hello <span class="highlight">{{email}}</span>,</p>
-        <p>
-          You have been successfully added as an employee to <strong>TalkTime Mobile App</strong>.
-        </p>
-        <p>Please log in using your email and the temporary password provided below:</p>
-        <div class="otp">1234</div>
-        <a class="button" href="https://rahil.pro">Login Now</a>
-        <div class="note">
-          ⚠️ This is your temporary password. For your security, please use the
-          <strong>“Forgot Password”</strong> option to set a new password immediately after your
-          first login.
+    <div class="wrapper">
+      <!-- Logo -->
+      <div class="logo-bar">
+        <div class="logo-text">
+          pro<span class="b-accent">b</span>eauty
+          <div class="logo-sub">app</div>
         </div>
-        <p>
-          If you were not expecting this invitation, please contact us at
-          <a href="mailto:rahilisvahora@gmail.com">rahilisvahora@gmail.com</a>.
-        </p>
       </div>
 
-      <!-- Footer -->
-      <div class="footer">
-        <p>This is an automated message. Please do not reply. Need help? Contact Us</p>
-        <p>&copy; 2025 <a href="https://www.rahil.pro">Rahil Vahora</a>. All rights reserved.</p>
+      <div class="card">
+        <!-- Hero -->
+        <div class="hero">
+          <div class="invite-badge">🎊</div>
+          <h1>You're Invited to the Team!</h1>
+          <p>You've been added as a staff member on ProBeauty</p>
+        </div>
+
+        <!-- Body -->
+        <div class="body">
+          <p class="greeting">Hello, <strong>{{email}}</strong> 👋</p>
+          <p class="message">
+            Congratulations! You have been successfully added as a staff member on
+            <strong style="color: #ff8200">ProBeauty App</strong>. Use the credentials below to log
+            in to your new account for the first time.
+          </p>
+
+          <!-- Credentials -->
+          <div class="credentials-card">
+            <div class="credentials-title">🔐 Your Login Credentials</div>
+            <div class="credential-row">
+              <span class="cred-label">Email</span>
+              <span class="cred-value">{{email}}</span>
+            </div>
+            <div class="credential-row">
+              <span class="cred-label">Temp Password</span>
+              <span class="cred-value password">{{tempPassword}}</span>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="cta-section">
+            <a href="{{loginUrl}}" class="cta-btn">Login to ProBeauty →</a>
+          </div>
+
+          <div class="note">
+            ⚠️ <strong>Important:</strong> This is a temporary password. For your security, please
+            use the <strong>"Forgot Password"</strong> option immediately after your first login to
+            set a strong, personal password.
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+          <p>
+            Not expecting this invitation?
+            <a href="mailto:support@probeautyapp.com">Contact Support</a>
+          </p>
+          <div class="divider"></div>
+          <p class="copyright">&copy; 2025 ProBeauty App. All rights reserved.</p>
+        </div>
       </div>
     </div>
   </body>

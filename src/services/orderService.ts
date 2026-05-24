@@ -11,6 +11,7 @@ import {
   type IfthenpayPaymentSession,
   initiateIfthenpayPayment,
 } from '@/services/ifthenpayService';
+import { AppError } from '@/utils/AppError';
 import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
 import { generatePaymentReference } from '@/utils/paymentUtils';
 
@@ -64,14 +65,14 @@ export async function createOrderWithPayment(
   // Validate cart has items and sufficient stock
   const validation = await cartService.validateCartForCheckout(userId);
   if (!validation.valid) {
-    throw new Error(`Cart validation failed: ${validation.errors.join(', ')}`);
+    throw new AppError(`Cart validation failed: ${validation.errors.join(', ')}`, 400);
   }
 
   // Get cart details
   const { cart } = await cartService.getCartWithDetails(userId);
 
   if (cart.cartItems.length === 0) {
-    throw new Error('Cart is empty');
+    throw new AppError('Cart is empty', 400);
   }
 
   // Verify address exists and belongs to user
@@ -80,11 +81,11 @@ export async function createOrderWithPayment(
   });
 
   if (!address) {
-    throw new Error('Address not found');
+    throw new AppError('Address not found', 404);
   }
 
   if (address.userId !== userId) {
-    throw new Error('Unauthorized: You do not own this address');
+    throw new AppError('Unauthorized: You do not own this address', 403);
   }
 
   const user = await prisma.user.findUnique({
@@ -95,7 +96,7 @@ export async function createOrderWithPayment(
   });
 
   if (!user) {
-    throw new Error('User not found');
+    throw new AppError('User not found', 404);
   }
 
   // Determine salonId: set if all items from one salon, null if multiple salons
@@ -237,7 +238,7 @@ export async function createOrderWithPayment(
   });
 
   if (!order) {
-    throw new Error('Failed to create order');
+    throw new AppError('Failed to create order', 500);
   }
 
   const serializedOrder = JSON.parse(
@@ -266,14 +267,14 @@ export async function createOrderFromCart(
   // Validate cart has items and sufficient stock
   const validation = await cartService.validateCartForCheckout(userId);
   if (!validation.valid) {
-    throw new Error(`Cart validation failed: ${validation.errors.join(', ')}`);
+    throw new AppError(`Cart validation failed: ${validation.errors.join(', ')}`, 400);
   }
 
   // Get cart details
   const { cart } = await cartService.getCartWithDetails(userId);
 
   if (cart.cartItems.length === 0) {
-    throw new Error('Cart is empty');
+    throw new AppError('Cart is empty', 400);
   }
 
   // Verify address exists and belongs to user
@@ -282,11 +283,11 @@ export async function createOrderFromCart(
   });
 
   if (!address) {
-    throw new Error('Address not found');
+    throw new AppError('Address not found', 404);
   }
 
   if (address.userId !== userId) {
-    throw new Error('Unauthorized: You do not own this address');
+    throw new AppError('Unauthorized: You do not own this address', 403);
   }
 
   // Determine salonId: set if all items from one salon, null if multiple salons
@@ -376,7 +377,7 @@ export async function createOrderFromCart(
   });
 
   if (!order) {
-    throw new Error('Failed to create order');
+    throw new AppError('Failed to create order', 500);
   }
 
   // Get salon names for notification (handle multiple salons)
@@ -450,7 +451,7 @@ export async function getOrderById(orderId: string, userId: string): Promise<Ord
   });
 
   if (!order) {
-    throw new Error('Order not found');
+    throw new AppError('Order not found', 404);
   }
 
   // Check authorization: user must be order owner or owner of any salon with products in order
@@ -474,7 +475,7 @@ export async function getOrderById(orderId: string, userId: string): Promise<Ord
   }
 
   if (!isOrderOwner && !isSalonOwner) {
-    throw new Error('Unauthorized: You do not have access to this order');
+    throw new AppError('Unauthorized: You do not have access to this order', 403);
   }
 
   return order;
@@ -570,7 +571,7 @@ export async function updateOrderStatus(
   });
 
   if (!order) {
-    throw new Error('Order not found');
+    throw new AppError('Order not found', 404);
   }
 
   // Check if user owns any salon that has products in this order
@@ -591,13 +592,13 @@ export async function updateOrderStatus(
   }
 
   if (!isSalonOwner) {
-    throw new Error('Unauthorized: Only salon owner can update order status');
+    throw new AppError('Unauthorized: Only salon owner can update order status', 403);
   }
 
   // Validate status transition
   const currentStatus = order.status as OrderStatus;
   if (!isValidStatusTransition(currentStatus, newStatus)) {
-    throw new Error(`Invalid status transition from ${currentStatus} to ${newStatus}`);
+    throw new AppError(`Invalid status transition from ${currentStatus} to ${newStatus}`, 400);
   }
 
   // Update order status
@@ -724,7 +725,7 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
   });
 
   if (!order) {
-    throw new Error('Order not found');
+    throw new AppError('Order not found', 404);
   }
 
   // Check authorization
@@ -748,7 +749,7 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
   }
 
   if (!isOrderOwner && !isSalonOwner) {
-    throw new Error('Unauthorized: You cannot cancel this order');
+    throw new AppError('Unauthorized: You cannot cancel this order', 403);
   }
 
   // Check if order can be cancelled
@@ -758,7 +759,7 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
     currentStatus === ORDER_STATUS.DELIVERED ||
     currentStatus === ORDER_STATUS.CANCELLED
   ) {
-    throw new Error(`Cannot cancel order with status ${currentStatus}`);
+    throw new AppError(`Cannot cancel order with status ${currentStatus}`, 400);
   }
 
   // Cancel order and restore quantities in transaction (with increased timeout for serverless DB)
@@ -806,7 +807,7 @@ export async function cancelOrder(orderId: string, userId: string): Promise<Orde
   });
 
   if (!cancelledOrder) {
-    throw new Error('Failed to fetch cancelled order');
+    throw new AppError('Failed to fetch cancelled order', 500);
   }
 
   // Get salon names for notification (handle multiple salons)

@@ -1,17 +1,24 @@
 import { z, type AnyZodObject } from 'zod';
 
-// Schema for adding a product to favourites
 export const addFavouriteSchema: AnyZodObject = z.object({
-  productId: z.string().cuid('Invalid product ID format'),
+  type: z.enum(['product', 'salon']),
+  itemId: z.string().cuid('Invalid ID format'),
 });
 
-// Schema for product ID parameter
-export const productIdParamsSchema: AnyZodObject = z.object({
-  productId: z.string().cuid('Invalid product ID format'),
+export const itemIdParamsSchema: AnyZodObject = z.object({
+  id: z.string().cuid('Invalid ID format'),
 });
 
-// Schema for pagination query parameters
 export const favouriteQuerySchema: AnyZodObject = z.object({
+  type: z.enum(['product', 'salon']),
   page: z.string().transform(Number).optional(),
   limit: z.string().transform(Number).optional(),
+});
+
+export const checkFavouriteParamsSchema: AnyZodObject = z.object({
+  id: z.string().cuid('Invalid ID format'),
+});
+
+export const checkFavouriteQuerySchema: AnyZodObject = z.object({
+  type: z.enum(['product', 'salon']),
 });

@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '@/configs/db';
+import { AppError } from '@/utils/AppError';
 
 interface CreateStaffData {
   name: string;
@@ -33,7 +34,7 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
   });
 
   if (!salon || salon.ownerId !== ownerId) {
-    throw new Error('Unauthorized: You do not own this salon');
+    throw new AppError('Unauthorized: You do not own this salon', 403);
   }
 
   // If userId is provided, verify the user exists
@@ -43,7 +44,7 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError('User not found', 404);
     }
   }
 
@@ -55,7 +56,7 @@ export async function createStaff(ownerId: string, data: CreateStaffData) {
   });
 
   if (!service || service.salonId !== data.salonId) {
-    throw new Error('Service not found or does not belong to this salon');
+    throw new AppError('Service not found or does not belong to this salon', 404);
   }
 
   return prisma.staff.create({
@@ -245,7 +246,7 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new AppError('User not found', 404);
     }
   }
 
@@ -258,7 +259,7 @@ export async function updateStaff(id: string, ownerId: string, data: UpdateStaff
     });
 
     if (!service || service.salonId !== staff.salonId) {
-      throw new Error('Service not found or does not belong to this salon');
+      throw new AppError('Service not found or does not belong to this salon', 404);
     }
 
     // Update service association (delete old and create new)

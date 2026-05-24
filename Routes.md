@@ -42,9 +42,10 @@ All routes should be prefixed with `/api/v1` for version control.
 | **DELETE** | `/users/bookings/:id/cancel` | Cancel a booking.                               |
 | **GET**    | `/users/notifications`       | Fetch user notifications (reminders, offers).   |
 | **GET**    | `/users/loyalty`             | Get loyalty points or membership info.          |
-| **GET**    | `/users/favorites`           | Get list of favorite salons.                    |
-| **POST**   | `/users/favorites/:salonId`  | Add a salon to favorites.                       |
-| **DELETE** | `/users/favorites/:salonId`  | Remove salon from favorites.                    |
+| **POST**   | `/favourites`                              | Add a product or salon to favourites (`{ type, itemId }` in body). |
+| **GET**    | `/favourites?type=product\|salon`          | Get paginated list of favourite products or salons.                |
+| **GET**    | `/favourites/check/:id?type=product\|salon`| Check if a specific product or salon is favourited.                |
+| **DELETE** | `/favourites/:id?type=product\|salon`      | Remove a product or salon from favourites.                         |
 
 ---
 

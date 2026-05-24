@@ -22,6 +22,7 @@ import staffReview from '@/routes/staffReviewRoute';
 import staff from '@/routes/staffRoute';
 import user from '@/routes/userRoute';
 import webhooks from '@/routes/webhookRoutes';
+import { verifyEmailTransporter } from '@/services/sendEmail';
 import './services/notificationEventListeners';
 
 const app: Express = express();
@@ -40,6 +41,16 @@ const initializeApp = async () => {
     console.info('🔄 Starting ProBeauty Backend...');
     console.info('📍 Working Directory:', process.cwd());
     await connectToDatabase();
+
+    // Verify SMTP connection early — catches bad credentials or host issues
+    // before any real traffic hits the email-sending endpoints.
+    try {
+      await verifyEmailTransporter();
+      console.info('✅ SMTP email transporter verified successfully');
+    } catch (emailError) {
+      console.error('⚠️  SMTP verification failed — emails will not be delivered:', emailError);
+      // Non-fatal: server still starts, but email-related features won't work
+    }
 
     // Apply all middleware first (including morgan logger)
     applyMiddleware(app);

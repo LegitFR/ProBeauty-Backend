@@ -2,11 +2,300 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Email Address Updated</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Updated Successfully – ProBeauty</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Inter', Arial, sans-serif;
+        background-color: #0f0f0f;
+        color: #f5f5f5;
+        margin: 0;
+        padding: 32px 16px;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrapper {
+        max-width: 580px;
+        margin: 0 auto;
+      }
+
+      .logo-bar {
+        text-align: center;
+        padding: 24px 0 20px;
+      }
+
+      .logo-text {
+        font-size: 28px;
+        font-weight: 900;
+        letter-spacing: -1px;
+        color: #ffffff;
+        line-height: 1;
+        display: inline-block;
+      }
+
+      .logo-text .b-accent {
+        color: #ff8200;
+      }
+
+      .logo-sub {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 3px;
+        color: #ff8200;
+        text-align: right;
+        margin-top: -4px;
+        text-transform: lowercase;
+      }
+
+      .card {
+        background: #1a1a1a;
+        border-radius: 16px;
+        border: 1px solid #2a2a2a;
+        overflow: hidden;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #1a1f1a 0%, #131513 100%);
+        border-bottom: 1px solid #2a2a2a;
+        padding: 40px 32px 36px;
+        text-align: center;
+      }
+
+      .success-badge {
+        width: 72px;
+        height: 72px;
+        background: linear-gradient(135deg, #ff8200, #e06600);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        font-size: 34px;
+        line-height: 72px;
+      }
+
+      .hero h1 {
+        font-size: 26px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 10px;
+        letter-spacing: -0.5px;
+      }
+
+      .hero p {
+        font-size: 15px;
+        color: #888888;
+        line-height: 1.6;
+      }
+
+      .body {
+        padding: 36px 32px;
+        text-align: center;
+      }
+
+      .greeting {
+        font-size: 15px;
+        color: #aaaaaa;
+        margin-bottom: 16px;
+      }
+
+      .greeting strong {
+        color: #f5f5f5;
+        font-weight: 600;
+      }
+
+      .message {
+        font-size: 14px;
+        color: #888888;
+        line-height: 1.7;
+        margin-bottom: 28px;
+      }
+
+      .info-card {
+        background: #111111;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        text-align: left;
+      }
+
+      .info-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #1e1e1e;
+      }
+
+      .info-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .info-row:first-child {
+        padding-top: 0;
+      }
+
+      .info-icon {
+        font-size: 16px;
+        width: 20px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+
+      .info-text {
+        font-size: 13px;
+        color: #888888;
+        line-height: 1.5;
+      }
+
+      .info-text strong {
+        color: #ff8200;
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+      }
+
+      .alert-box {
+        background: #1f1400;
+        border: 1px solid #3d2800;
+        border-left: 3px solid #ff8200;
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-size: 13px;
+        color: #c0934d;
+        line-height: 1.6;
+        text-align: left;
+      }
+
+      .alert-box strong {
+        color: #ff8200;
+      }
+
+      .footer {
+        background: #111111;
+        border-top: 1px solid #2a2a2a;
+        padding: 24px 32px;
+        text-align: center;
+      }
+
+      .footer p {
+        font-size: 12px;
+        color: #555555;
+        line-height: 1.7;
+        margin-bottom: 4px;
+      }
+
+      .footer a {
+        color: #ff8200;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .footer .divider {
+        width: 40px;
+        height: 1px;
+        background: #2a2a2a;
+        margin: 14px auto;
+      }
+
+      .footer .copyright {
+        font-size: 11px;
+        color: #444444;
+      }
+
+      @media screen and (max-width: 600px) {
+        body {
+          padding: 20px 12px;
+        }
+
+        .hero,
+        .body {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        .footer {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+      }
+    </style>
   </head>
+
   <body>
-    <h1>Email updated successfully, {{ name }}</h1>
-    <p>Your email address has been updated.</p>
-    <p>If you did not make this change, please contact support immediately.</p>
+    <div class="wrapper">
+      <!-- Logo -->
+      <div class="logo-bar">
+        <div class="logo-text">
+          pro<span class="b-accent">b</span>eauty
+          <div class="logo-sub">app</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <!-- Hero -->
+        <div class="hero">
+          <div class="success-badge">✅</div>
+          <h1>Email Updated Successfully</h1>
+          <p>Your ProBeauty account email has been changed</p>
+        </div>
+
+        <!-- Body -->
+        <div class="body">
+          <p class="greeting">Hello, <strong>{{name}}</strong></p>
+          <p class="message">
+            Your email address has been successfully updated on your ProBeauty account. You can now
+            use your new email to sign in and receive notifications.
+          </p>
+
+          <div class="info-card">
+            <div class="info-row">
+              <div class="info-icon">📅</div>
+              <div class="info-text">
+                <strong>Changed On</strong>
+                Your email was updated just now
+              </div>
+            </div>
+            <div class="info-row">
+              <div class="info-icon">🔒</div>
+              <div class="info-text">
+                <strong>Account Security</strong>
+                All active sessions remain valid
+              </div>
+            </div>
+          </div>
+
+          <div class="alert-box">
+            ⚠️ <strong>Didn't make this change?</strong> If you did not update your email address,
+            your account may be compromised. Contact our support team immediately at
+            <a href="mailto:support@probeautyapp.com" style="color: #ff8200"
+              >support@probeautyapp.com</a
+            >.
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+          <p>
+            Need help? <a href="mailto:support@probeautyapp.com">Contact Support</a>
+          </p>
+          <div class="divider"></div>
+          <p class="copyright">&copy; 2025 ProBeauty App. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

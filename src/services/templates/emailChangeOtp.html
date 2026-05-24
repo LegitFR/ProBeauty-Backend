@@ -2,15 +2,270 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Confirm Your New Email Address</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirm Your New Email – ProBeauty</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Inter', Arial, sans-serif;
+        background-color: #0f0f0f;
+        color: #f5f5f5;
+        margin: 0;
+        padding: 32px 16px;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrapper {
+        max-width: 580px;
+        margin: 0 auto;
+      }
+
+      .logo-bar {
+        text-align: center;
+        padding: 24px 0 20px;
+      }
+
+      .logo-text {
+        font-size: 28px;
+        font-weight: 900;
+        letter-spacing: -1px;
+        color: #ffffff;
+        line-height: 1;
+        display: inline-block;
+      }
+
+      .logo-text .b-accent {
+        color: #ff8200;
+      }
+
+      .logo-sub {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 3px;
+        color: #ff8200;
+        text-align: right;
+        margin-top: -4px;
+        text-transform: lowercase;
+      }
+
+      .card {
+        background: #1a1a1a;
+        border-radius: 16px;
+        border: 1px solid #2a2a2a;
+        overflow: hidden;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #1a1a22 0%, #131318 100%);
+        border-bottom: 1px solid #2a2a2a;
+        padding: 40px 32px 36px;
+        text-align: center;
+      }
+
+      .hero-icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, #ff8200, #e06600);
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        font-size: 30px;
+        line-height: 64px;
+      }
+
+      .hero h1 {
+        font-size: 26px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 10px;
+        letter-spacing: -0.5px;
+      }
+
+      .hero p {
+        font-size: 15px;
+        color: #888888;
+        line-height: 1.6;
+      }
+
+      .body {
+        padding: 36px 32px;
+        text-align: center;
+      }
+
+      .greeting {
+        font-size: 15px;
+        color: #aaaaaa;
+        margin-bottom: 8px;
+      }
+
+      .greeting strong {
+        color: #f5f5f5;
+        font-weight: 600;
+      }
+
+      .instruction {
+        font-size: 14px;
+        color: #888888;
+        line-height: 1.7;
+        margin-bottom: 28px;
+      }
+
+      .otp-wrapper {
+        background: #111111;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 28px 24px;
+        margin: 0 auto 28px;
+        max-width: 320px;
+      }
+
+      .otp-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #555555;
+        margin-bottom: 12px;
+      }
+
+      .otp-code {
+        font-size: 44px;
+        font-weight: 800;
+        color: #ff8200;
+        letter-spacing: 10px;
+        font-family: 'Courier New', Courier, monospace;
+        line-height: 1;
+      }
+
+      .note {
+        background: #1f1400;
+        border: 1px solid #3d2800;
+        border-left: 3px solid #ff8200;
+        border-radius: 8px;
+        padding: 14px 16px;
+        font-size: 13px;
+        color: #c0934d;
+        line-height: 1.6;
+        text-align: left;
+        margin-bottom: 8px;
+      }
+
+      .note strong {
+        color: #ff8200;
+      }
+
+      .footer {
+        background: #111111;
+        border-top: 1px solid #2a2a2a;
+        padding: 24px 32px;
+        text-align: center;
+      }
+
+      .footer p {
+        font-size: 12px;
+        color: #555555;
+        line-height: 1.7;
+        margin-bottom: 4px;
+      }
+
+      .footer a {
+        color: #ff8200;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .footer .divider {
+        width: 40px;
+        height: 1px;
+        background: #2a2a2a;
+        margin: 14px auto;
+      }
+
+      .footer .copyright {
+        font-size: 11px;
+        color: #444444;
+      }
+
+      @media screen and (max-width: 600px) {
+        body {
+          padding: 20px 12px;
+        }
+
+        .hero,
+        .body {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        .footer {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        .otp-code {
+          font-size: 36px;
+          letter-spacing: 8px;
+        }
+      }
+    </style>
   </head>
+
   <body>
-    <h1>Confirm your new email, {{ name }}</h1>
-    <p>Use the following one-time code to confirm your new email address:</p>
-    <p style="font-size: 24px; font-weight: bold">{{ otp }}</p>
-    <p>
-      This code will expire in 10 minutes. If you did not request this change, you can safely ignore
-      this email.
-    </p>
+    <div class="wrapper">
+      <!-- Logo -->
+      <div class="logo-bar">
+        <div class="logo-text">
+          pro<span class="b-accent">b</span>eauty
+          <div class="logo-sub">app</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <!-- Hero -->
+        <div class="hero">
+          <div class="hero-icon">📧</div>
+          <h1>Confirm New Email Address</h1>
+          <p>Verify that this new email belongs to you</p>
+        </div>
+
+        <!-- Body -->
+        <div class="body">
+          <p class="greeting">Hello, <strong>{{name}}</strong></p>
+          <p class="instruction">
+            You recently requested to change your email address on ProBeauty. Enter the code below
+            to confirm your new email address. This code expires in 10 minutes.
+          </p>
+
+          <div class="otp-wrapper">
+            <div class="otp-label">Confirmation code</div>
+            <div class="otp-code">{{otp}}</div>
+          </div>
+
+          <div class="note">
+            ⏱ <strong>Expires in 10 minutes.</strong> If you did not request an email change, your
+            account may be at risk — please contact support immediately.
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+          <p>
+            Didn't request this change?
+            <a href="mailto:support@probeautyapp.com">Contact Support</a>
+          </p>
+          <div class="divider"></div>
+          <p class="copyright">&copy; 2025 ProBeauty App. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

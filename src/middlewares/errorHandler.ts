@@ -1,14 +1,26 @@
 import type { NextFunction, Request, Response } from 'express';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-export const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction): void => {
+import { AppError } from '@/utils/AppError';
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const errorHandler = (
+  err: Error,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+): void => {
   console.error('❌ Error:', err.stack || err);
 
-  const statusCode = err.status || err.statusCode || 500;
+  const statusCode =
+    err instanceof AppError
+      ? err.statusCode
+      : ((err as Error & { status?: number; statusCode?: number }).status ??
+        (err as Error & { status?: number; statusCode?: number }).statusCode ??
+        500);
 
   res.status(statusCode).json({
     success: false,
     message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

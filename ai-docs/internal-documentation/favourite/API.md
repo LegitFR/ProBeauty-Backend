@@ -11,11 +11,13 @@ Complete reference for favourite/wishlist management endpoints in the ProBeauty 
 - Pagination: Default limit is 10 items per page
 - ID Format: All IDs use CUID format
 
+The favourites API is unified — the `type` field/query param controls whether the operation targets a **product** or a **salon**. Both share the same four endpoints.
+
 ---
 
 ## Data Structures
 
-### Favourite Object
+### Product Favourite Object
 
 ```json
 {
@@ -39,6 +41,28 @@ Complete reference for favourite/wishlist management endpoints in the ProBeauty 
 }
 ```
 
+### Salon Favourite Object
+
+```json
+{
+  "id": "clxxx987654321",
+  "userId": "usr_123",
+  "salonId": "salon_789",
+  "createdAt": "2025-01-15T10:30:00.000Z",
+  "salon": {
+    "id": "salon_789",
+    "name": "Glamour Studio",
+    "address": "123 Main St",
+    "thumbnail": "https://cloudinary.com/...",
+    "images": ["https://cloudinary.com/..."],
+    "venueType": "everyone",
+    "verified": true,
+    "geo": { "latitude": 12.9716, "longitude": 77.5946 },
+    "hours": { "monday": { "open": "09:00", "close": "20:00" } }
+  }
+}
+```
+
 ### Pagination Object
 
 ```json
@@ -56,102 +80,82 @@ Complete reference for favourite/wishlist management endpoints in the ProBeauty 
 
 ### 1) Add to Favourites (Protected) — POST `/api/v1/favourites`
 
-Adds a product to the user's favourites list.
+Adds a product or salon to the user's favourites list.
 
 **Request Body:**
 
 ```json
-{
-  "productId": "prod_456"
-}
+{ "type": "product", "itemId": "prod_456" }
+```
+
+```json
+{ "type": "salon", "itemId": "salon_789" }
 ```
 
 **Fields:**
 
-- `productId` (required): String, CUID format - The product to add to favourites
+| Field    | Required | Type                    | Description                     |
+| -------- | -------- | ----------------------- | ------------------------------- |
+| `type`   | Yes      | `"product"` \| `"salon"` | Which kind of item to favourite |
+| `itemId` | Yes      | String (CUID)           | ID of the product or salon      |
 
 **Success Response (201 Created):**
 
 ```json
 {
-  "message": "Product added to favourites",
-  "data": {
-    "id": "clxxx123456789",
-    "userId": "usr_123",
-    "productId": "prod_456",
-    "createdAt": "2025-01-15T10:30:00.000Z",
-    "product": {
-      "id": "prod_456",
-      "salonId": "salon_789",
-      "title": "Hair Serum",
-      "sku": "HS-001",
-      "price": "499.00",
-      "quantity": 50,
-      "images": ["https://cloudinary.com/..."],
-      "salon": {
-        "id": "salon_789",
-        "name": "Glamour Studio"
-      }
-    }
-  }
+  "message": "Salon added to favourites",
+  "data": { ...SalonFavouriteObject }
 }
 ```
 
-**cURL Command:**
+**cURL — Add product:**
 
 ```bash
 curl -X POST http://localhost:5000/api/v1/favourites \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "productId": "prod_456"
-  }'
+  -d '{ "type": "product", "itemId": "prod_456" }'
+```
+
+**cURL — Add salon:**
+
+```bash
+curl -X POST http://localhost:5000/api/v1/favourites \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "type": "salon", "itemId": "salon_789" }'
 ```
 
 **Errors:**
 
-- 400: Product already in favourites, validation error
-- 401: Not authenticated
-- 404: Product not found
-- 500: Internal server error
+| Status | Reason                                      |
+| ------ | ------------------------------------------- |
+| 401    | Not authenticated                           |
+| 404    | Product / Salon not found                   |
+| 409    | Product / Salon already in favourites       |
+| 422    | Validation error (invalid type or CUID)     |
+| 500    | Internal server error                       |
 
 ---
 
 ### 2) Get User's Favourites (Protected) — GET `/api/v1/favourites`
 
-Retrieves all products in the user's favourites list with pagination.
+Retrieves all favourites of a given type for the authenticated user, with pagination.
 
 **Query Parameters:**
 
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
+| Param   | Required | Default | Description                             |
+| ------- | -------- | ------- | --------------------------------------- |
+| `type`  | Yes      | —       | `"product"` or `"salon"`               |
+| `page`  | No       | `1`     | Page number                             |
+| `limit` | No       | `10`    | Items per page                          |
 
 **Success Response (200 OK):**
 
 ```json
 {
   "message": "Favourites retrieved successfully",
-  "data": [
-    {
-      "id": "clxxx123456789",
-      "userId": "usr_123",
-      "productId": "prod_456",
-      "createdAt": "2025-01-15T10:30:00.000Z",
-      "product": {
-        "id": "prod_456",
-        "salonId": "salon_789",
-        "title": "Hair Serum",
-        "sku": "HS-001",
-        "price": "499.00",
-        "quantity": 50,
-        "images": ["https://cloudinary.com/..."],
-        "salon": {
-          "id": "salon_789",
-          "name": "Glamour Studio"
-        }
-      }
-    }
-  ],
+  "data": [ ...FavouriteObjects ],
   "pagination": {
     "page": 1,
     "limit": 10,
@@ -161,28 +165,41 @@ Retrieves all products in the user's favourites list with pagination.
 }
 ```
 
-**cURL Command:**
+**cURL — Product favourites:**
 
 ```bash
-curl -X GET "http://localhost:5000/api/v1/favourites?page=1&limit=10" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json"
+curl -X GET "http://localhost:5000/api/v1/favourites?type=product&page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**cURL — Salon favourites:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/favourites?type=salon&page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 **Errors:**
 
-- 401: Not authenticated
-- 500: Internal server error
+| Status | Reason                   |
+| ------ | ------------------------ |
+| 401    | Not authenticated        |
+| 422    | Missing or invalid type  |
+| 500    | Internal server error    |
 
 ---
 
-### 3) Check Favourite Status (Protected) — GET `/api/v1/favourites/check/:productId`
+### 3) Check Favourite Status (Protected) — GET `/api/v1/favourites/check/:id`
 
-Checks if a specific product is in the user's favourites.
+Checks if a specific product or salon is in the user's favourites.
 
 **URL Parameters:**
 
-- `productId` (required): String, CUID format - Product ID to check
+- `id` (required): CUID of the product or salon
+
+**Query Parameters:**
+
+- `type` (required): `"product"` or `"salon"`
 
 **Success Response (200 OK):**
 
@@ -190,67 +207,88 @@ Checks if a specific product is in the user's favourites.
 {
   "message": "Favourite status retrieved",
   "data": {
-    "productId": "prod_456",
+    "id": "salon_789",
+    "type": "salon",
     "isFavourited": true
   }
 }
 ```
 
-**cURL Command:**
+**cURL — Check product:**
 
 ```bash
-curl -X GET http://localhost:5000/api/v1/favourites/check/prod_456 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json"
+curl -X GET "http://localhost:5000/api/v1/favourites/check/prod_456?type=product" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**cURL — Check salon:**
+
+```bash
+curl -X GET "http://localhost:5000/api/v1/favourites/check/salon_789?type=salon" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 **Errors:**
 
-- 400: Invalid product ID format
-- 401: Not authenticated
-- 500: Internal server error
+| Status | Reason                           |
+| ------ | -------------------------------- |
+| 401    | Not authenticated                |
+| 422    | Invalid ID format or missing type|
+| 500    | Internal server error            |
 
 ---
 
-### 4) Remove from Favourites (Protected) — DELETE `/api/v1/favourites/:productId`
+### 4) Remove from Favourites (Protected) — DELETE `/api/v1/favourites/:id`
 
-Removes a product from the user's favourites list.
+Removes a product or salon from the user's favourites list.
 
 **URL Parameters:**
 
-- `productId` (required): String, CUID format - Product ID to remove
+- `id` (required): CUID of the product or salon
+
+**Query Parameters:**
+
+- `type` (required): `"product"` or `"salon"`
 
 **Success Response (200 OK):**
 
 ```json
-{
-  "message": "Product removed from favourites"
-}
+{ "message": "Salon removed from favourites" }
 ```
 
-**cURL Command:**
+**cURL — Remove product:**
 
 ```bash
-curl -X DELETE http://localhost:5000/api/v1/favourites/prod_456 \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json"
+curl -X DELETE "http://localhost:5000/api/v1/favourites/prod_456?type=product" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**cURL — Remove salon:**
+
+```bash
+curl -X DELETE "http://localhost:5000/api/v1/favourites/salon_789?type=salon" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 **Errors:**
 
-- 400: Invalid product ID format
-- 401: Not authenticated
-- 404: Favourite not found (product not in favourites)
-- 500: Internal server error
+| Status | Reason                           |
+| ------ | -------------------------------- |
+| 401    | Not authenticated                |
+| 404    | Favourite not found              |
+| 422    | Invalid ID format or missing type|
+| 500    | Internal server error            |
 
 ---
 
 ## Validation Rules
 
-### Product ID
-
-- Must be a valid CUID format
-- Example: "clxxx123456789"
+| Field / Param | Rule                                           |
+| ------------- | ---------------------------------------------- |
+| `type`        | Must be exactly `"product"` or `"salon"`       |
+| `itemId` / `id` | Must be a valid CUID (e.g. `clxxx123456789`) |
+| `page`        | Positive integer, defaults to 1               |
+| `limit`       | Positive integer, defaults to 10              |
 
 ---
 
@@ -267,41 +305,45 @@ curl -X DELETE http://localhost:5000/api/v1/favourites/prod_456 \
 
 ### HTTP Status Codes
 
-- **200**: Success (GET, DELETE)
-- **201**: Created (POST)
-- **400**: Bad Request (validation errors, already favourited)
-- **401**: Unauthorized (not authenticated)
-- **404**: Not Found (product or favourite doesn't exist)
-- **500**: Internal Server Error
+| Code | Meaning                                           |
+| ---- | ------------------------------------------------- |
+| 200  | Success (GET, DELETE)                             |
+| 201  | Created (POST)                                    |
+| 401  | Unauthorized                                      |
+| 404  | Not found (item or favourite doesn't exist)       |
+| 409  | Conflict (item already in favourites)             |
+| 422  | Validation error (bad type, invalid CUID, etc.)   |
+| 500  | Internal server error                             |
 
 ---
 
 ## Database Constraints
 
-### Unique Constraint
-
-Each user can only favourite a product once. The database enforces a unique constraint on the combination of `userId` and `productId`:
+### Product Favourites — `favourites` table
 
 ```prisma
 @@unique([userId, productId])
 ```
 
-Attempting to add the same product twice will return a 400 error.
+### Salon Favourites — `salon_favourites` table
 
-### Cascade Deletion
+```prisma
+@@unique([userId, salonId])
+```
 
-- If a user is deleted, all their favourites are automatically removed
-- If a product is deleted, all favourites referencing it are automatically removed
+Both tables cascade-delete when the referenced user, product, or salon is deleted.
 
 ---
 
 ## Implementation References
 
-- **Router**: `src/routes/favouriteRoute.ts`
-- **Controllers**: `src/controllers/favouriteController.ts`
-- **Services**: `src/services/favouriteService.ts`
-- **Schemas**: `src/schemas/favouriteSchema.ts`
-- **Database Model**: `prisma/schema.prisma` (Favourite model)
+| Layer      | File                                          |
+| ---------- | --------------------------------------------- |
+| Router     | `src/routes/favouriteRoute.ts`                |
+| Controller | `src/controllers/favouriteController.ts`      |
+| Service    | `src/services/favouriteService.ts`            |
+| Schema     | `src/schemas/favouriteSchema.ts`              |
+| DB Models  | `prisma/schema.prisma` — `Favourite`, `SalonFavourite` |
 
 ---
 
@@ -309,60 +351,53 @@ Attempting to add the same product twice will return a 400 error.
 
 ### Frontend Integration
 
-1. Use the check endpoint to display favourite status on product listings
-2. Implement optimistic UI updates for better user experience
-3. Cache favourite status locally to reduce API calls
-4. Handle the "already favourited" error gracefully
+1. Always pass `type` — the API will reject requests without it
+2. Use the `/check/:id?type=` endpoint to display favourite toggle state on listings
+3. Implement optimistic UI updates; roll back on 4xx errors
+4. Use `type=salon` on the salon detail/listing pages, `type=product` on product pages
 
 ### Performance
 
 1. Use pagination when fetching favourites
-2. The favourites are ordered by `createdAt` descending (most recent first)
-3. Product details are included in the response to avoid additional API calls
-
-### User Experience
-
-1. Provide visual feedback when adding/removing favourites
-2. Allow users to easily access their favourites list
-3. Show product availability (quantity) in the favourites list
-4. Consider implementing a "move to cart" feature from favourites
+2. Results are ordered by `createdAt` descending (most recent first)
+3. Salon and product details are included in list/add responses — no extra calls needed
 
 ---
 
 ## Complete Usage Example
 
 ```bash
-# 1. Login to get access token
-LOGIN_RESPONSE=$(curl -s -X POST "http://localhost:5000/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "identifier": "user@example.com",
-    "password": "SecureP@ssw0rd"
-  }')
+ACCESS_TOKEN="YOUR_JWT_TOKEN"
 
-ACCESS_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.accessToken')
-
-# 2. Add a product to favourites
+# Add a salon to favourites
 curl -X POST "http://localhost:5000/api/v1/favourites" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "productId": "prod_456"
-  }'
+  -d '{ "type": "salon", "itemId": "salon_789" }'
 
-# 3. Check if a product is favourited
-curl -X GET "http://localhost:5000/api/v1/favourites/check/prod_456" \
+# Add a product to favourites
+curl -X POST "http://localhost:5000/api/v1/favourites" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json"
+  -H "Content-Type: application/json" \
+  -d '{ "type": "product", "itemId": "prod_456" }'
 
-# 4. Get all favourites
-curl -X GET "http://localhost:5000/api/v1/favourites?page=1&limit=20" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json"
+# List favourite salons
+curl -X GET "http://localhost:5000/api/v1/favourites?type=salon&page=1&limit=10" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
 
-# 5. Remove a product from favourites
-curl -X DELETE "http://localhost:5000/api/v1/favourites/prod_456" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json"
+# List favourite products
+curl -X GET "http://localhost:5000/api/v1/favourites?type=product&page=1&limit=10" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Check if a salon is favourited
+curl -X GET "http://localhost:5000/api/v1/favourites/check/salon_789?type=salon" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Remove a salon from favourites
+curl -X DELETE "http://localhost:5000/api/v1/favourites/salon_789?type=salon" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+
+# Remove a product from favourites
+curl -X DELETE "http://localhost:5000/api/v1/favourites/prod_456?type=product" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
-

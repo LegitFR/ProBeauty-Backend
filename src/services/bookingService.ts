@@ -10,6 +10,7 @@ import {
   type IfthenpayPaymentSession,
   initiateIfthenpayPayment,
 } from '@/services/ifthenpayService';
+import { AppError } from '@/utils/AppError';
 import {
   parseStaffAvailability,
   generateTimeSlots,
@@ -207,8 +208,9 @@ async function assignAvailableStaffToSegments(
     });
 
     if (staffAssignedToService === 0) {
-      throw new Error(
-        `No staff members are assigned to perform service ${segment.serviceId}. Please select a different service or contact the salon.`
+      throw new AppError(
+        `No staff members are assigned to perform service ${segment.serviceId}. Please select a different service or contact the salon.`,
+        400
       );
     }
 
@@ -221,8 +223,9 @@ async function assignAvailableStaffToSegments(
     });
 
     if (candidates.length === 0) {
-      throw new Error(
-        `No staff members are available for service ${segment.serviceId} at the requested time. Please try a different time or select a specific staff member.`
+      throw new AppError(
+        `No staff members are available for service ${segment.serviceId} at the requested time. Please try a different time or select a specific staff member.`,
+        409
       );
     }
 
@@ -377,7 +380,7 @@ function canAssignStaffToSegmentsFromContext(
  */
 function selectRandomStaff(availableStaffIds: string[]): string {
   if (availableStaffIds.length === 0) {
-    throw new Error('No available staff found');
+    throw new AppError('No available staff found', 409);
   }
 
   // Random selection for staff assignment - safe array index access
@@ -394,13 +397,13 @@ export async function createBooking(data: CreateBookingData) {
   // Verify user exists
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
-    throw new Error('User not found');
+    throw new AppError('User not found', 404);
   }
 
   // Verify salon exists
   const salon = await prisma.salon.findUnique({ where: { id: salonId } });
   if (!salon) {
-    throw new Error('Salon not found');
+    throw new AppError('Salon not found', 404);
   }
 
   // Verify all services exist and belong to the salon, calculate total duration
@@ -411,13 +414,13 @@ export async function createBooking(data: CreateBookingData) {
   });
 
   if (services.length !== serviceIds.length) {
-    throw new Error('One or more services not found');
+    throw new AppError('One or more services not found', 404);
   }
 
   // Verify all services belong to the salon
   const invalidServices = services.filter((s) => s.salonId !== salonId);
   if (invalidServices.length > 0) {
-    throw new Error('One or more services do not belong to the specified salon');
+    throw new AppError('One or more services do not belong to the specified salon', 400);
   }
 
   // Calculate total duration from all services
@@ -432,7 +435,7 @@ export async function createBooking(data: CreateBookingData) {
 
   // Check if booking time is in the past
   if (bookingStartTime < new Date()) {
-    throw new Error('Cannot book appointments in the past');
+    throw new AppError('Cannot book appointments in the past', 400);
   }
 
   // Keep the service order as provided by the client
@@ -442,7 +445,7 @@ export async function createBooking(data: CreateBookingData) {
     .filter(Boolean) as (typeof services)[number][];
 
   if (orderedServices.length !== serviceIds.length) {
-    throw new Error('One or more services not found');
+    throw new AppError('One or more services not found', 404);
   }
 
   // Split the booking window into per-service segments (sequential)
@@ -451,7 +454,7 @@ export async function createBooking(data: CreateBookingData) {
   let assignedStaffIds = normalizeStaffIds({ serviceIds, staffId, staffIds });
 
   if (assignedStaffIds && assignedStaffIds.length !== serviceIds.length) {
-    throw new Error('staffIds must contain 1 item or match the number of serviceIds');
+    throw new AppError('staffIds must contain 1 item or match the number of serviceIds', 400);
   }
 
   if (!assignedStaffIds) {
@@ -472,13 +475,13 @@ export async function createBooking(data: CreateBookingData) {
   });
 
   if (staffRecords.length !== uniqueStaffIds.length) {
-    throw new Error('One or more staff members not found');
+    throw new AppError('One or more staff members not found', 404);
   }
 
   const staffById = new Map(staffRecords.map((s) => [s.id, s]));
   for (const staff of staffRecords) {
     if (staff.salonId !== salonId) {
-      throw new Error('Staff does not work at the specified salon');
+      throw new AppError('Staff does not work at the specified salon', 400);
     }
   }
 
@@ -496,7 +499,7 @@ export async function createBooking(data: CreateBookingData) {
     const targetStaffId = assignedStaffIds[i] as string;
     const targetServiceId = serviceIds[i] as string;
     if (!staffServiceSet.has(`${targetStaffId}:${targetServiceId}`)) {
-      throw new Error('Staff cannot perform one or more of the requested services');
+      throw new AppError('Staff cannot perform one or more of the requested services', 400);
     }
   }
 
@@ -517,11 +520,11 @@ export async function createBooking(data: CreateBookingData) {
 
   for (const [targetStaffId, segments] of segmentsByStaff.entries()) {
     const staff = staffById.get(targetStaffId);
-    if (!staff) throw new Error('Staff not found');
+    if (!staff) throw new AppError('Staff not found', 404);
 
     const staffAvailability = parseStaffAvailability(staff.availability);
     if (!staffAvailability) {
-      throw new Error('Staff is not available at the requested time');
+      throw new AppError('Staff is not available at the requested time', 409);
     }
 
     const existingBookings = await prisma.booking.findMany({
@@ -553,11 +556,12 @@ export async function createBooking(data: CreateBookingData) {
           existingBookings
         );
         if (conflict) {
-          throw new Error(
-            `Time slot conflicts with existing booking (${conflict.startTime.toISOString()} - ${conflict.endTime.toISOString()})`
+          throw new AppError(
+            `Time slot conflicts with existing booking (${conflict.startTime.toISOString()} - ${conflict.endTime.toISOString()})`,
+            409
           );
         }
-        throw new Error('Staff is not available at the requested time');
+        throw new AppError('Staff is not available at the requested time', 409);
       }
     }
   }
@@ -681,13 +685,13 @@ export async function createBookingWithPayment(
   });
 
   if (!user) {
-    throw new Error('User not found');
+    throw new AppError('User not found', 404);
   }
 
   // Verify salon exists
   const salon = await prisma.salon.findUnique({ where: { id: salonId } });
   if (!salon) {
-    throw new Error('Salon not found');
+    throw new AppError('Salon not found', 404);
   }
 
   // Verify all services exist and belong to the salon, calculate total duration and price
@@ -698,13 +702,13 @@ export async function createBookingWithPayment(
   });
 
   if (services.length !== serviceIds.length) {
-    throw new Error('One or more services not found');
+    throw new AppError('One or more services not found', 404);
   }
 
   // Verify all services belong to the salon
   const invalidServices = services.filter((s) => s.salonId !== salonId);
   if (invalidServices.length > 0) {
-    throw new Error('One or more services do not belong to the specified salon');
+    throw new AppError('One or more services do not belong to the specified salon', 400);
   }
 
   // Calculate total duration and price from all services
@@ -723,7 +727,7 @@ export async function createBookingWithPayment(
 
   // Check if booking time is in the past
   if (bookingStartTime < new Date()) {
-    throw new Error('Cannot book appointments in the past');
+    throw new AppError('Cannot book appointments in the past', 400);
   }
 
   // Keep the service order as provided by the client
@@ -733,7 +737,7 @@ export async function createBookingWithPayment(
     .filter(Boolean) as (typeof services)[number][];
 
   if (orderedServices.length !== serviceIds.length) {
-    throw new Error('One or more services not found');
+    throw new AppError('One or more services not found', 404);
   }
 
   // Split the booking window into per-service segments (sequential)
@@ -742,7 +746,7 @@ export async function createBookingWithPayment(
   let assignedStaffIds = normalizeStaffIds({ serviceIds, staffId, staffIds });
 
   if (assignedStaffIds && assignedStaffIds.length !== serviceIds.length) {
-    throw new Error('staffIds must contain 1 item or match the number of serviceIds');
+    throw new AppError('staffIds must contain 1 item or match the number of serviceIds', 400);
   }
 
   if (!assignedStaffIds) {
@@ -762,13 +766,13 @@ export async function createBookingWithPayment(
   });
 
   if (staffRecords.length !== uniqueStaffIds.length) {
-    throw new Error('One or more staff members not found');
+    throw new AppError('One or more staff members not found', 404);
   }
 
   const staffById = new Map(staffRecords.map((s) => [s.id, s]));
   for (const staff of staffRecords) {
     if (staff.salonId !== salonId) {
-      throw new Error('Staff does not work at the specified salon');
+      throw new AppError('Staff does not work at the specified salon', 400);
     }
   }
 
@@ -786,7 +790,7 @@ export async function createBookingWithPayment(
     const targetStaffId = assignedStaffIds[i] as string;
     const targetServiceId = serviceIds[i] as string;
     if (!staffServiceSet.has(`${targetStaffId}:${targetServiceId}`)) {
-      throw new Error('Staff cannot perform one or more of the requested services');
+      throw new AppError('Staff cannot perform one or more of the requested services', 400);
     }
   }
 
@@ -807,11 +811,11 @@ export async function createBookingWithPayment(
 
   for (const [targetStaffId, segments] of segmentsByStaff.entries()) {
     const staff = staffById.get(targetStaffId);
-    if (!staff) throw new Error('Staff not found');
+    if (!staff) throw new AppError('Staff not found', 404);
 
     const staffAvailability = parseStaffAvailability(staff.availability);
     if (!staffAvailability) {
-      throw new Error('Staff is not available at the requested time');
+      throw new AppError('Staff is not available at the requested time', 409);
     }
 
     const existingBookings = await prisma.booking.findMany({
@@ -843,11 +847,12 @@ export async function createBookingWithPayment(
           existingBookings
         );
         if (conflict) {
-          throw new Error(
-            `Time slot conflicts with existing booking (${conflict.startTime.toISOString()} - ${conflict.endTime.toISOString()})`
+          throw new AppError(
+            `Time slot conflicts with existing booking (${conflict.startTime.toISOString()} - ${conflict.endTime.toISOString()})`,
+            409
           );
         }
-        throw new Error('Staff is not available at the requested time');
+        throw new AppError('Staff is not available at the requested time', 409);
       }
     }
   }
@@ -912,8 +917,9 @@ export async function createBookingWithPayment(
         error.message.includes('column') &&
         error.message.includes('booking_id')
       ) {
-        throw new Error(
-          'Database migration not applied. Please run: bun run prisma migrate deploy'
+        throw new AppError(
+          'Database migration not applied. Please run: bun run prisma migrate deploy',
+          500
         );
       }
       throw error;
@@ -958,7 +964,7 @@ export async function createBookingWithPayment(
   });
 
   if (!booking) {
-    throw new Error('Failed to create booking');
+    throw new AppError('Failed to create booking', 500);
   }
 
   // Add services to the booking response
@@ -1278,7 +1284,7 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
   // Verify salon exists
   const salon = await prisma.salon.findUnique({ where: { id: salonId } });
   if (!salon) {
-    throw new Error('Salon not found');
+    throw new AppError('Salon not found', 404);
   }
 
   // Verify all services exist and belong to salon
@@ -1289,12 +1295,12 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
   });
 
   if (services.length !== serviceIds.length) {
-    throw new Error('One or more services not found');
+    throw new AppError('One or more services not found', 404);
   }
 
   const invalidServices = services.filter((s) => s.salonId !== salonId);
   if (invalidServices.length > 0) {
-    throw new Error('One or more services do not belong to the specified salon');
+    throw new AppError('One or more services do not belong to the specified salon', 400);
   }
 
   // Calculate total duration from all services
@@ -1315,7 +1321,7 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (requestedDate < today) {
-    throw new Error('Cannot check availability for past dates');
+    throw new AppError('Cannot check availability for past dates', 400);
   }
 
   let slots: { startTime: string; endTime: string; available: boolean }[] = [];
@@ -1325,11 +1331,11 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
     // Verify staff exists and belongs to salon
     const staff = await prisma.staff.findUnique({ where: { id: staffId } });
     if (!staff) {
-      throw new Error('Staff not found');
+      throw new AppError('Staff not found', 404);
     }
 
     if (staff.salonId !== salonId) {
-      throw new Error('Staff does not work at the specified salon');
+      throw new AppError('Staff does not work at the specified salon', 400);
     }
 
     staffInfo = {
@@ -1427,7 +1433,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
   });
 
   if (!existingBooking) {
-    throw new Error('Booking not found');
+    throw new AppError('Booking not found', 404);
   }
 
   // Get services for duration calculation
@@ -1446,7 +1452,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
 
   // Cannot update cancelled or completed bookings
   if (existingBooking.status === 'CANCELLED' || existingBooking.status === 'COMPLETED') {
-    throw new Error(`Cannot update ${existingBooking.status.toLowerCase()} booking`);
+    throw new AppError(`Cannot update ${existingBooking.status.toLowerCase()} booking`, 400);
   }
 
   const updateData: {
@@ -1464,7 +1470,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
 
     // Check if new time is in the past
     if (newStartTime < new Date()) {
-      throw new Error('Cannot reschedule to a time in the past');
+      throw new AppError('Cannot reschedule to a time in the past', 400);
     }
 
     // Determine target staff based on staffId parameter
@@ -1503,17 +1509,17 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       });
 
       if (staffServices.length !== existingBooking.serviceIds.length) {
-        throw new Error('Staff cannot perform one or more of the services in this booking');
+        throw new AppError('Staff cannot perform one or more of the services in this booking', 400);
       }
 
       // Get staff availability
       const staff = await prisma.staff.findUnique({ where: { id: targetStaffId } });
       if (!staff) {
-        throw new Error('Staff not found');
+        throw new AppError('Staff not found', 404);
       }
 
       if (staff.salonId !== existingBooking.salonId) {
-        throw new Error('Staff does not work at this salon');
+        throw new AppError('Staff does not work at this salon', 400);
       }
 
       const staffAvailability = parseStaffAvailability(staff.availability);
@@ -1551,7 +1557,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       );
 
       if (!available) {
-        throw new Error('The requested time slot is not available');
+        throw new AppError('The requested time slot is not available', 409);
       }
     }
 
@@ -1565,8 +1571,9 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
     if (staffId === null) {
       // Removing staff assignment - but we need to check if rescheduling is also happening
       // If not rescheduling, we can't remove staff without a new time
-      throw new Error(
-        'Cannot remove staff assignment without rescheduling. Please provide a new startTime to find available staff.'
+      throw new AppError(
+        'Cannot remove staff assignment without rescheduling. Please provide a new startTime to find available staff.',
+        400
       );
     } else {
       // Assigning or changing staff (without rescheduling)
@@ -1579,16 +1586,16 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       });
 
       if (staffServices.length !== existingBooking.serviceIds.length) {
-        throw new Error('Staff cannot perform one or more of the services in this booking');
+        throw new AppError('Staff cannot perform one or more of the services in this booking', 400);
       }
 
       const staff = await prisma.staff.findUnique({ where: { id: staffId } });
       if (!staff) {
-        throw new Error('Staff not found');
+        throw new AppError('Staff not found', 404);
       }
 
       if (staff.salonId !== existingBooking.salonId) {
-        throw new Error('Staff does not work at this salon');
+        throw new AppError('Staff does not work at this salon', 400);
       }
 
       // Check if staff is available at the existing booking time
@@ -1625,7 +1632,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
       );
 
       if (!available) {
-        throw new Error('Staff is not available at the current booking time');
+        throw new AppError('Staff is not available at the current booking time', 409);
       }
 
       updateData.staffId = staffId;
@@ -1706,15 +1713,15 @@ export async function cancelBooking(id: string) {
   const booking = await prisma.booking.findUnique({ where: { id } });
 
   if (!booking) {
-    throw new Error('Booking not found');
+    throw new AppError('Booking not found', 404);
   }
 
   if (booking.status === 'CANCELLED') {
-    throw new Error('Booking is already cancelled');
+    throw new AppError('Booking is already cancelled', 400);
   }
 
   if (booking.status === 'COMPLETED') {
-    throw new Error('Cannot cancel a completed booking');
+    throw new AppError('Cannot cancel a completed booking', 400);
   }
 
   const updatedBooking = await prisma.booking.update({
@@ -1782,19 +1789,19 @@ export async function confirmBooking(id: string) {
   const booking = await prisma.booking.findUnique({ where: { id } });
 
   if (!booking) {
-    throw new Error('Booking not found');
+    throw new AppError('Booking not found', 404);
   }
 
   if (booking.status === 'CONFIRMED') {
-    throw new Error('Booking is already confirmed');
+    throw new AppError('Booking is already confirmed', 400);
   }
 
   if (booking.status === 'CANCELLED') {
-    throw new Error('Cannot confirm a cancelled booking');
+    throw new AppError('Cannot confirm a cancelled booking', 400);
   }
 
   if (booking.status === 'COMPLETED') {
-    throw new Error('Cannot confirm a completed booking');
+    throw new AppError('Cannot confirm a completed booking', 400);
   }
 
   const updatedBooking = await prisma.booking.update({
@@ -1862,15 +1869,15 @@ export async function completeBooking(id: string) {
   const booking = await prisma.booking.findUnique({ where: { id } });
 
   if (!booking) {
-    throw new Error('Booking not found');
+    throw new AppError('Booking not found', 404);
   }
 
   if (booking.status === 'COMPLETED') {
-    throw new Error('Booking is already completed');
+    throw new AppError('Booking is already completed', 400);
   }
 
   if (booking.status === 'CANCELLED') {
-    throw new Error('Cannot complete a cancelled booking');
+    throw new AppError('Cannot complete a cancelled booking', 400);
   }
 
   const updatedBooking = await prisma.booking.update({

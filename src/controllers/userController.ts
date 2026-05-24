@@ -10,18 +10,18 @@ import {
 export const getCurrentUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
 
     const user = await getUserWithCommerce(req.user.id);
 
     if (!user) {
-      res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
 
-    res.status(200).json({ user });
+    res.status(200).json({ success: true, user });
   } catch (error) {
     next(error);
   }
@@ -30,7 +30,7 @@ export const getCurrentUser = async (req: Request, res: Response, next: NextFunc
 export const updateCurrentUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
 
@@ -39,6 +39,7 @@ export const updateCurrentUser = async (req: Request, res: Response, next: NextF
     const updatedUser = await updateUserProfile(req.user.id, { name, phone });
 
     res.status(200).json({
+      success: true,
       message: 'Profile updated successfully',
       user: updatedUser,
     });
@@ -50,7 +51,7 @@ export const updateCurrentUser = async (req: Request, res: Response, next: NextF
 export const requestEmailChange = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
 
@@ -59,6 +60,7 @@ export const requestEmailChange = async (req: Request, res: Response, next: Next
     await initiateEmailChange(req.user.id, newEmail);
 
     res.status(200).json({
+      success: true,
       message: 'OTP sent to new email for confirmation',
     });
   } catch (error) {
@@ -73,7 +75,7 @@ export const confirmEmailChangeController = async (
 ) => {
   try {
     if (!req.user) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
 
@@ -82,6 +84,7 @@ export const confirmEmailChangeController = async (
     const updatedUser = await confirmEmailChange(req.user.id, newEmail, otp);
 
     res.status(200).json({
+      success: true,
       message: 'Email updated successfully',
       user: updatedUser,
     });

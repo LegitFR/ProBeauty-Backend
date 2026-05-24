@@ -1,16 +1,16 @@
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 import { uploadToCloudinary } from '@/services/fileUploadService';
 import * as staffReviewService from '@/services/staffReviewService';
 import * as staffService from '@/services/staffService';
 
-export async function createStaff(req: Request, res: Response): Promise<void> {
+export async function createStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { name, salonId, serviceId, availability, userId } = req.body;
   const file = req.file as Express.Multer.File | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
-    res.status(401).json({ message: 'User not authenticated' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
     return;
   }
 
@@ -37,39 +37,23 @@ export async function createStaff(req: Request, res: Response): Promise<void> {
     };
 
     res.status(201).json({
+      success: true,
       message: 'Staff member created successfully',
       data: staffData,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === 'Unauthorized: You do not own this salon') {
-        res.status(403).json({ message: error.message });
-        return;
-      }
-      if (error.message === 'User not found') {
-        res.status(400).json({ message: error.message });
-        return;
-      }
-      if (error.message.includes('Service not found or does not belong to this salon')) {
-        res.status(400).json({ message: error.message });
-        return;
-      }
-    }
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getStaff(req: Request, res: Response): Promise<void> {
+export async function getStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { id } = req.params;
 
   try {
     const staff = await staffService.getStaffById(id);
 
     if (!staff) {
-      res.status(404).json({ message: 'Staff member not found' });
+      res.status(404).json({ success: false, message: 'Staff member not found' });
       return;
     }
 
@@ -79,18 +63,16 @@ export async function getStaff(req: Request, res: Response): Promise<void> {
     };
 
     res.status(200).json({
+      success: true,
       message: 'Staff member fetched successfully',
       data: staffData,
     });
   } catch (error) {
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getAllStaff(req: Request, res: Response): Promise<void> {
+export async function getAllStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { page, limit, salonId, serviceId } = req.query;
 
   try {
@@ -109,19 +91,21 @@ export async function getAllStaff(req: Request, res: Response): Promise<void> {
     }));
 
     res.status(200).json({
+      success: true,
       message: 'Staff members retrieved successfully',
       data: staffData,
       pagination: result.pagination,
     });
   } catch (error) {
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getStaffBySalon(req: Request, res: Response): Promise<void> {
+export async function getStaffBySalon(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { salonId } = req.params;
   const { page, limit, serviceId } = req.query;
 
@@ -140,26 +124,24 @@ export async function getStaffBySalon(req: Request, res: Response): Promise<void
     }));
 
     res.status(200).json({
+      success: true,
       message: 'Salon staff retrieved successfully',
       data: staffData,
       pagination: result.pagination,
     });
   } catch (error) {
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function updateStaff(req: Request, res: Response): Promise<void> {
+export async function updateStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { id } = req.params;
   const { name, serviceId, availability, userId } = req.body;
   const file = req.file as Express.Multer.File | undefined;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
-    res.status(401).json({ message: 'User not authenticated' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
     return;
   }
 
@@ -180,7 +162,7 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
     });
 
     if (!staff) {
-      res.status(403).json({ message: 'Unauthorized: You do not own this staff member' });
+      res.status(403).json({ success: false, message: 'You do not own this staff member' });
       return;
     }
 
@@ -190,33 +172,21 @@ export async function updateStaff(req: Request, res: Response): Promise<void> {
     };
 
     res.status(200).json({
+      success: true,
       message: 'Staff member updated successfully',
       data: staffData,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === 'User not found') {
-        res.status(400).json({ message: error.message });
-        return;
-      }
-      if (error.message.includes('Service not found or does not belong to this salon')) {
-        res.status(400).json({ message: error.message });
-        return;
-      }
-    }
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function deleteStaff(req: Request, res: Response): Promise<void> {
+export async function deleteStaff(req: Request, res: Response, next: NextFunction): Promise<void> {
   const { id } = req.params;
   const ownerId = req.user?.id;
 
   if (!ownerId) {
-    res.status(401).json({ message: 'User not authenticated' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
     return;
   }
 
@@ -224,22 +194,21 @@ export async function deleteStaff(req: Request, res: Response): Promise<void> {
     const result = await staffService.deleteStaff(id, ownerId);
 
     if (!result) {
-      res.status(403).json({ message: 'Unauthorized: You do not own this staff member' });
+      res.status(403).json({ success: false, message: 'You do not own this staff member' });
       return;
     }
 
-    res.status(200).json({
-      message: 'Staff member deleted successfully',
-    });
+    res.status(200).json({ success: true, message: 'Staff member deleted successfully' });
   } catch (error) {
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getAvailableStaffByDate(req: Request, res: Response): Promise<void> {
+export async function getAvailableStaffByDate(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { salonId, serviceId, date } = req.query;
 
   try {
@@ -255,15 +224,15 @@ export async function getAvailableStaffByDate(req: Request, res: Response): Prom
       data: result,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getStaffAvailabilityForDate(req: Request, res: Response): Promise<void> {
+export async function getStaffAvailabilityForDate(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { staffId } = req.params;
   const { date } = req.query;
 
@@ -274,10 +243,7 @@ export async function getStaffAvailabilityForDate(req: Request, res: Response): 
     });
 
     if (!result) {
-      res.status(404).json({
-        success: false,
-        message: 'Staff member not found',
-      });
+      res.status(404).json({ success: false, message: 'Staff member not found' });
       return;
     }
 
@@ -287,22 +253,22 @@ export async function getStaffAvailabilityForDate(req: Request, res: Response): 
       data: result,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
 // Staff Review Controllers
 
-export async function createStaffReview(req: Request, res: Response): Promise<void> {
+export async function createStaffReview(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { staffId, bookingId, rating, comment } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
-    res.status(401).json({ message: 'User not authenticated' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
     return;
   }
 
@@ -316,55 +282,45 @@ export async function createStaffReview(req: Request, res: Response): Promise<vo
     });
 
     res.status(201).json({
+      success: true,
       message: 'Staff review created successfully',
       data: review,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      if (
-        error.message.includes('not found') ||
-        error.message.includes('does not belong') ||
-        error.message.includes('unauthorized')
-      ) {
-        res.status(404).json({ message: error.message });
-        return;
-      }
-      if (error.message.includes('already reviewed') || error.message.includes('COMPLETED')) {
-        res.status(400).json({ message: error.message });
-        return;
-      }
-    }
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getStaffReview(req: Request, res: Response): Promise<void> {
+export async function getStaffReview(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { id } = req.params;
 
   try {
     const review = await staffReviewService.getStaffReviewById(id);
 
     if (!review) {
-      res.status(404).json({ message: 'Staff review not found' });
+      res.status(404).json({ success: false, message: 'Staff review not found' });
       return;
     }
 
     res.status(200).json({
+      success: true,
       message: 'Staff review retrieved successfully',
       data: review,
     });
   } catch (error) {
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getStaffReviews(req: Request, res: Response): Promise<void> {
+export async function getStaffReviews(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { staffId } = req.params;
   const { page, limit } = req.query;
 
@@ -377,6 +333,7 @@ export async function getStaffReviews(req: Request, res: Response): Promise<void
     const result = await staffReviewService.getReviewsByStaffId(staffId, filters);
 
     res.status(200).json({
+      success: true,
       message: 'Staff reviews retrieved successfully',
       data: result.reviews,
       averageRating: result.averageRating,
@@ -384,19 +341,20 @@ export async function getStaffReviews(req: Request, res: Response): Promise<void
       pagination: result.pagination,
     });
   } catch (error) {
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function getMyStaffReviews(req: Request, res: Response): Promise<void> {
+export async function getMyStaffReviews(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const userId = req.user?.id;
   const { page, limit } = req.query;
 
   if (!userId) {
-    res.status(401).json({ message: 'User not authenticated' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
     return;
   }
 
@@ -409,85 +367,61 @@ export async function getMyStaffReviews(req: Request, res: Response): Promise<vo
     const result = await staffReviewService.getReviewsByUserId(userId, filters);
 
     res.status(200).json({
+      success: true,
       message: 'Staff reviews retrieved successfully',
       data: result.reviews,
       pagination: result.pagination,
     });
   } catch (error) {
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function updateStaffReview(req: Request, res: Response): Promise<void> {
+export async function updateStaffReview(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { id } = req.params;
   const { rating, comment } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
-    res.status(401).json({ message: 'User not authenticated' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
     return;
   }
 
   try {
-    const review = await staffReviewService.updateStaffReview(id, userId, {
-      rating,
-      comment,
-    });
+    const review = await staffReviewService.updateStaffReview(id, userId, { rating, comment });
 
     res.status(200).json({
+      success: true,
       message: 'Staff review updated successfully',
       data: review,
     });
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === 'Staff review not found') {
-        res.status(404).json({ message: error.message });
-        return;
-      }
-      if (error.message.includes('only update your own reviews')) {
-        res.status(403).json({ message: error.message });
-        return;
-      }
-    }
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }
 
-export async function deleteStaffReview(req: Request, res: Response): Promise<void> {
+export async function deleteStaffReview(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const { id } = req.params;
   const userId = req.user?.id;
 
   if (!userId) {
-    res.status(401).json({ message: 'User not authenticated' });
+    res.status(401).json({ success: false, message: 'Authentication required' });
     return;
   }
 
   try {
     await staffReviewService.deleteStaffReview(id, userId);
 
-    res.status(200).json({
-      message: 'Staff review deleted successfully',
-    });
+    res.status(200).json({ success: true, message: 'Staff review deleted successfully' });
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === 'Staff review not found') {
-        res.status(404).json({ message: error.message });
-        return;
-      }
-      if (error.message.includes('only delete your own reviews')) {
-        res.status(403).json({ message: error.message });
-        return;
-      }
-    }
-    res.status(500).json({
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    next(error);
   }
 }

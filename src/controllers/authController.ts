@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 import { prisma } from '@/configs/db';
 import {
@@ -11,7 +11,7 @@ import {
 import { verifyGoogleToken, findOrCreateGoogleUser } from '@/services/googleOAuthService';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/utils/tokenUtils';
 
-export const signup = async (req: Request, res: Response): Promise<void> => {
+export const signup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { name, email, phone, password, role } = req.body;
 
   try {
@@ -22,7 +22,9 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     });
 
     if (existingUser) {
-      res.status(409).json({ message: 'User already exists with provided email or phone' });
+      res
+        .status(409)
+        .json({ success: false, message: 'User already exists with provided email or phone' });
       return;
     }
 
@@ -48,22 +50,35 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     try {
       await sendRegistrationOtpEmail(email, name, otp);
     } catch (emailError) {
-      console.error('Failed to send registration OTP email:', emailError);
-      // Continue with registration even if email fails
+      // Rollback — delete the created user so they are not stuck with an
+      // unverifiable account. They can re-register once email is working.
+      await prisma.user.delete({ where: { id: user.id } });
+      console.error(
+        'Failed to send registration OTP email, rolling back user creation:',
+        emailError
+      );
+      res.status(503).json({
+        success: false,
+        message: 'Unable to send OTP email. Please try again later.',
+      });
+      return;
     }
 
     res.status(201).json({
-      message: `User registered. OTP sent to email. ${otp}`,
+      success: true,
+      message: 'Registration started. Please verify your email with the OTP sent.',
       userId: user.id,
     });
-    return;
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error', error: (error as Error).message });
-    return;
+    next(error);
   }
 };
 
-export const confirmRegistration = async (req: Request, res: Response): Promise<void> => {
+export const confirmRegistration = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   const { email, otp } = req.body;
 
   try {
@@ -72,25 +87,30 @@ export const confirmRegistration = async (req: Request, res: Response): Promise<
     });
 
     if (!user) {
-      res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ success: false, message: 'No account found with this email address' });
       return;
     }
 
     if (user.otpVerified) {
-      res.status(400).json({ message: 'Account already verified' });
+      res.status(400).json({ success: false, message: 'This account is already verified' });
       return;
     }
 
     if (!user.otp || !user.otpExpiresAt || new Date() > user.otpExpiresAt) {
-      res.status(400).json({ message: 'OTP expired or invalid' });
+      res
+        .status(400)
+        .json({ success: false, message: 'OTP has expired. Please request a new one' });
       return;
     }
 
     const isOtpValid = await bcrypt.compare(otp, user.otp);
     if (!isOtpValid) {
-      res.status(400).json({ message: 'Invalid OTP' });
+      res.status(400).json({ success: false, message: 'Invalid OTP. Please check and try again' });
       return;
     }
+
+    const accessToken = generateAccessToken({ userId: user.id, role: user.role });
+    const refreshToken = generateRefreshToken({ userId: user.id });
 
     await prisma.user.update({
       where: { email },
@@ -99,6 +119,8 @@ export const confirmRegistration = async (req: Request, res: Response): Promise<
         otpExpiresAt: null,
         otpVerified: true,
         isActive: true,
+        refreshToken,
+        lastLogin: new Date(),
       },
     });
 
@@ -106,18 +128,27 @@ export const confirmRegistration = async (req: Request, res: Response): Promise<
       await sendRegistrationSuccessEmail(user.email, user.name);
     } catch (emailError) {
       console.error('Failed to send registration success email:', emailError);
-      // Continue even if email fails - user is already verified
     }
 
-    res.status(200).json({ message: 'Account verified' });
-    return;
+    res.status(200).json({
+      success: true,
+      message: 'Account verified successfully.',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error', error: (error as Error).message });
-    return;
+    next(error);
   }
 };
 
-export const login = async (req: Request, res: Response): Promise<void> => {
+export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { identifier, password } = req.body;
   try {
     const user = await prisma.user.findFirst({
@@ -127,19 +158,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!user || !user.password) {
-      res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({ success: false, message: 'Invalid email/phone or password' });
       return;
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({ success: false, message: 'Invalid email/phone or password' });
       return;
     }
 
-    const isActive = user.isActive;
-    if (!isActive) {
-      res.status(401).json({ message: 'User has been added as inactive' });
+    if (!user.isActive) {
+      res
+        .status(401)
+        .json({ success: false, message: 'Account is inactive. Please verify your email first' });
       return;
     }
 
@@ -155,6 +187,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
 
     res.status(200).json({
+      success: true,
       message: 'Login successful',
       accessToken,
       refreshToken,
@@ -166,14 +199,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         role: user.role,
       },
     });
-    return;
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error', error: (error as Error).message });
-    return;
+    next(error);
   }
 };
 
-export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   const { email } = req.body;
   try {
     const user = await prisma.user.findUnique({
@@ -181,7 +216,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     });
 
     if (!user) {
-      res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ success: false, message: 'No account found with this email address' });
       return;
     }
 
@@ -193,17 +228,15 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       where: { email },
       data: {
         otp: hashedOtp,
-        otpExpiresAt: otpExpiresAt,
+        otpExpiresAt,
       },
     });
 
     await sendResetPasswordOtpEmail(email, user.name, otp);
 
-    res.status(200).json({ message: 'OTP sent to email for password reset' });
-    return;
+    res.status(200).json({ success: true, message: 'OTP sent to your email for password reset' });
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error', error: (error as Error).message });
-    return;
+    next(error);
   }
 };
 
@@ -215,22 +248,64 @@ export const verifyForgotPasswordOtp = async (req: Request, res: Response): Prom
   });
 
   if (!user) {
-    res.status(404).json({ message: 'User not found' });
+    res.status(404).json({ success: false, message: 'No account found with this email address' });
     return;
   }
 
   if (!user.otp || !user.otpExpiresAt || new Date() > user.otpExpiresAt) {
-    res.status(400).json({ message: 'OTP expired or invalid' });
+    res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one' });
     return;
   }
 
   const isOtpValid = await bcrypt.compare(otp, user.otp);
   if (!isOtpValid) {
-    res.status(400).json({ message: 'Invalid OTP' });
+    res.status(400).json({ success: false, message: 'Invalid OTP. Please check and try again' });
     return;
   }
 
-  res.status(200).json({ message: 'OTP verified successfully' });
+  res.status(200).json({ success: true, message: 'OTP verified successfully' });
+};
+
+export const resendRegistrationOtp = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const { email } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, message: 'No account found with this email address' });
+      return;
+    }
+
+    if (user.otpVerified) {
+      res.status(400).json({ success: false, message: 'This account is already verified' });
+      return;
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { email },
+      data: {
+        otp: hashedOtp,
+        otpExpiresAt,
+      },
+    });
+
+    await sendRegistrationOtpEmail(email, user.name, otp);
+
+    res.status(200).json({ success: true, message: 'New OTP sent to your email' });
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const resendForgotPasswordOtp = async (req: Request, res: Response): Promise<void> => {
@@ -241,25 +316,25 @@ export const resendForgotPasswordOtp = async (req: Request, res: Response): Prom
   });
 
   if (!user) {
-    res.status(404).json({ message: 'User not found' });
+    res.status(404).json({ success: false, message: 'No account found with this email address' });
     return;
   }
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const hashedOtp = await bcrypt.hash(otp, 10);
-  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
   await prisma.user.update({
     where: { email },
     data: {
       otp: hashedOtp,
-      otpExpiresAt: otpExpiresAt,
+      otpExpiresAt,
     },
   });
 
   await sendResetPasswordOtpEmail(email, user.name, otp);
 
-  res.status(200).json({ message: 'New OTP sent to email' });
+  res.status(200).json({ success: true, message: 'New OTP sent to your email' });
 };
 
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
@@ -270,18 +345,18 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   });
 
   if (!user) {
-    res.status(404).json({ message: 'User not found' });
+    res.status(404).json({ success: false, message: 'No account found with this email address' });
     return;
   }
 
   if (!user.otp || !user.otpExpiresAt || new Date() > user.otpExpiresAt) {
-    res.status(400).json({ message: 'OTP expired or invalid' });
+    res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one' });
     return;
   }
 
   const isOtpValid = await bcrypt.compare(otp, user.otp);
   if (!isOtpValid) {
-    res.status(400).json({ message: 'Invalid OTP' });
+    res.status(400).json({ success: false, message: 'Invalid OTP. Please check and try again' });
     return;
   }
 
@@ -298,45 +373,43 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
   await sendResetPasswordSuccessEmail(email, user.name);
 
-  res.status(200).json({ message: 'Password reset successfully' });
+  res
+    .status(200)
+    .json({ success: true, message: 'Password reset successfully. You can now log in.' });
 };
 
 export const refreshAccessToken = async (req: Request, res: Response): Promise<void> => {
   const { refreshToken } = req.body;
 
-  // First verify the token is valid JWT before DB lookup
   let decoded;
   try {
     decoded = verifyRefreshToken(refreshToken);
   } catch (error) {
     const errorMessage = (error as Error).message;
-    // Provide specific error codes for frontend to handle appropriately
     if (errorMessage.includes('expired')) {
       res.status(401).json({
-        message: 'Refresh token expired',
+        success: false,
+        message: 'Refresh token has expired. Please log in again.',
         code: 'REFRESH_TOKEN_EXPIRED',
-        error: errorMessage,
       });
       return;
     }
     res.status(401).json({
+      success: false,
       message: 'Invalid refresh token',
       code: 'INVALID_REFRESH_TOKEN',
-      error: errorMessage,
     });
     return;
   }
 
-  // Check if token exists in DB (ensures it hasn't been revoked/rotated)
   const user = await prisma.user.findFirst({
     where: { refreshToken },
   });
 
   if (!user) {
-    // Token was valid JWT but not in DB - could be stolen token after rotation
-    // Optionally: invalidate all sessions for this user as a security measure
     res.status(401).json({
-      message: 'Refresh token has been revoked',
+      success: false,
+      message: 'Refresh token has been revoked. Please log in again.',
       code: 'REFRESH_TOKEN_REVOKED',
     });
     return;
@@ -344,24 +417,23 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<v
 
   if (decoded.userId !== user.id) {
     res.status(401).json({
+      success: false,
       message: 'Invalid refresh token',
       code: 'TOKEN_USER_MISMATCH',
-      error: 'User ID mismatch',
     });
     return;
   }
 
-  // Generate new tokens (token rotation for security)
   const newAccessToken = generateAccessToken({ userId: user.id, role: user.role });
   const newRefreshToken = generateRefreshToken({ userId: user.id });
 
-  // Update refresh token in DB (invalidates old one)
   await prisma.user.update({
     where: { id: user.id },
     data: { refreshToken: newRefreshToken },
   });
 
   res.status(200).json({
+    success: true,
     message: 'Tokens refreshed successfully',
     accessToken: newAccessToken,
     refreshToken: newRefreshToken,
@@ -378,7 +450,7 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
   });
 
   if (!user) {
-    res.status(401).json({ message: 'Invalid refresh token' });
+    res.status(401).json({ success: false, message: 'Invalid refresh token' });
     return;
   }
 
@@ -386,32 +458,27 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     where: { id: user.id },
     data: { refreshToken: null },
   });
-  res.status(200).json({ message: 'Logged out successfully' });
-  return;
+
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
 export const googleAuth = async (req: Request, res: Response): Promise<void> => {
   const { idToken } = req.body;
 
   try {
-    // Verify Google ID token and extract user info
     const googleProfile = await verifyGoogleToken(idToken);
-
-    // Find or create user based on Google profile
     const user = await findOrCreateGoogleUser(googleProfile);
 
-    // Generate JWT tokens
     const accessToken = generateAccessToken({ userId: user.id, role: user.role });
     const refreshToken = generateRefreshToken({ userId: user.id });
 
-    // Store refresh token in database
     await prisma.user.update({
       where: { id: user.id },
       data: { refreshToken },
     });
 
-    // Return response matching login endpoint format
     res.status(200).json({
+      success: true,
       message: 'Google authentication successful',
       accessToken,
       refreshToken,
@@ -423,10 +490,8 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
         role: user.role,
       },
     });
-    return;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Google authentication failed';
-    res.status(401).json({ message: errorMessage });
-    return;
+    res.status(401).json({ success: false, message: errorMessage });
   }
 };

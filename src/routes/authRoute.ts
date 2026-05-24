@@ -4,6 +4,7 @@ import {
   signup,
   login,
   confirmRegistration,
+  resendRegistrationOtp,
   forgotPassword,
   verifyForgotPasswordOtp,
   resendForgotPasswordOtp,
@@ -18,6 +19,7 @@ import {
   signupSchema,
   loginSchema,
   confirmRegistrationSchema,
+  resendRegistrationOtpSchema,
   forgotPasswordSchema,
   verifyForgotPasswordOtpSchema,
   resendForgotPasswordOtpSchema,
@@ -37,6 +39,11 @@ router.post(
   '/confirm-registration',
   validateRequest({ body: confirmRegistrationSchema }),
   confirmRegistration
+);
+router.post(
+  '/resend-registration-otp',
+  validateRequest({ body: resendRegistrationOtpSchema }),
+  resendRegistrationOtp
 );
 router.post('/forgot-password', validateRequest({ body: forgotPasswordSchema }), forgotPassword);
 router.post(

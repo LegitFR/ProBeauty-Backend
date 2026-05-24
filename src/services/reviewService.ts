@@ -1,4 +1,5 @@
 import { prisma } from '@/configs/db';
+import { AppError } from '@/utils/AppError';
 
 interface CreateReviewData {
   userId: string;
@@ -31,7 +32,7 @@ export async function createReview(data: CreateReviewData) {
   });
 
   if (!salon) {
-    throw new Error('Salon not found');
+    throw new AppError('Salon not found', 404);
   }
 
   // Verify service exists if provided
@@ -41,12 +42,12 @@ export async function createReview(data: CreateReviewData) {
     });
 
     if (!service) {
-      throw new Error('Service not found');
+      throw new AppError('Service not found', 404);
     }
 
     // Verify service belongs to the salon
     if (service.salonId !== salonId) {
-      throw new Error('Service does not belong to this salon');
+      throw new AppError('Service does not belong to this salon', 400);
     }
   }
 
@@ -57,12 +58,12 @@ export async function createReview(data: CreateReviewData) {
     });
 
     if (!product) {
-      throw new Error('Product not found');
+      throw new AppError('Product not found', 404);
     }
 
     // Verify product belongs to the salon
     if (product.salonId !== salonId) {
-      throw new Error('Product does not belong to this salon');
+      throw new AppError('Product does not belong to this salon', 400);
     }
   }
 
@@ -256,11 +257,11 @@ export async function updateReview(id: string, userId: string, data: UpdateRevie
   });
 
   if (!review) {
-    throw new Error('Review not found');
+    throw new AppError('Review not found', 404);
   }
 
   if (review.userId !== userId) {
-    throw new Error('Unauthorized: You can only update your own reviews');
+    throw new AppError('Unauthorized: You can only update your own reviews', 403);
   }
 
   return prisma.review.update({
@@ -305,11 +306,11 @@ export async function deleteReview(id: string, userId: string) {
   });
 
   if (!review) {
-    throw new Error('Review not found');
+    throw new AppError('Review not found', 404);
   }
 
   if (review.userId !== userId) {
-    throw new Error('Unauthorized: You can only delete your own reviews');
+    throw new AppError('Unauthorized: You can only delete your own reviews', 403);
   }
 
   return prisma.review.delete({
