@@ -20,6 +20,12 @@ import {
 import { NotificationEvents, notificationEmitter } from '@/utils/eventEmitter';
 import { generatePaymentReference } from '@/utils/paymentUtils';
 
+/**
+ * Booking statuses that do NOT hold a time slot.
+ * PAYMENT_FAILED is included because a failed payment booking must never block future bookings.
+ */
+const NON_BLOCKING_STATUSES = ['CANCELLED', 'NO_SHOW', 'PAYMENT_FAILED'];
+
 interface CreateBookingData {
   userId: string;
   salonId: string;
@@ -107,6 +113,11 @@ function getDayBounds(date: Date): { dayStart: Date; dayEnd: Date } {
   return { dayStart, dayEnd };
 }
 
+/**
+ * Build sequential service segments — used when one staff member handles all services
+ * or when services must be done one after another (auto-assign flow).
+ * Each segment starts where the previous one ended.
+ */
 function buildServiceSegments(
   bookingStartTime: Date,
   orderedServices: { id: string; durationMinutes: number }[]
@@ -124,6 +135,23 @@ function buildServiceSegments(
   return serviceSegments;
 }
 
+/**
+ * Build parallel service segments — used when multiple different staff members are each
+ * assigned to their own service and work simultaneously.
+ * Every segment shares the same startTime; endTime varies by service duration.
+ * The booking window is determined by the LONGEST service (not the sum).
+ */
+function buildParallelServiceSegments(
+  bookingStartTime: Date,
+  orderedServices: { id: string; durationMinutes: number }[]
+): ServiceSegment[] {
+  return orderedServices.map((service) => ({
+    serviceId: service.id,
+    startTime: new Date(bookingStartTime),
+    endTime: new Date(bookingStartTime.getTime() + service.durationMinutes * 60000),
+  }));
+}
+
 async function getExistingBookingsForStaff(staffId: string, date: Date) {
   const { dayStart, dayEnd } = getDayBounds(date);
 
@@ -135,7 +163,7 @@ async function getExistingBookingsForStaff(staffId: string, date: Date) {
         lte: dayEnd,
       },
       status: {
-        notIn: ['CANCELLED', 'NO_SHOW'],
+        notIn: NON_BLOCKING_STATUSES,
       },
     },
     select: {
@@ -300,7 +328,7 @@ async function buildStaffAvailabilityContext(params: {
           lte: dayEnd,
         },
         status: {
-          notIn: ['CANCELLED', 'NO_SHOW'],
+          notIn: NON_BLOCKING_STATUSES,
         },
       },
       select: {
@@ -431,7 +459,6 @@ export async function createBooking(data: CreateBookingData) {
 
   // Parse dates
   const bookingStartTime = new Date(startTime);
-  const bookingEndTime = new Date(bookingStartTime.getTime() + totalDurationMinutes * 60000);
 
   // Check if booking time is in the past
   if (bookingStartTime < new Date()) {
@@ -448,14 +475,27 @@ export async function createBooking(data: CreateBookingData) {
     throw new AppError('One or more services not found', 404);
   }
 
-  // Split the booking window into per-service segments (sequential)
-  const serviceSegments = buildServiceSegments(bookingStartTime, orderedServices);
-
+  // Normalize staff IDs first so we can choose the right segment strategy
   let assignedStaffIds = normalizeStaffIds({ serviceIds, staffId, staffIds });
 
   if (assignedStaffIds && assignedStaffIds.length !== serviceIds.length) {
     throw new AppError('staffIds must contain 1 item or match the number of serviceIds', 400);
   }
+
+  // PARALLEL: multiple different staff explicitly provided → each works their own service
+  //           simultaneously from bookingStartTime; booking window = longest service
+  // SEQUENTIAL: single staff or auto-assign → services run one after another
+  const isParallelBooking = assignedStaffIds !== undefined && new Set(assignedStaffIds).size > 1;
+
+  const serviceSegments = isParallelBooking
+    ? buildParallelServiceSegments(bookingStartTime, orderedServices)
+    : buildServiceSegments(bookingStartTime, orderedServices);
+
+  const bookingDurationMs = isParallelBooking
+    ? Math.max(...orderedServices.map((s) => s.durationMinutes)) * 60000
+    : totalDurationMinutes * 60000;
+
+  const bookingEndTime = new Date(bookingStartTime.getTime() + bookingDurationMs);
 
   if (!assignedStaffIds) {
     assignedStaffIds = await assignAvailableStaffToSegments(salonId, serviceSegments);
@@ -535,7 +575,7 @@ export async function createBooking(data: CreateBookingData) {
           lte: dayEnd,
         },
         status: {
-          notIn: ['CANCELLED', 'NO_SHOW'],
+          notIn: NON_BLOCKING_STATUSES,
         },
       },
       select: { startTime: true, endTime: true },
@@ -723,7 +763,6 @@ export async function createBookingWithPayment(
 
   // Parse dates
   const bookingStartTime = new Date(startTime);
-  const bookingEndTime = new Date(bookingStartTime.getTime() + totalDurationMinutes * 60000);
 
   // Check if booking time is in the past
   if (bookingStartTime < new Date()) {
@@ -740,14 +779,27 @@ export async function createBookingWithPayment(
     throw new AppError('One or more services not found', 404);
   }
 
-  // Split the booking window into per-service segments (sequential)
-  const serviceSegments = buildServiceSegments(bookingStartTime, orderedServices);
-
+  // Normalize staff IDs first so we can choose the right segment strategy
   let assignedStaffIds = normalizeStaffIds({ serviceIds, staffId, staffIds });
 
   if (assignedStaffIds && assignedStaffIds.length !== serviceIds.length) {
     throw new AppError('staffIds must contain 1 item or match the number of serviceIds', 400);
   }
+
+  // PARALLEL: multiple different staff explicitly provided → each works their own service
+  //           simultaneously from bookingStartTime; booking window = longest service
+  // SEQUENTIAL: single staff or auto-assign → services run one after another
+  const isParallelBooking = assignedStaffIds !== undefined && new Set(assignedStaffIds).size > 1;
+
+  const serviceSegments = isParallelBooking
+    ? buildParallelServiceSegments(bookingStartTime, orderedServices)
+    : buildServiceSegments(bookingStartTime, orderedServices);
+
+  const bookingDurationMs = isParallelBooking
+    ? Math.max(...orderedServices.map((s) => s.durationMinutes)) * 60000
+    : totalDurationMinutes * 60000;
+
+  const bookingEndTime = new Date(bookingStartTime.getTime() + bookingDurationMs);
 
   if (!assignedStaffIds) {
     assignedStaffIds = await assignAvailableStaffToSegments(salonId, serviceSegments);
@@ -800,6 +852,30 @@ export async function createBookingWithPayment(
   const dayEnd = new Date(bookingStartTime);
   dayEnd.setHours(23, 59, 59, 999);
 
+  // Auto-cancel any stale PAYMENT_PENDING bookings by this same user that overlap with the
+  // new requested time window. This handles retry scenarios where a previous MBWAY/payment
+  // attempt was initiated but never completed, leaving a ghost booking that blocks the slot.
+  const stalePaymentPendingBookings = await prisma.booking.findMany({
+    where: {
+      userId,
+      salonId,
+      status: BOOKING_STATUS.PAYMENT_PENDING,
+      startTime: { gte: dayStart, lte: dayEnd },
+    },
+    select: { id: true, startTime: true, endTime: true },
+  });
+
+  const overlappingStaleIds = stalePaymentPendingBookings
+    .filter((b) => bookingStartTime < b.endTime && bookingEndTime > b.startTime)
+    .map((b) => b.id);
+
+  if (overlappingStaleIds.length > 0) {
+    await prisma.booking.updateMany({
+      where: { id: { in: overlappingStaleIds } },
+      data: { status: BOOKING_STATUS.CANCELLED },
+    });
+  }
+
   const segmentsByStaff = new Map<string, { startTime: Date; endTime: Date }[]>();
   for (let i = 0; i < serviceSegments.length; i += 1) {
     const staffForSegment = assignedStaffIds[i] as string;
@@ -826,7 +902,7 @@ export async function createBookingWithPayment(
           lte: dayEnd,
         },
         status: {
-          notIn: ['CANCELLED', 'NO_SHOW'],
+          notIn: NON_BLOCKING_STATUSES,
         },
       },
       select: { startTime: true, endTime: true },
@@ -1359,7 +1435,7 @@ export async function getAvailableSlots(query: AvailabilityQuery) {
           lte: dayEnd,
         },
         status: {
-          notIn: ['CANCELLED', 'NO_SHOW'],
+          notIn: NON_BLOCKING_STATUSES,
         },
       },
       select: {
@@ -1539,7 +1615,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
             lte: dayEnd,
           },
           status: {
-            notIn: ['CANCELLED', 'NO_SHOW'],
+            notIn: NON_BLOCKING_STATUSES,
           },
         },
         select: {
@@ -1615,7 +1691,7 @@ export async function updateBooking(id: string, data: UpdateBookingData) {
             lte: dayEnd,
           },
           status: {
-            notIn: ['CANCELLED', 'NO_SHOW'],
+            notIn: NON_BLOCKING_STATUSES,
           },
         },
         select: {
