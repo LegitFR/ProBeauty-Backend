@@ -81,7 +81,9 @@ function formatAmount(amount: number): string {
 }
 
 function buildCallbackUrl(path: string): string {
-  return new URL(path, ensureTrailingSlash(envConfig.BACKEND_PUBLIC_URL)).toString();
+  const url = new URL(path, ensureTrailingSlash(envConfig.BACKEND_PUBLIC_URL));
+  url.searchParams.set('key', envConfig.IFTHENPAY_ANTI_PHISHING_KEY);
+  return url.toString();
 }
 
 function buildReturnUrl(

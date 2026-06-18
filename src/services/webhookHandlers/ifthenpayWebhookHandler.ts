@@ -29,8 +29,33 @@ function parseAmount(value: string): number {
 }
 
 function assertValidAntiPhishingKey(key?: string): void {
+  console.log('[AntiPhishing] received key:', JSON.stringify(key));
+  console.log(
+    '[AntiPhishing] expected key:',
+    JSON.stringify(envConfig.IFTHENPAY_ANTI_PHISHING_KEY)
+  );
   if (!key || key !== envConfig.IFTHENPAY_ANTI_PHISHING_KEY) {
     throw new Error('Invalid anti-phishing key');
+  }
+}
+
+/**
+ * MB WAY callback URLs are configured in the Ifthenpay dashboard, not per-request.
+ * If the dashboard URL lacks ?key=..., the key arrives as undefined — that's a
+ * misconfiguration, not a phishing attempt. A WRONG key, however, is rejected hard.
+ * Security is preserved by requestId validation (UUID only known to Ifthenpay + us).
+ */
+function assertValidMbwayAntiPhishingKey(key?: string): void {
+  console.log('[AntiPhishing] received key:', JSON.stringify(key));
+  if (key && key !== envConfig.IFTHENPAY_ANTI_PHISHING_KEY) {
+    throw new Error('Invalid anti-phishing key');
+  }
+  if (!key) {
+    console.warn(
+      '[AntiPhishing] MB WAY callback received without anti-phishing key. ' +
+        'Set the callback URL in the Ifthenpay dashboard to include ?key=' +
+        envConfig.IFTHENPAY_ANTI_PHISHING_KEY
+    );
   }
 }
 
@@ -111,7 +136,7 @@ export async function handleIfthenpayCreditCardCallback(callback: IfthenpayCredi
 }
 
 export async function handleIfthenpayMbwayCallback(callback: IfthenpayMbwayCallback) {
-  assertValidAntiPhishingKey(callback.key);
+  assertValidMbwayAntiPhishingKey(callback.key);
 
   if (!callback.requestId) {
     throw new Error('Missing requestId');

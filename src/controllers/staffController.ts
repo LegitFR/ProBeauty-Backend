@@ -33,7 +33,7 @@ export async function createStaff(req: Request, res: Response, next: NextFunctio
 
     const staffData = {
       ...staff,
-      availability: staff.availability ? JSON.parse(staff.availability as unknown as string) : null,
+      availability: staff.availability ?? null,
     };
 
     res.status(201).json({
@@ -59,7 +59,7 @@ export async function getStaff(req: Request, res: Response, next: NextFunction):
 
     const staffData = {
       ...staff,
-      availability: staff.availability ? JSON.parse(staff.availability as unknown as string) : null,
+      availability: staff.availability ?? null,
     };
 
     res.status(200).json({
@@ -87,7 +87,7 @@ export async function getAllStaff(req: Request, res: Response, next: NextFunctio
 
     const staffData = result.staff.map((s) => ({
       ...s,
-      availability: s.availability ? JSON.parse(s.availability as unknown as string) : null,
+      availability: s.availability ?? null,
     }));
 
     res.status(200).json({
@@ -120,7 +120,7 @@ export async function getStaffBySalon(
 
     const staffData = result.staff.map((s) => ({
       ...s,
-      availability: s.availability ? JSON.parse(s.availability as unknown as string) : null,
+      availability: s.availability ?? null,
     }));
 
     res.status(200).json({
@@ -168,7 +168,7 @@ export async function updateStaff(req: Request, res: Response, next: NextFunctio
 
     const staffData = {
       ...staff,
-      availability: staff.availability ? JSON.parse(staff.availability as unknown as string) : null,
+      availability: staff.availability ?? null,
     };
 
     res.status(200).json({

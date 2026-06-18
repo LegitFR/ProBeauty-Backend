@@ -12,26 +12,61 @@ interface GeneratedSlot {
 }
 
 /**
- * Parse and validate staff availability JSON
+ * Parse and validate staff availability JSON.
+ * Handles two stored formats:
+ *   Legacy : { monday: ["09:00-17:00"], friday: ["10:00-18:00"] }
+ *   Current: { monday: { isAvailable: true, slots: [{ start, end }] }, ... }
+ * Always returns a fully-populated StaffAvailability with all 7 days present.
  */
 export function parseStaffAvailability(availability: unknown): StaffAvailability | null {
   try {
-    if (!availability) {
+    if (!availability) return null;
+
+    let raw: Record<string, unknown>;
+    if (typeof availability === 'string') {
+      raw = JSON.parse(availability) as Record<string, unknown>;
+    } else if (typeof availability === 'object') {
+      raw = availability as Record<string, unknown>;
+    } else {
       return null;
     }
 
-    // If it's a string, parse it first
-    if (typeof availability === 'string') {
-      const parsed = JSON.parse(availability);
-      return parsed as StaffAvailability;
+    const allDays = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ] as const;
+
+    const result = {} as StaffAvailability;
+
+    for (const day of allDays) {
+      const dayData = raw[day];
+
+      if (!dayData) {
+        // Day absent from stored object → staff not available that day
+        result[day] = { isAvailable: false };
+      } else if (Array.isArray(dayData)) {
+        // Legacy format: ["09:00-17:00", ...]
+        const slots = (dayData as string[])
+          .map((range) => {
+            const parts = range.split('-');
+            return { start: parts[0], end: parts[1] };
+          })
+          .filter((s) => s.start && s.end);
+        result[day] = { isAvailable: slots.length > 0, slots };
+      } else if (typeof dayData === 'object' && dayData !== null && 'isAvailable' in dayData) {
+        // Current format: already { isAvailable, slots? }
+        result[day] = dayData as StaffAvailability[typeof day];
+      } else {
+        result[day] = { isAvailable: false };
+      }
     }
 
-    // If it's already an object, return it
-    if (typeof availability === 'object') {
-      return availability as StaffAvailability;
-    }
-
-    return null;
+    return result;
   } catch {
     return null;
   }
@@ -137,7 +172,7 @@ export function generateTimeSlots(
   const dayAvailability = staffAvailability[dayName];
 
   // If staff is not available on this day
-  if (!dayAvailability.isAvailable || !dayAvailability.slots) {
+  if (!dayAvailability || !dayAvailability.isAvailable || !dayAvailability.slots) {
     return slots;
   }
 
@@ -212,7 +247,7 @@ export function isSlotAvailable(
   const dayAvailability = staffAvailability[dayName];
 
   // Check if staff works on this day of the week
-  if (!dayAvailability.isAvailable || !dayAvailability.slots) {
+  if (!dayAvailability || !dayAvailability.isAvailable || !dayAvailability.slots) {
     return false;
   }
 
