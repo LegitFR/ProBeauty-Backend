@@ -138,8 +138,14 @@ export async function handleIfthenpayCreditCardCallback(callback: IfthenpayCredi
 export async function handleIfthenpayMbwayCallback(callback: IfthenpayMbwayCallback) {
   assertValidMbwayAntiPhishingKey(callback.key);
 
+  // Ifthenpay's backoffice validates a saved callback URL with a bare GET
+  // (no requestId) before accepting it. Treat that as a harmless ack rather
+  // than an error — throwing here would return non-200 and fail validation.
   if (!callback.requestId) {
-    throw new Error('Missing requestId');
+    console.warn(
+      '[IfthenpayWebhook] MB WAY callback received without requestId — acknowledging as a no-op'
+    );
+    return null;
   }
 
   const payment = await getValidatedMbwayPayment(callback.requestId, callback.amount);

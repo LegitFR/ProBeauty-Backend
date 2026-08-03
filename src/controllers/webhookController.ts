@@ -99,6 +99,14 @@ export async function handleIfthenpayMbwayWebhookController(
         typeof req.query.payment_datetime === 'string' ? req.query.payment_datetime : undefined,
     });
 
+    if (!payment) {
+      res.status(200).json({
+        success: true,
+        message: 'If-Then Pay MB WAY callback acknowledged',
+      });
+      return;
+    }
+
     res.status(200).json({
       success: true,
       message: 'If-Then Pay MB WAY callback processed successfully',
