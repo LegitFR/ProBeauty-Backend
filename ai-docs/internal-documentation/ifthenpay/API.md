@@ -158,7 +158,13 @@ Returns persisted payments for the booking. If any pending payment is `MBWAY`, t
 
 **Endpoint:** `GET /api/v1/webhooks/ifthenpay/mbway`
 
-**Query Parameters:**
+**Backoffice URL template:**
+
+```
+{BACKEND_PUBLIC_URL}/api/v1/webhooks/ifthenpay/mbway?key={IFTHENPAY_ANTI_PHISHING_KEY}&orderId=[ORDER_ID]&amount=[AMOUNT]&requestId=[REQUEST_ID]&payment_datetime=[PAYMENT_DATETIME]
+```
+
+**Query Parameters (on payment notification):**
 
 - `key`
 - `orderId`

@@ -80,9 +80,35 @@ function formatAmount(amount: number): string {
   return amount.toFixed(2);
 }
 
+export const IFTHENPAY_MBWAY_CALLBACK_PLACEHOLDERS = {
+  ORDER_ID: '[ORDER_ID]',
+  AMOUNT: '[AMOUNT]',
+  REQUEST_ID: '[REQUEST_ID]',
+  PAYMENT_DATETIME: '[PAYMENT_DATETIME]',
+} as const;
+
 function buildCallbackUrl(path: string): string {
   const url = new URL(path, ensureTrailingSlash(envConfig.BACKEND_PUBLIC_URL));
   url.searchParams.set('key', envConfig.IFTHENPAY_ANTI_PHISHING_KEY);
+  return url.toString();
+}
+
+/**
+ * MB WAY callbacks are configured in the Ifthenpay backoffice with placeholder
+ * query params that Ifthenpay replaces on each successful payment.
+ */
+export function buildMbwayCallbackUrlTemplate(): string {
+  const url = new URL(
+    '/api/v1/webhooks/ifthenpay/mbway',
+    ensureTrailingSlash(envConfig.BACKEND_PUBLIC_URL)
+  );
+
+  url.searchParams.set('key', envConfig.IFTHENPAY_ANTI_PHISHING_KEY);
+  url.searchParams.set('orderId', IFTHENPAY_MBWAY_CALLBACK_PLACEHOLDERS.ORDER_ID);
+  url.searchParams.set('amount', IFTHENPAY_MBWAY_CALLBACK_PLACEHOLDERS.AMOUNT);
+  url.searchParams.set('requestId', IFTHENPAY_MBWAY_CALLBACK_PLACEHOLDERS.REQUEST_ID);
+  url.searchParams.set('payment_datetime', IFTHENPAY_MBWAY_CALLBACK_PLACEHOLDERS.PAYMENT_DATETIME);
+
   return url.toString();
 }
 

@@ -152,7 +152,23 @@ Returned `payment` payload always includes:
 - `GET /api/v1/webhooks/ifthenpay/ccard`
 - `GET /api/v1/webhooks/ifthenpay/mbway`
 
-MB WAY callback parameters:
+### MB WAY Backoffice Callback URL
+
+MB WAY callbacks are configured in the Ifthenpay backoffice (not per payment request). Use the template below, including Ifthenpay placeholder query params:
+
+```
+{BACKEND_PUBLIC_URL}/api/v1/webhooks/ifthenpay/mbway?key={IFTHENPAY_ANTI_PHISHING_KEY}&orderId=[ORDER_ID]&amount=[AMOUNT]&requestId=[REQUEST_ID]&payment_datetime=[PAYMENT_DATETIME]
+```
+
+Production example shape:
+
+```
+https://api.probeautyapp.com/api/v1/webhooks/ifthenpay/mbway?key=YOUR_ANTI_PHISHING_KEY&orderId=%5BORDER_ID%5D&amount=%5BAMOUNT%5D&requestId=%5BREQUEST_ID%5D&payment_datetime=%5BPAYMENT_DATETIME%5D
+```
+
+The backend exposes `buildMbwayCallbackUrlTemplate()` in `ifthenpayService` to generate this URL from environment config.
+
+MB WAY callback parameters on real payment notifications:
 
 - `key`
 - `orderId`

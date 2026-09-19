@@ -1,6 +1,9 @@
 import { envConfig } from '@/configs/env';
 import { PAYMENT_PROVIDER } from '@/constants/paymentStatus';
-import { IFTHENPAY_METHOD } from '@/services/ifthenpayService';
+import {
+  IFTHENPAY_MBWAY_CALLBACK_PLACEHOLDERS,
+  IFTHENPAY_METHOD,
+} from '@/services/ifthenpayService';
 import * as paymentService from '@/services/paymentService';
 
 interface BaseIfthenpayCallback {
@@ -29,34 +32,21 @@ function parseAmount(value: string): number {
 }
 
 function assertValidAntiPhishingKey(key?: string): void {
-  console.log('[AntiPhishing] received key:', JSON.stringify(key));
-  console.log(
-    '[AntiPhishing] expected key:',
-    JSON.stringify(envConfig.IFTHENPAY_ANTI_PHISHING_KEY)
-  );
   if (!key || key !== envConfig.IFTHENPAY_ANTI_PHISHING_KEY) {
     throw new Error('Invalid anti-phishing key');
   }
 }
 
-/**
- * MB WAY callback URLs are configured in the Ifthenpay dashboard, not per-request.
- * If the dashboard URL lacks ?key=..., the key arrives as undefined — that's a
- * misconfiguration, not a phishing attempt. A WRONG key, however, is rejected hard.
- * Security is preserved by requestId validation (UUID only known to Ifthenpay + us).
- */
-function assertValidMbwayAntiPhishingKey(key?: string): void {
-  console.log('[AntiPhishing] received key:', JSON.stringify(key));
-  if (key && key !== envConfig.IFTHENPAY_ANTI_PHISHING_KEY) {
-    throw new Error('Invalid anti-phishing key');
-  }
-  if (!key) {
-    console.warn(
-      '[AntiPhishing] MB WAY callback received without anti-phishing key. ' +
-        'Set the callback URL in the Ifthenpay dashboard to include ?key=' +
-        envConfig.IFTHENPAY_ANTI_PHISHING_KEY
-    );
-  }
+function isMbwayCallbackValidationPing(callback: IfthenpayMbwayCallback): boolean {
+  const placeholderValues = new Set<string>(Object.values(IFTHENPAY_MBWAY_CALLBACK_PLACEHOLDERS));
+
+  return (
+    !callback.requestId ||
+    placeholderValues.has(callback.requestId) ||
+    (callback.orderId !== undefined && placeholderValues.has(callback.orderId)) ||
+    (callback.amount !== undefined && placeholderValues.has(callback.amount)) ||
+    (callback.payment_datetime !== undefined && placeholderValues.has(callback.payment_datetime))
+  );
 }
 
 async function getValidatedCcardPayment(txnId: string, amount: string) {
@@ -136,15 +126,13 @@ export async function handleIfthenpayCreditCardCallback(callback: IfthenpayCredi
 }
 
 export async function handleIfthenpayMbwayCallback(callback: IfthenpayMbwayCallback) {
-  assertValidMbwayAntiPhishingKey(callback.key);
+  assertValidAntiPhishingKey(callback.key);
 
-  // Ifthenpay's backoffice validates a saved callback URL with a bare GET
-  // (no requestId) before accepting it. Treat that as a harmless ack rather
-  // than an error — throwing here would return non-200 and fail validation.
-  if (!callback.requestId) {
-    console.warn(
-      '[IfthenpayWebhook] MB WAY callback received without requestId — acknowledging as a no-op'
-    );
+  // Ifthenpay's backoffice validates the saved callback URL with placeholder
+  // query params before accepting it. Treat that as a harmless ack rather than
+  // an error — throwing here would return non-200 and fail validation.
+  if (isMbwayCallbackValidationPing(callback)) {
+    console.warn('[IfthenpayWebhook] MB WAY callback validation ping acknowledged as a no-op');
     return null;
   }
 
