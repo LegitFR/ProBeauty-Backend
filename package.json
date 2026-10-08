@@ -24,6 +24,7 @@
     "prisma:version": "prisma --version",
     "prisma:lint": "prisma validate",
     "prisma:seed": "ts-node --esm prisma/seed.ts",
+    "salon:assign-images": "tsx prisma/assignSalonImages.ts",
     "prepare": "husky"
   },
   "lint-staged": {
